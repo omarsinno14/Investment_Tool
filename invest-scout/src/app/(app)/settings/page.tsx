@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,11 @@ export default function SettingsPage() {
   useEffect(() => {
     (async () => {
       const res = await fetch("/api/user/profile");
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
       if (res.ok) {
         const data = await res.json();
         const p = data.profile ?? {};
@@ -31,25 +37,40 @@ export default function SettingsPage() {
           riskTolerance: p.riskTolerance ?? "MEDIUM",
           investAmount: p.investAmount ?? "",
         });
+      } else {
+        toast.error("Failed to load profile");
       }
     })();
   }, []);
 
   async function save() {
     setSaving(true);
-    await fetch("/api/user/profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name || undefined,
-        age: form.age === "" ? undefined : Number(form.age),
-        familySituation: form.familySituation || undefined,
-        netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
-        riskTolerance: form.riskTolerance,
-        investAmount: form.investAmount === "" ? undefined : Number(form.investAmount),
-      }),
-    });
-    setSaving(false);
+    try {
+      const res = await fetch("/api/user/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name || undefined,
+          age: form.age === "" ? undefined : Number(form.age),
+          familySituation: form.familySituation || undefined,
+          netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
+          riskTolerance: form.riskTolerance,
+          investAmount: form.investAmount === "" ? undefined : Number(form.investAmount),
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? "Save failed");
+      }
+
+      toast.success("Settings saved");
+    } catch (e) {
+      console.error(e);
+      toast.error("Unable to save settings");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
