@@ -1,6 +1,6 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { prisma } from "@/lib/db";
+import { getPrismaClient } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
 
 export const authOptions: NextAuthOptions = {
@@ -13,6 +13,12 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        const prisma = getPrismaClient();
+        if (!prisma) {
+          console.error("Database unavailable for authorize");
+          return null;
+        }
+
         const email = credentials?.email?.toLowerCase().trim();
         const password = credentials?.password ?? "";
 
@@ -41,7 +47,7 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "dev-secret",
 };
 
 export const { auth, handlers } = NextAuth(authOptions);

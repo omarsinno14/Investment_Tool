@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getPrismaClient } from "@/lib/db";
 import { fetchRss, googleNewsRss } from "@/lib/rss";
 
 export async function POST(req: Request) {
@@ -8,9 +8,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const prisma = getPrismaClient();
+  if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
+
   // Build queries from global interests pool (MVP):
   // We take top distinct user interests to generate queries.
-  const interests = await prisma.userInterest.findMany({
+  const interests = await prisma.interest.findMany({
     select: { value: true, parent: true, type: true },
     take: 2000,
   });

@@ -16,6 +16,9 @@ type Opportunity = {
   source?: string | null;
   publishedAt?: string | null;
   fetchedAt?: string | null;
+  categories?: string[];
+  countries?: string[];
+  keywords?: string[];
   action?: {
     state: "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
     investedAmt?: number | null;
@@ -34,6 +37,8 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
 
   const dateLabel = formatDate(opp.publishedAt ?? opp.fetchedAt);
   const state = opp.action?.state ?? "NONE";
+  const tags = (opp.categories ?? []).slice(0, 2);
+  const keywords = (opp.keywords ?? []).slice(0, 3);
 
   async function setState(nextState: Opportunity["action"]["state"], investedAmt?: number) {
     setBusy(true);
@@ -108,6 +113,25 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
 
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground line-clamp-2">{opp.summary ?? "—"}</p>
+
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          {state === "INVESTED" && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <Banknote className="h-3 w-3" />
+              ${opp.action?.investedAmt?.toLocaleString() ?? "0"}
+            </Badge>
+          )}
+          {tags.map((t) => (
+            <Badge key={`tag-${t}`} variant="outline" className="text-xs">
+              {t}
+            </Badge>
+          ))}
+          {keywords.map((k) => (
+            <Badge key={`kw-${k}`} variant="secondary" className="text-xs">
+              {k}
+            </Badge>
+          ))}
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <Button
