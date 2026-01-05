@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RiskTolerance {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum InterestType {
+  SECTOR
+  INDUSTRY
+  COUNTRY
+  CUSTOM
+}
+
+enum ActionState {
+  NONE
+  SAVED
+  VERY_INTERESTED
+  INVESTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profile   Profile?
+  interests Interest[]
+  actions   OpportunityAction[]
+
+  @@index([email])
+}
+
+model Profile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name            String?
+  age             Int?
+  familySituation String?
+  netWorth        Float?
+  riskTolerance   RiskTolerance @default(MEDIUM)
+  investAmount    Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Interest {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      InterestType
+  value     String
+  parent    String?
+  createdAt DateTime     @default(now())
+
+  @@unique([userId, type, value])
+  @@index([userId])
+}
+
+model Opportunity {
+  id          String    @id @default(cuid())
+  title       String
+  url         String    @unique
+  source      String?
+  summary     String?
+  publishedAt DateTime?
+  fetchedAt   DateTime  @default(now())
+
+  categories String[] @default([])
+  countries  String[] @default([])
+  keywords   String[] @default([])
+
+  actions OpportunityAction[]
+
+  @@index([fetchedAt])
+}
+
+model OpportunityAction {
+  id            String @id @default(cuid())
+  userId        String
+  opportunityId String
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  state       ActionState @default(NONE)
+  investedAmt Float?
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, opportunityId])
+  @@index([userId, state])
+  @@index([opportunityId])
+}
