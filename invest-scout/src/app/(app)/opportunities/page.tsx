@@ -73,12 +73,21 @@ export default function OpportunitiesPage() {
       }
 
       const ct = res.headers.get("content-type") ?? "";
-      if (!ct.includes("application/json")) {
+      const isJson = ct.includes("application/json");
+      const data = isJson ? await res.json() : null;
+
+      if (!res.ok) {
+        const errMsg = isJson
+          ? data?.error || "Failed to load opportunities"
+          : `Unexpected response (${ct})`;
+        throw new Error(errMsg);
+      }
+
+      if (!isJson) {
         const txt = await res.text();
         throw new Error(`Expected JSON, got ${ct}. ${txt.slice(0, 200)}`);
       }
 
-      const data = await res.json();
       setOpps(data.opportunities ?? []);
     } catch (e) {
       console.error(e);

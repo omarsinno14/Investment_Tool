@@ -104,12 +104,26 @@ export function InterestPicker() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/user/interests");
-      if (res.ok) {
+      try {
+        const res = await fetch("/api/user/interests");
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || "Failed to load interests");
+        }
+
         const data = await res.json();
         setSelected(data.interests ?? []);
+      } catch (e) {
+        console.error(e);
+        toast.error("Failed to load interests");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, []);
 
