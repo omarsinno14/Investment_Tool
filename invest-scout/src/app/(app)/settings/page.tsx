@@ -20,14 +20,17 @@ export default function SettingsPage() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/user/profile");
+      const res = await fetch("/api/user/profile", { credentials: "include" });
       if (res.status === 401) {
         window.location.href = "/login";
         return;
       }
 
-      if (res.ok) {
-        const data = await res.json();
+      const ct = res.headers.get("content-type") ?? "";
+      const isJson = ct.includes("application/json");
+      const data = isJson ? await res.json().catch(() => ({})) : {};
+
+      if (res.ok && isJson) {
         const p = data.profile ?? {};
         setForm({
           name: p.name ?? "",
@@ -38,7 +41,8 @@ export default function SettingsPage() {
           investAmount: p.investAmount ?? "",
         });
       } else {
-        toast.error("Failed to load profile");
+        const message = isJson ? data?.error || "Failed to load profile" : "Failed to load profile";
+        throw new Error(message);
       }
     })();
   }, []);
@@ -49,6 +53,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/user/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           name: form.name || undefined,
           age: form.age === "" ? undefined : Number(form.age),
@@ -59,9 +64,17 @@ export default function SettingsPage() {
         }),
       });
 
+      const ct = res.headers.get("content-type") ?? "";
+      const isJson = ct.includes("application/json");
+      const body = isJson ? await res.json().catch(() => ({})) : {};
+
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
         throw new Error(body?.error ?? "Save failed");
+      }
+
+      if (!isJson) {
+        const txt = await res.text();
+        throw new Error(`Unexpected response (${ct}): ${txt.slice(0, 120)}`);
       }
 
       toast.success("Settings saved");

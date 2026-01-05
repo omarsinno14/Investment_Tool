@@ -64,7 +64,7 @@ export default function OpportunitiesPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/opportunities", { cache: "no-store" });
+      const res = await fetch("/api/opportunities", { cache: "no-store", credentials: "include" });
 
       if (res.status === 401) {
         toast.error("Please log in again.");

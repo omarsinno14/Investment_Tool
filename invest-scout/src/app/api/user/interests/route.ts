@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
 
 export async function GET() {
   try {
+    const prisma = getPrismaClient();
+    if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
+
     const userId = await requireUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -22,6 +25,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const prisma = getPrismaClient();
+    if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
+
     const userId = await requireUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

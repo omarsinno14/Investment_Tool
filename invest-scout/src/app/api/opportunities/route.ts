@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
 import type { Interest, Opportunity, OpportunityAction } from "@prisma/client";
 
@@ -9,6 +9,11 @@ function norm(s: string) {
 
 export async function GET() {
   try {
+    const prisma = getPrismaClient();
+    if (!prisma) {
+      return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
+    }
+
     const userId = await requireUserId();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

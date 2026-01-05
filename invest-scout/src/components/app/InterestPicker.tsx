@@ -105,18 +105,26 @@ export function InterestPicker() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/user/interests");
+        const res = await fetch("/api/user/interests", { credentials: "include" });
         if (res.status === 401) {
           window.location.href = "/login";
           return;
         }
 
+        const ct = res.headers.get("content-type") ?? "";
+        const isJson = ct.includes("application/json");
+        const data = isJson ? await res.json().catch(() => ({})) : {};
+
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data?.error || "Failed to load interests");
+          const fallbackMsg = isJson ? data?.error || "Failed to load interests" : "Failed to load interests";
+          throw new Error(fallbackMsg);
         }
 
-        const data = await res.json();
+        if (!isJson) {
+          const txt = await res.text();
+          throw new Error(`Unexpected response (${ct}): ${txt.slice(0, 120)}`);
+        }
+
         setSelected(data.interests ?? []);
       } catch (e) {
         console.error(e);
@@ -183,6 +191,7 @@ export function InterestPicker() {
       const res = await fetch("/api/user/interests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ interests: selected }),
       });
 
