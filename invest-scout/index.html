@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invest Scout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">Invest<span>Scout</span></div>
+    <nav class="nav" aria-label="Primary">
+      <a href="#features">Features</a>
+      <a href="#calculator">Calculator</a>
+      <a href="#insights">Insights</a>
+      <a href="#cta">Get started</a>
+    </nav>
+    <button class="btn ghost" type="button">Login</button>
+  </header>
+
+  <main>
+    <section class="hero" id="top">
+      <div class="hero__text">
+        <p class="eyebrow">Modern investing intelligence</p>
+        <h1>Make confident investment decisions backed by data.</h1>
+        <p class="lede">Invest Scout blends intuitive research tools, risk checks, and growth projections so you can build a portfolio that matches your goals.</p>
+        <div class="hero__actions">
+          <a class="btn primary" href="#calculator">Plan your growth</a>
+          <a class="btn ghost" href="#insights">Explore insights</a>
+        </div>
+        <div class="hero__metrics" role="list">
+          <div class="metric" role="listitem">
+            <p class="metric__value">98%</p>
+            <p class="metric__label">User confidence uplift</p>
+          </div>
+          <div class="metric" role="listitem">
+            <p class="metric__value">15k</p>
+            <p class="metric__label">Research playbooks</p>
+          </div>
+          <div class="metric" role="listitem">
+            <p class="metric__value">24/7</p>
+            <p class="metric__label">Portfolio monitoring</p>
+          </div>
+        </div>
+      </div>
+      <div class="hero__panel" aria-label="Risk overview">
+        <div class="panel__header">
+          <p>Portfolio health</p>
+          <span class="pill pill--success">Stable</span>
+        </div>
+        <div class="panel__body">
+          <div class="panel__stat">
+            <p class="label">Projected 10Y growth</p>
+            <p class="value" id="projected-growth">$142,500</p>
+            <small class="muted">Based on balanced risk tolerance</small>
+          </div>
+          <div class="progress" aria-label="Diversification" role="presentation">
+            <div class="progress__bar" style="width: 68%"></div>
+          </div>
+          <div class="allocation" aria-label="Sample allocation">
+            <div>
+              <span class="dot dot--equity" aria-hidden="true"></span>
+              <p>Equities 55%</p>
+            </div>
+            <div>
+              <span class="dot dot--fixed" aria-hidden="true"></span>
+              <p>Fixed income 30%</p>
+            </div>
+            <div>
+              <span class="dot dot--alts" aria-hidden="true"></span>
+              <p>Alternatives 15%</p>
+            </div>
+          </div>
+        </div>
+        <div class="panel__footer">
+          <button class="btn full" type="button" id="optimize-btn">Optimize allocation</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid" id="features">
+      <article class="card">
+        <div class="icon" aria-hidden="true">📊</div>
+        <h3>Real-time signals</h3>
+        <p>Stay on top of earnings moves, sector rotation, and macro signals curated for your risk profile.</p>
+      </article>
+      <article class="card">
+        <div class="icon" aria-hidden="true">🛡️</div>
+        <h3>Guardrails built-in</h3>
+        <p>Scenario tests, drawdown alerts, and position sizing suggestions protect you before markets move.</p>
+      </article>
+      <article class="card">
+        <div class="icon" aria-hidden="true">🚀</div>
+        <h3>Faster research</h3>
+        <p>Compare companies with smart summaries, uncover catalysts, and export actionable briefs to your team.</p>
+      </article>
+    </section>
+
+    <section class="calculator" id="calculator">
+      <div class="calculator__header">
+        <p class="eyebrow">Projection sandbox</p>
+        <h2>Forecast your portfolio in seconds.</h2>
+        <p>Adjust contributions, expected returns, and risk appetite to see how your plan could evolve.</p>
+      </div>
+      <form class="calc__form" aria-label="Investment calculator">
+        <label>
+          Starting balance
+          <input type="number" min="0" step="100" id="starting-balance" value="10000" required>
+        </label>
+        <label>
+          Monthly contribution
+          <input type="number" min="0" step="50" id="monthly-contribution" value="500" required>
+        </label>
+        <label>
+          Expected annual return (%)
+          <input type="number" min="1" max="20" step="0.5" id="expected-return" value="8" required>
+        </label>
+        <label>
+          Years
+          <input type="number" min="1" max="50" step="1" id="years" value="10" required>
+        </label>
+        <fieldset>
+          <legend>Risk appetite</legend>
+          <div class="chips" role="group" aria-label="Risk appetite">
+            <button class="chip active" type="button" data-risk="conservative">Conservative</button>
+            <button class="chip" type="button" data-risk="balanced">Balanced</button>
+            <button class="chip" type="button" data-risk="aggressive">Aggressive</button>
+          </div>
+        </fieldset>
+      </form>
+      <div class="calc__results" aria-live="polite">
+        <div>
+          <p class="label">Projected balance</p>
+          <p class="value" id="calc-total">$0</p>
+          <small class="muted">Includes monthly contributions</small>
+        </div>
+        <div>
+          <p class="label">Total contributions</p>
+          <p class="value" id="calc-contributions">$0</p>
+          <small class="muted">Principal invested over time</small>
+        </div>
+        <div>
+          <p class="label">Estimated profit</p>
+          <p class="value" id="calc-profit">$0</p>
+          <small class="muted">Assumes steady return</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="insights" id="insights">
+      <div class="insights__header">
+        <p class="eyebrow">Investor insights</p>
+        <h2>Clarity you can share with stakeholders.</h2>
+        <p>Generate concise summaries of your thesis with supporting data points and risk mitigations.</p>
+      </div>
+      <div class="insights__list" role="list">
+        <article class="insight" role="listitem">
+          <div class="insight__label">Playbook</div>
+          <p class="insight__title">Compound growth requires consistent discipline.</p>
+          <p class="muted">Automate transfers and rebalance quarterly to keep allocations on target.</p>
+        </article>
+        <article class="insight" role="listitem">
+          <div class="insight__label">Signal</div>
+          <p class="insight__title">Earnings momentum favors quality leaders.</p>
+          <p class="muted">Track margin expansion and free cash flow to avoid value traps.</p>
+        </article>
+        <article class="insight" role="listitem">
+          <div class="insight__label">Risk check</div>
+          <p class="insight__title">Diversification cuts drawdowns.</p>
+          <p class="muted">Limit any single sector to under 25% exposure and monitor correlations.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="cta" id="cta">
+      <div>
+        <p class="eyebrow">Ready to invest smarter?</p>
+        <h2>Invite your team and build resilient returns together.</h2>
+        <p class="muted">Set up guardrails, align your strategy, and act with confidence.</p>
+      </div>
+      <form class="cta__form" aria-label="Request access">
+        <label class="sr-only" for="email">Work email</label>
+        <input id="email" type="email" placeholder="name@company.com" required>
+        <button class="btn primary" type="submit">Request access</button>
+      </form>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="logo">Invest<span>Scout</span></div>
+    <p class="muted">Built for investors who demand clarity, resilience, and speed.</p>
+    <div class="footer__links">
+      <a href="#top">Back to top</a>
+      <a href="#features">Platform</a>
+      <a href="#calculator">Planner</a>
+      <a href="#insights">Insights</a>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
