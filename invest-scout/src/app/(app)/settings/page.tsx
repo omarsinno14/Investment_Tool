@@ -20,29 +20,34 @@ export default function SettingsPage() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/user/profile", { credentials: "include" });
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
+      try {
+        const res = await fetch("/api/user/profile", { credentials: "include" });
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
 
-      const ct = res.headers.get("content-type") ?? "";
-      const isJson = ct.includes("application/json");
-      const data = isJson ? await res.json().catch(() => ({})) : {};
+        const ct = res.headers.get("content-type") ?? "";
+        const isJson = ct.includes("application/json");
+        const data = isJson ? await res.json().catch(() => ({})) : {};
 
-      if (res.ok && isJson) {
-        const p = data.profile ?? {};
-        setForm({
-          name: p.name ?? "",
-          age: p.age ?? "",
-          familySituation: p.familySituation ?? "",
-          netWorth: p.netWorth ?? "",
-          riskTolerance: p.riskTolerance ?? "MEDIUM",
-          investAmount: p.investAmount ?? "",
-        });
-      } else {
-        const message = isJson ? data?.error || "Failed to load profile" : "Failed to load profile";
-        throw new Error(message);
+        if (res.ok && isJson) {
+          const p = data.profile ?? {};
+          setForm({
+            name: p.name ?? "",
+            age: p.age ?? "",
+            familySituation: p.familySituation ?? "",
+            netWorth: p.netWorth ?? "",
+            riskTolerance: p.riskTolerance ?? "MEDIUM",
+            investAmount: p.investAmount ?? "",
+          });
+        } else {
+          const message = isJson ? data?.error || "Failed to load profile" : "Failed to load profile";
+          throw new Error(message);
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error("Unable to load settings");
       }
     })();
   }, []);
