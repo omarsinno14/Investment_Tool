@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 export default function SettingsPage() {
   const [form, setForm] = useState<any>({
     name: "",
+    imageUrl: "",
     age: "",
     familySituation: "",
     netWorth: "",
@@ -61,6 +63,7 @@ export default function SettingsPage() {
         credentials: "include",
         body: JSON.stringify({
           name: form.name || undefined,
+          imageUrl: form.imageUrl || undefined,
           age: form.age === "" ? undefined : Number(form.age),
           familySituation: form.familySituation || undefined,
           netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
@@ -104,6 +107,28 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label>Name</Label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Profile photo URL</Label>
+            <Input
+              value={form.imageUrl}
+              onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+              placeholder="https://example.com/avatar.jpg"
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>Preview</Label>
+            <div className="flex items-center gap-3">
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={form.imageUrl || undefined} alt="Profile preview" />
+                <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="text-sm text-muted-foreground">
+                Paste a public image URL to update your profile photo.
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">

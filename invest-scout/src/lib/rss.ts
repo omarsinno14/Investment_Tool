@@ -8,6 +8,11 @@ export type RssItem = {
   pubDate?: string;
 };
 
+export type RssSource = {
+  name: string;
+  url: string;
+};
+
 const parser = new Parser();
 
 export async function fetchRss(url: string) {
@@ -20,4 +25,22 @@ export async function fetchRss(url: string) {
 export function googleNewsRss(query: string) {
   const q = encodeURIComponent(query);
   return `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
+}
+
+export function bingNewsRss(query: string) {
+  const q = encodeURIComponent(query);
+  return `https://www.bing.com/news/search?q=${q}&format=rss`;
+}
+
+export function yahooNewsRss(query: string) {
+  const q = encodeURIComponent(query);
+  return `https://news.search.yahoo.com/rss?p=${q}`;
+}
+
+export function buildNewsSources(query: string): RssSource[] {
+  return [
+    { name: "Google News RSS", url: googleNewsRss(query) },
+    { name: "Bing News RSS", url: bingNewsRss(query) },
+    { name: "Yahoo News RSS", url: yahooNewsRss(query) },
+  ];
 }

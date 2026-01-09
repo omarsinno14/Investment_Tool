@@ -3,7 +3,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "InvestScout",
+  title: "Invesco",
   description: "Personalized investment opportunity tracking",
 };
 
