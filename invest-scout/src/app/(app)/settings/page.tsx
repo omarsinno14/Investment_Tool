@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 export default function SettingsPage() {
   const [form, setForm] = useState<any>({
     name: "",
+    username: "",
+    phone: "",
     imageUrl: "",
     age: "",
     familySituation: "",
@@ -19,6 +21,7 @@ export default function SettingsPage() {
     investAmount: "",
   });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -38,6 +41,9 @@ export default function SettingsPage() {
           const p = data.profile ?? {};
           setForm({
             name: p.name ?? "",
+            username: p.username ?? "",
+            phone: p.phone ?? "",
+            imageUrl: p.imageUrl ?? "",
             age: p.age ?? "",
             familySituation: p.familySituation ?? "",
             netWorth: p.netWorth ?? "",
@@ -64,7 +70,8 @@ export default function SettingsPage() {
         credentials: "include",
         body: JSON.stringify({
           name: form.name || undefined,
-          imageUrl: form.imageUrl || undefined,
+          username: form.username || undefined,
+          phone: form.phone || undefined,
           age: form.age === "" ? undefined : Number(form.age),
           familySituation: form.familySituation || undefined,
           netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
@@ -95,6 +102,33 @@ export default function SettingsPage() {
     }
   }
 
+  async function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/user/profile/photo", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Upload failed");
+      }
+      setForm((prev: any) => ({ ...prev, imageUrl: data.imageUrl ?? "" }));
+      toast.success("Profile photo updated");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to upload photo");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -110,31 +144,47 @@ export default function SettingsPage() {
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
 
-          <div className="space-y-2">
-            <Label>Profile photo URL</Label>
-            <Input
-              value={form.imageUrl}
-              onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-              placeholder="https://example.com/avatar.jpg"
-            />
-          </div>
-
           <div className="space-y-2 md:col-span-2">
             <Label>Preview</Label>
             <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={form.imageUrl || undefined} alt="Profile preview" />
-                <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary/70"
+                title="Upload profile photo"
+              >
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={form.imageUrl || undefined} alt="Profile preview" />
+                  <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoChange}
+              />
               <div className="text-sm text-muted-foreground">
-                Paste a public image URL to update your profile photo.
+                Click your avatar to upload a JPG, PNG, or other image.
               </div>
             </div>
+            {uploading && <div className="text-xs text-muted-foreground">Uploading photo...</div>}
           </div>
 
           <div className="space-y-2">
             <Label>Age</Label>
             <Input value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} type="number" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Username</Label>
+            <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Phone number</Label>
+            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
 
           <div className="space-y-2">

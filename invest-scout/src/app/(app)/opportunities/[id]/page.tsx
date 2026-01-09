@@ -31,9 +31,24 @@ type ActionState = "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
 type Opportunity = {
   id: string;
   title: string;
-  url: string;
+  url?: string | null;
   summary?: string | null;
+  details?: string | null;
   source?: string | null;
+  imageUrl?: string | null;
+  imageUrls?: string[] | null;
+  tags?: string[] | null;
+  askAmount?: number | null;
+  benefits?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  contactUsername?: string | null;
+  locationName?: string | null;
+  locationMapUrl?: string | null;
+  createdByUser?: {
+    email?: string | null;
+    profile?: { name?: string | null; username?: string | null; imageUrl?: string | null; phone?: string | null } | null;
+  } | null;
   publishedAt?: string | null;
   fetchedAt?: string | null;
   categories?: string[];
@@ -88,6 +103,7 @@ export default function OpportunityDetailPage() {
       { label: "Categories", values: opportunity.categories ?? [], icon: <Layers className="h-4 w-4" /> },
       { label: "Countries", values: opportunity.countries ?? [], icon: <Globe2 className="h-4 w-4" /> },
       { label: "Keywords", values: opportunity.keywords ?? [], icon: <Tags className="h-4 w-4" /> },
+      { label: "Tags", values: opportunity.tags ?? [], icon: <Tags className="h-4 w-4" /> },
     ];
   }, [opportunity]);
 
@@ -96,6 +112,18 @@ export default function OpportunityDetailPage() {
     const ts = opportunity.publishedAt ?? opportunity.fetchedAt;
     return ts ? new Date(ts).toLocaleString() : "—";
   }, [opportunity]);
+
+  const posterName =
+    opportunity?.createdByUser?.profile?.username ||
+    opportunity?.createdByUser?.profile?.name ||
+    opportunity?.createdByUser?.email ||
+    null;
+
+  const images = (opportunity?.imageUrls?.length
+    ? opportunity?.imageUrls
+    : opportunity?.imageUrl
+      ? [opportunity.imageUrl]
+      : []) as string[];
 
   async function load() {
     const id = params?.id;
@@ -235,11 +263,13 @@ export default function OpportunityDetailPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <a href={opportunity.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2">
-              Open source <ArrowUpRight className="h-4 w-4" />
-            </a>
-          </Button>
+          {opportunity.url && (
+            <Button variant="outline" asChild>
+              <a href={opportunity.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2">
+                Open source <ArrowUpRight className="h-4 w-4" />
+              </a>
+            </Button>
+          )}
           <Button variant="secondary" onClick={() => updateAction("SAVED")} disabled={busy}>
             <Bookmark className="h-4 w-4 mr-2" /> Save
           </Button>
@@ -256,14 +286,28 @@ export default function OpportunityDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-base text-muted-foreground leading-relaxed">
-              {opportunity.summary || "No summary provided yet."}
+              {opportunity.details || opportunity.summary || "No summary provided yet."}
             </p>
+
+            {images.length > 0 && (
+              <div className="grid gap-3 md:grid-cols-2">
+                {images.slice(0, 4).map((src) => (
+                  <div key={src} className="overflow-hidden rounded-lg border bg-muted/20">
+                    <img src={src} alt={opportunity.title} className="h-40 w-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="grid gap-3 md:grid-cols-2">
               <StatRow label="Published" value={formatDate(opportunity.publishedAt)} />
               <StatRow label="Fetched" value={formatDate(opportunity.fetchedAt)} />
               <StatRow label="Source" value={opportunity.source || "—"} />
               <StatRow label="Status" value={state} />
+              {opportunity.askAmount != null && (
+                <StatRow label="Ask amount" value={`$${opportunity.askAmount.toLocaleString()}`} />
+              )}
+              {posterName && <StatRow label="Posted by" value={posterName} />}
             </div>
 
             <Separator />
@@ -289,6 +333,45 @@ export default function OpportunityDetailPage() {
                 </div>
               ))}
             </div>
+
+            {(opportunity.locationName ||
+              opportunity.locationMapUrl ||
+              opportunity.contactEmail ||
+              opportunity.contactPhone ||
+              opportunity.contactUsername ||
+              opportunity.benefits) && (
+              <>
+                <Separator />
+                <div className="space-y-3 text-sm">
+                  <div className="text-sm font-medium">Contact & logistics</div>
+                  {opportunity.locationName && (
+                    <div className="text-muted-foreground">Location: {opportunity.locationName}</div>
+                  )}
+                  {opportunity.locationMapUrl && (
+                    <a
+                      href={opportunity.locationMapUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary underline"
+                    >
+                      View map
+                    </a>
+                  )}
+                  {opportunity.benefits && (
+                    <div className="text-muted-foreground">Benefits: {opportunity.benefits}</div>
+                  )}
+                  {(opportunity.contactEmail ||
+                    opportunity.contactPhone ||
+                    opportunity.contactUsername) && (
+                    <div className="space-y-1 text-muted-foreground">
+                      {opportunity.contactEmail && <div>Email: {opportunity.contactEmail}</div>}
+                      {opportunity.contactPhone && <div>Phone: {opportunity.contactPhone}</div>}
+                      {opportunity.contactUsername && <div>Username: {opportunity.contactUsername}</div>}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
             <Separator />
 

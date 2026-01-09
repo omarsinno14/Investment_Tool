@@ -3,6 +3,14 @@ import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
 import type { Interest, Opportunity, OpportunityAction } from "@prisma/client";
 
+type OpportunityWithUser = Opportunity & {
+  createdByUser?: {
+    id: string;
+    email: string;
+    profile?: { name?: string | null; username?: string | null; imageUrl?: string | null } | null;
+  } | null;
+};
+
 function norm(s: string) {
   return s.toLowerCase();
 }
@@ -29,17 +37,28 @@ export async function GET() {
       .filter(Boolean)
       .map(norm);
 
-    const recent: Opportunity[] = await prisma.opportunity.findMany({
+    const recent: OpportunityWithUser[] = await prisma.opportunity.findMany({
       orderBy: { fetchedAt: "desc" },
       take: 400,
+      include: {
+        createdByUser: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true, username: true, imageUrl: true } },
+          },
+        },
+      },
     });
 
-    const matched: Opportunity[] =
+    const matched: OpportunityWithUser[] =
       terms.length === 0
         ? recent.slice(0, 120)
         : recent
-            .filter((o: Opportunity) => {
-              const hay = norm(`${o.title ?? ""} ${o.summary ?? ""}`);
+            .filter((o: OpportunityWithUser) => {
+              const hay = norm(
+                `${o.title ?? ""} ${o.summary ?? ""} ${o.details ?? ""} ${(o.tags ?? []).join(" ")}`
+              );
               return terms.some((t: string) => t.length >= 2 && hay.includes(t));
             })
             .slice(0, 200);
@@ -54,7 +73,7 @@ export async function GET() {
       actions.map((a: OpportunityAction) => [a.opportunityId, a])
     );
 
-    const opportunities = matched.map((o: Opportunity) => ({
+    const opportunities = matched.map((o: OpportunityWithUser) => ({
       ...o,
       action: map.get(o.id) ?? null,
     }));
