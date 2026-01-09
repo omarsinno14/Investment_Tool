@@ -36,6 +36,7 @@ model User {
   profile   Profile?
   interests Interest[]
   actions   OpportunityAction[]
+  moneyManagement MoneyManagement?
 
   @@index([email])
 }
@@ -46,6 +47,7 @@ model Profile {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name            String?
+  imageUrl        String?
   age             Int?
   familySituation String?
   netWorth        Float?
@@ -106,4 +108,34 @@ model OpportunityAction {
   @@unique([userId, opportunityId])
   @@index([userId, state])
   @@index([opportunityId])
+}
+
+model MoneyManagement {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  incomeMonthly            Float?
+  incomeYearly             Float?
+  taxRate                  Float?
+  locationCountry          String?
+  locationRegion           String?
+  investmentsValue         Float?
+  investmentsCashflow      Float?
+  debts                    Float?
+  liabilities              Float?
+  spendingDaily            Float?
+  spendingWeekly           Float?
+  spendingMonthly          Float?
+  savingsCurrent           Float?
+  dependents               Int?
+  goalSavings              Float?
+  goalInvestments          Float?
+  goalNetWorth             Float?
+  hideSensitive            Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
