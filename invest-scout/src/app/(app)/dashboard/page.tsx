@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 // Optional (only if you installed them)
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type Opportunity = any;
 type Interest = { type: string; value: string };
@@ -142,6 +142,7 @@ export default function DashboardPage() {
   }, [focus.total, profile?.investAmount, opps.length]);
 
   const name = profile?.name ?? "Investor";
+  const imageUrl = profile?.imageUrl ?? "";
 
   return (
     <div className="space-y-6">
@@ -150,6 +151,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-3">
           {/* Optional Avatar */}
           <Avatar className="h-10 w-10">
+            <AvatarImage src={imageUrl} alt={name} />
             <AvatarFallback>{String(name).slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
 
@@ -419,6 +421,16 @@ export default function DashboardPage() {
               <Button asChild variant="outline" className="justify-between">
                 <Link href="/settings">
                   Update profile settings <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-between">
+                <Link href="/messages">
+                  Open messages <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-between">
+                <Link href="/money-management">
+                  Review money management <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
             </CardContent>

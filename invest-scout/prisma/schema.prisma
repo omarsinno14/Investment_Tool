@@ -36,6 +36,9 @@ model User {
   profile   Profile?
   interests Interest[]
   actions   OpportunityAction[]
+  moneyManagement MoneyManagement?
+  messagesSent Message[] @relation("MessageSender")
+  messagesReceived Message[] @relation("MessageRecipient")
 
   @@index([email])
 }
@@ -46,6 +49,9 @@ model Profile {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name            String?
+  imageUrl        String?
+  username        String?
+  phone           String?
   age             Int?
   familySituation String?
   netWorth        Float?
@@ -76,6 +82,7 @@ model Opportunity {
   url         String    @unique
   source      String?
   summary     String?
+  imageUrl    String?
   publishedAt DateTime?
   fetchedAt   DateTime  @default(now())
 
@@ -106,4 +113,70 @@ model OpportunityAction {
   @@unique([userId, opportunityId])
   @@index([userId, state])
   @@index([opportunityId])
+}
+
+model MoneyManagement {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  incomeMonthly            Float?
+  taxRate                  Float?
+  locationCountry          String?
+  locationRegion           String?
+  investmentsValue         Float?
+  investmentsCashflow      Float?
+  debts                    Float?
+  spendingDaily            Float?
+  savingsCurrent           Float?
+  dependents               Int?
+  goalSavings              Float?
+  goalInvestments          Float?
+  hideSensitive            Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Message {
+  id            String   @id @default(cuid())
+  fromUserId    String
+  toUserId      String
+  opportunityId String?
+
+  fromUser      User       @relation("MessageSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser        User       @relation("MessageRecipient", fields: [toUserId], references: [id], onDelete: Cascade)
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  body          String
+  createdAt     DateTime @default(now())
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([opportunityId])
+}
+
+model OpportunityPost {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title           String
+  description     String
+  askAmount       Float?
+  benefits        String?
+  tags            String[] @default([])
+  images          String[] @default([])
+  locationName    String?
+  mapUrl          String?
+  contactEmail    String?
+  contactPhone    String?
+  contactUsername String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }

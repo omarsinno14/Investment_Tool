@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,9 @@ import { Label } from "@/components/ui/label";
 export default function SettingsPage() {
   const [form, setForm] = useState<any>({
     name: "",
+    imageUrl: "",
+    username: "",
+    phone: "",
     age: "",
     familySituation: "",
     netWorth: "",
@@ -17,32 +21,41 @@ export default function SettingsPage() {
     investAmount: "",
   });
   const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/user/profile", { credentials: "include" });
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
+      try {
+        const res = await fetch("/api/user/profile", { credentials: "include" });
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
 
-      const ct = res.headers.get("content-type") ?? "";
-      const isJson = ct.includes("application/json");
-      const data = isJson ? await res.json().catch(() => ({})) : {};
+        const ct = res.headers.get("content-type") ?? "";
+        const isJson = ct.includes("application/json");
+        const data = isJson ? await res.json().catch(() => ({})) : {};
 
-      if (res.ok && isJson) {
-        const p = data.profile ?? {};
-        setForm({
-          name: p.name ?? "",
-          age: p.age ?? "",
-          familySituation: p.familySituation ?? "",
-          netWorth: p.netWorth ?? "",
-          riskTolerance: p.riskTolerance ?? "MEDIUM",
-          investAmount: p.investAmount ?? "",
-        });
-      } else {
-        const message = isJson ? data?.error || "Failed to load profile" : "Failed to load profile";
-        throw new Error(message);
+        if (res.ok && isJson) {
+          const p = data.profile ?? {};
+          setForm({
+            name: p.name ?? "",
+            imageUrl: p.imageUrl ?? "",
+            username: p.username ?? "",
+            phone: p.phone ?? "",
+            age: p.age ?? "",
+            familySituation: p.familySituation ?? "",
+            netWorth: p.netWorth ?? "",
+            riskTolerance: p.riskTolerance ?? "MEDIUM",
+            investAmount: p.investAmount ?? "",
+          });
+        } else {
+          const message = isJson ? data?.error || "Failed to load profile" : "Failed to load profile";
+          throw new Error(message);
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error("Unable to load settings");
       }
     })();
   }, []);
@@ -56,6 +69,9 @@ export default function SettingsPage() {
         credentials: "include",
         body: JSON.stringify({
           name: form.name || undefined,
+          imageUrl: form.imageUrl || undefined,
+          username: form.username || undefined,
+          phone: form.phone || undefined,
           age: form.age === "" ? undefined : Number(form.age),
           familySituation: form.familySituation || undefined,
           netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
@@ -99,6 +115,54 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label>Name</Label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Username</Label>
+            <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Phone</Label>
+            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>Profile photo</Label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="rounded-full border-2 border-dashed border-muted-foreground/40 p-1"
+                onClick={() => fileRef.current?.click()}
+                aria-label="Upload profile photo"
+              >
+                <Avatar className="h-14 w-14">
+                  <AvatarImage src={form.imageUrl || undefined} alt="Profile preview" />
+                  <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              </button>
+              <input
+                ref={fileRef}
+                className="hidden"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const result = reader.result;
+                    if (typeof result === "string") {
+                      setForm((prev: any) => ({ ...prev, imageUrl: result }));
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+              <div className="text-sm text-muted-foreground">
+                Click the avatar to upload a JPG/PNG/GIF and save.
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">

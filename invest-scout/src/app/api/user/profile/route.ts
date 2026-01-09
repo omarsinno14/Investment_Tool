@@ -29,11 +29,15 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null);
     if (!body) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
 
+    const phone = body.phone ? String(body.phone).replace(/[^\d+]/g, "") : null;
     const profile = await prisma.profile.upsert({
       where: { userId },
       create: {
         userId,
         name: body.name ?? null,
+        imageUrl: body.imageUrl ?? null,
+        username: body.username ?? null,
+        phone,
         age: typeof body.age === "number" ? body.age : null,
         familySituation: body.familySituation ?? null,
         netWorth: typeof body.netWorth === "number" ? body.netWorth : null,
@@ -42,6 +46,9 @@ export async function POST(req: Request) {
       },
       update: {
         name: body.name ?? null,
+        imageUrl: body.imageUrl ?? null,
+        username: body.username ?? null,
+        phone,
         age: typeof body.age === "number" ? body.age : null,
         familySituation: body.familySituation ?? null,
         netWorth: typeof body.netWorth === "number" ? body.netWorth : null,
