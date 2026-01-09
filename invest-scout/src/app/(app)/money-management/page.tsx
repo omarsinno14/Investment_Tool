@@ -19,7 +19,6 @@ type MoneyForm = {
   debts: string;
   spendingDaily: string;
   liabilities: string;
-  spendingDaily: string;
   spendingWeekly: string;
   spendingMonthly: string;
   savingsCurrent: string;
@@ -50,7 +49,6 @@ const defaultForm: MoneyForm = {
   debts: "",
   spendingDaily: "",
   liabilities: "",
-  spendingDaily: "",
   spendingWeekly: "",
   spendingMonthly: "",
   savingsCurrent: "",
