@@ -24,7 +24,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
+import { DisclosureBanner } from "@/components/app/DisclosureBanner";
 
 type ActionState = "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
 
@@ -53,6 +55,8 @@ type Opportunity = {
   fetchedAt?: string | null;
   categories?: string[];
   countries?: string[];
+  sectors?: string[] | null;
+  industries?: string[] | null;
   keywords?: string[];
   action?: {
     state: ActionState;
@@ -93,6 +97,8 @@ export default function OpportunityDetailPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [investAmt, setInvestAmt] = useState<string>("");
+  const [replyBody, setReplyBody] = useState("");
+  const [replySending, setReplySending] = useState(false);
 
   const opportunity = data?.opportunity;
   const state = opportunity?.action?.state ?? "NONE";
@@ -102,6 +108,8 @@ export default function OpportunityDetailPage() {
     return [
       { label: "Categories", values: opportunity.categories ?? [], icon: <Layers className="h-4 w-4" /> },
       { label: "Countries", values: opportunity.countries ?? [], icon: <Globe2 className="h-4 w-4" /> },
+      { label: "Sectors", values: opportunity.sectors ?? [], icon: <Layers className="h-4 w-4" /> },
+      { label: "Industries", values: opportunity.industries ?? [], icon: <Layers className="h-4 w-4" /> },
       { label: "Keywords", values: opportunity.keywords ?? [], icon: <Tags className="h-4 w-4" /> },
       { label: "Tags", values: opportunity.tags ?? [], icon: <Tags className="h-4 w-4" /> },
     ];
@@ -198,6 +206,44 @@ export default function OpportunityDetailPage() {
     }
   }
 
+  async function sendReply() {
+    if (!opportunity) return;
+    const identifier =
+      opportunity.createdByUser?.profile?.username || opportunity.createdByUser?.email || "";
+    if (!identifier) {
+      toast.error("No recipient available");
+      return;
+    }
+    if (!replyBody.trim()) {
+      toast.error("Write a message first");
+      return;
+    }
+    setReplySending(true);
+    try {
+      const res = await fetch("/api/user/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          identifier,
+          body: replyBody,
+          opportunityId: opportunity.id,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Message failed");
+      }
+      toast.success("Message sent");
+      setReplyBody("");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to send message");
+    } finally {
+      setReplySending(false);
+    }
+  }
+
   function handleInvested() {
     const num = Number(investAmt);
     if (!Number.isFinite(num) || num < 0) {
@@ -239,6 +285,7 @@ export default function OpportunityDetailPage() {
 
   return (
     <div className="space-y-6">
+      <DisclosureBanner />
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -407,6 +454,27 @@ export default function OpportunityDetailPage() {
         </Card>
 
         <div className="space-y-4">
+          {posterName && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Message the poster</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="text-sm text-muted-foreground">
+                  Send a private reply to {posterName}.
+                </div>
+                <Textarea
+                  value={replyBody}
+                  onChange={(e) => setReplyBody(e.target.value)}
+                  placeholder="Write a message..."
+                  rows={3}
+                />
+                <Button onClick={sendReply} disabled={replySending}>
+                  {replySending ? "Sending..." : "Send message"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Signal snapshot</CardTitle>

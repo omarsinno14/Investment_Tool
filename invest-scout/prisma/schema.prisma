@@ -7,9 +7,12 @@ datasource db {
 }
 
 enum RiskTolerance {
+  EXTREMELY_LOW
   LOW
   MEDIUM
+  MEDIUM_HIGH
   HIGH
+  EXTREMELY_HIGH
 }
 
 enum InterestType {
@@ -53,11 +56,19 @@ model Profile {
   username        String? @unique
   phone           String? @unique
   imageUrl        String?
+  bio             String?
+  occupation      String?
+  currency        String?
   age             Int?
   familySituation String?
   netWorth        Float?
   riskTolerance   RiskTolerance @default(MEDIUM)
   investAmount    Float?
+  emailVerified   Boolean @default(false)
+  phoneVerified   Boolean @default(false)
+  hideAgeFromNonFollowers     Boolean @default(false)
+  hideContactFromNonFollowers Boolean @default(false)
+  hidePhotoFromNonFollowers   Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -100,7 +111,6 @@ model Opportunity {
   fetchedAt   DateTime  @default(now())
 
   categories String[] @default([])
-  countries  String[] @default([])
   keywords   String[] @default([])
 
   actions OpportunityAction[]
@@ -169,9 +179,25 @@ model MoneyManagement {
   goalInvestments          Float?
   goalNetWorth             Float?
   hideSensitive            Boolean @default(false)
+  snapshots               MoneySnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+model MoneySnapshot {
+  id               String   @id @default(cuid())
+  moneyManagementId String
+  grossMonthly     Float
+  netMonthly       Float
+  spendingTotal    Float
+  netCashflow      Float
+  savingsCurrent   Float
+  createdAt        DateTime @default(now())
+
+  moneyManagement MoneyManagement @relation(fields: [moneyManagementId], references: [id], onDelete: Cascade)
+
+  @@index([moneyManagementId, createdAt])
 }

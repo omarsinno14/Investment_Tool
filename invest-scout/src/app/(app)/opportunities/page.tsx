@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { RefreshCcw, Search } from "lucide-react";
+import { PlusCircle, RefreshCcw, Search } from "lucide-react";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
+import { DisclosureBanner } from "@/components/app/DisclosureBanner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -16,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { COUNTRIES_ALL } from "@/lib/countries";
+import { INDUSTRIES_BY_SECTOR, SECTORS } from "@/lib/interests";
 
 type Opportunity = any;
 
@@ -60,6 +64,13 @@ export default function OpportunitiesPage() {
   const [opps, setOpps] = useState<Opportunity[]>([]);
   const [query, setQuery] = useState("");
   const [exclude, setExclude] = useState("");
+  const [tagFilter, setTagFilter] = useState("All");
+  const [countryFilter, setCountryFilter] = useState("All");
+  const [sectorFilter, setSectorFilter] = useState("All");
+  const [industryFilter, setIndustryFilter] = useState("All");
+  const [customTagFilter, setCustomTagFilter] = useState("");
+  const [maxAsk, setMaxAsk] = useState("");
+  const [benefitFilter, setBenefitFilter] = useState("");
   const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED" | "INVESTED">("ALL");
   const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
   const [posting, setPosting] = useState(false);
@@ -82,7 +93,7 @@ export default function OpportunitiesPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/opportunities", { cache: "no-store", credentials: "include" });
+      const res = await fetch("/api/opportunities?type=community", { cache: "no-store", credentials: "include" });
 
       if (res.status === 401) {
         toast.error("Please log in again.");
@@ -190,9 +201,38 @@ export default function OpportunitiesPage() {
 
     if (q) {
       list = list.filter((o: any) => {
-        const hay = `${o.title ?? ""} ${o.summary ?? ""}`.toLowerCase();
+        const hay = `${o.title ?? ""} ${o.summary ?? ""} ${o.details ?? ""}`.toLowerCase();
         return hay.includes(q);
       });
+    }
+
+    const effectiveTag = customTagFilter.trim() || tagFilter;
+    if (effectiveTag && effectiveTag !== "All") {
+      list = list.filter((o: any) => (o.tags ?? []).includes(effectiveTag));
+    }
+
+    if (countryFilter !== "All") {
+      list = list.filter((o: any) => (o.countries ?? []).includes(countryFilter));
+    }
+
+    if (sectorFilter !== "All") {
+      list = list.filter((o: any) => (o.sectors ?? []).includes(sectorFilter));
+    }
+
+    if (industryFilter !== "All") {
+      list = list.filter((o: any) => (o.industries ?? []).includes(industryFilter));
+    }
+
+    if (maxAsk.trim() !== "") {
+      const max = Number(maxAsk);
+      if (Number.isFinite(max)) {
+        list = list.filter((o: any) => (o.askAmount ?? 0) <= max);
+      }
+    }
+
+    if (benefitFilter.trim() !== "") {
+      const term = benefitFilter.toLowerCase();
+      list = list.filter((o: any) => String(o.benefits ?? "").toLowerCase().includes(term));
     }
 
     if (excluded.length) {
@@ -207,7 +247,7 @@ export default function OpportunitiesPage() {
     );
 
     return list;
-  }, [opps, query, tab, sort]);
+  }, [opps, query, tab, sort, tagFilter, customTagFilter, countryFilter, sectorFilter, industryFilter, maxAsk, benefitFilter]);
 
   const kpis = useMemo(() => {
     const total = opps.length;
@@ -269,44 +309,53 @@ export default function OpportunitiesPage() {
       </div>
 
       {/* KPI row */}
-      <div className="grid gap-4 md:grid-cols-5">
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-sm text-muted-foreground">Matched</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 text-2xl font-semibold">{kpis.total}</CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-sm text-muted-foreground">Saved</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 text-2xl font-semibold">{kpis.saved}</CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-sm text-muted-foreground">Interested</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 text-2xl font-semibold">{kpis.interested}</CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-sm text-muted-foreground">Invested</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 text-2xl font-semibold">{kpis.invested}</CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-sm text-muted-foreground">Invested $</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 text-2xl font-semibold">
-            {kpis.investedAmt.toLocaleString()}
-          </CardContent>
-        </Card>
+      <DisclosureBanner />
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">Stats</div>
+        <Button variant="ghost" size="sm" onClick={() => setShowStats((prev) => !prev)}>
+          {showStats ? "Hide stats" : "Show stats"}
+        </Button>
       </div>
+      {showStats && (
+        <div className="grid gap-4 md:grid-cols-5">
+          <Card>
+            <CardHeader className="py-4">
+              <CardTitle className="text-sm text-muted-foreground">Matched</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 text-2xl font-semibold">{kpis.total}</CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-4">
+              <CardTitle className="text-sm text-muted-foreground">Saved</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 text-2xl font-semibold">{kpis.saved}</CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-4">
+              <CardTitle className="text-sm text-muted-foreground">Interested</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 text-2xl font-semibold">{kpis.interested}</CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-4">
+              <CardTitle className="text-sm text-muted-foreground">Invested</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 text-2xl font-semibold">{kpis.invested}</CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="py-4">
+              <CardTitle className="text-sm text-muted-foreground">Invested $</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 text-2xl font-semibold">
+              {kpis.investedAmt.toLocaleString()}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Controls + Content */}
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -435,6 +484,78 @@ export default function OpportunitiesPage() {
                 placeholder="Exclude keywords (comma-separated)"
                 value={exclude}
                 onChange={(e) => setExclude(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Select value={tagFilter} onValueChange={setTagFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Tag" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tagOptions.map((tag) => (
+                    <SelectItem key={tag} value={tag}>
+                      {tag}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                className="w-[160px]"
+                placeholder="Custom tag"
+                value={customTagFilter}
+                onChange={(e) => setCustomTagFilter(e.target.value)}
+              />
+              <Select value={countryFilter} onValueChange={setCountryFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Country" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All</SelectItem>
+                  {COUNTRIES_ALL.map((country) => (
+                    <SelectItem key={country} value={country}>
+                      {country}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={sectorFilter} onValueChange={setSectorFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Sector" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All</SelectItem>
+                  {SECTORS.map((sector) => (
+                    <SelectItem key={sector} value={sector}>
+                      {sector}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All</SelectItem>
+                  {industryOptions.map((industry) => (
+                    <SelectItem key={industry} value={industry}>
+                      {industry}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                className="w-[140px]"
+                type="number"
+                placeholder="Max ask"
+                value={maxAsk}
+                onChange={(e) => setMaxAsk(e.target.value)}
+              />
+              <Input
+                className="w-[180px]"
+                placeholder="Benefit keyword"
+                value={benefitFilter}
+                onChange={(e) => setBenefitFilter(e.target.value)}
               />
             </div>
 

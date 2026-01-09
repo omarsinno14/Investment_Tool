@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function SettingsPage() {
   const [form, setForm] = useState<any>({
@@ -15,10 +16,18 @@ export default function SettingsPage() {
     phone: "",
     imageUrl: "",
     age: "",
+    bio: "",
+    occupation: "",
+    currency: "USD",
     familySituation: "",
     netWorth: "",
     riskTolerance: "MEDIUM",
     investAmount: "",
+    emailVerified: false,
+    phoneVerified: false,
+    hideAgeFromNonFollowers: false,
+    hideContactFromNonFollowers: false,
+    hidePhotoFromNonFollowers: false,
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -45,10 +54,18 @@ export default function SettingsPage() {
             phone: p.phone ?? "",
             imageUrl: p.imageUrl ?? "",
             age: p.age ?? "",
+            bio: p.bio ?? "",
+            occupation: p.occupation ?? "",
+            currency: p.currency ?? "USD",
             familySituation: p.familySituation ?? "",
             netWorth: p.netWorth ?? "",
             riskTolerance: p.riskTolerance ?? "MEDIUM",
             investAmount: p.investAmount ?? "",
+            emailVerified: Boolean(p.emailVerified),
+            phoneVerified: Boolean(p.phoneVerified),
+            hideAgeFromNonFollowers: Boolean(p.hideAgeFromNonFollowers),
+            hideContactFromNonFollowers: Boolean(p.hideContactFromNonFollowers),
+            hidePhotoFromNonFollowers: Boolean(p.hidePhotoFromNonFollowers),
           });
         } else {
           const message = isJson ? data?.error || "Failed to load profile" : "Failed to load profile";
@@ -77,6 +94,11 @@ export default function SettingsPage() {
           netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
           riskTolerance: form.riskTolerance,
           investAmount: form.investAmount === "" ? undefined : Number(form.investAmount),
+          emailVerified: form.emailVerified,
+          phoneVerified: form.phoneVerified,
+          hideAgeFromNonFollowers: form.hideAgeFromNonFollowers,
+          hideContactFromNonFollowers: form.hideContactFromNonFollowers,
+          hidePhotoFromNonFollowers: form.hidePhotoFromNonFollowers,
         }),
       });
 
@@ -198,13 +220,75 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label>Risk tolerance (LOW / MEDIUM / HIGH)</Label>
-            <Input value={form.riskTolerance} onChange={(e) => setForm({ ...form, riskTolerance: e.target.value })} />
+            <Label>Risk tolerance</Label>
+            <div className="space-y-2">
+              <input
+                type="range"
+                min={0}
+                max={riskOptions.length - 1}
+                value={riskIndex}
+                onChange={(e) =>
+                  setForm({ ...form, riskTolerance: riskOptions[Number(e.target.value)] })
+                }
+                className="w-full"
+              />
+              <div className="text-sm text-muted-foreground">
+                {riskLabels[form.riskTolerance as keyof typeof riskLabels]}
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label>Amount you’re looking to invest</Label>
             <Input value={form.investAmount} onChange={(e) => setForm({ ...form, investAmount: e.target.value })} type="number" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Email verified</Label>
+            <input
+              type="checkbox"
+              checked={form.emailVerified}
+              onChange={(e) => setForm({ ...form, emailVerified: e.target.checked })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Phone verified</Label>
+            <input
+              type="checkbox"
+              checked={form.phoneVerified}
+              onChange={(e) => setForm({ ...form, phoneVerified: e.target.checked })}
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>Privacy</Label>
+            <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.hideAgeFromNonFollowers}
+                  onChange={(e) => setForm({ ...form, hideAgeFromNonFollowers: e.target.checked })}
+                />
+                Hide age from non-followers
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.hideContactFromNonFollowers}
+                  onChange={(e) => setForm({ ...form, hideContactFromNonFollowers: e.target.checked })}
+                />
+                Hide contact info from non-followers
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.hidePhotoFromNonFollowers}
+                  onChange={(e) => setForm({ ...form, hidePhotoFromNonFollowers: e.target.checked })}
+                />
+                Hide profile photo from non-followers
+              </label>
+            </div>
           </div>
 
           <div className="md:col-span-2">

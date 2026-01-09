@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Optional (only if you installed them)
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DisclosureBanner } from "@/components/app/DisclosureBanner";
 
 type Opportunity = any;
 type Interest = { type: string; value: string };
@@ -50,7 +51,7 @@ export default function DashboardPage() {
       const [pRes, iRes, oRes] = await Promise.all([
         fetch("/api/user/profile", { cache: "no-store" }),
         fetch("/api/user/interests", { cache: "no-store" }),
-        fetch("/api/opportunities", { cache: "no-store" }),
+        fetch("/api/opportunities?type=community", { cache: "no-store" }),
       ]);
 
       if (pRes.status === 401 || iRes.status === 401 || oRes.status === 401) {
@@ -178,6 +179,7 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Row */}
+      <DisclosureBanner />
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="py-4">
@@ -411,6 +413,11 @@ export default function DashboardPage() {
               <Button asChild variant="outline" className="justify-between">
                 <Link href="/opportunities">
                   Review opportunities <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-between">
+                <Link href="/headlines">
+                  Browse headlines <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild variant="outline" className="justify-between">
