@@ -37,22 +37,11 @@ export async function POST(req: Request) {
       name: body.name ?? null,
       username: cleanUsername || null,
       phone: cleanPhone || null,
-      bio: body.bio ?? null,
-      occupation: body.occupation ?? null,
-      currency: body.currency ?? null,
       age: typeof body.age === "number" ? body.age : null,
       familySituation: body.familySituation ?? null,
       netWorth: typeof body.netWorth === "number" ? body.netWorth : null,
       riskTolerance: body.riskTolerance ?? "MEDIUM",
       investAmount: typeof body.investAmount === "number" ? body.investAmount : null,
-      emailVerified: typeof body.emailVerified === "boolean" ? body.emailVerified : undefined,
-      phoneVerified: typeof body.phoneVerified === "boolean" ? body.phoneVerified : undefined,
-      hideAgeFromNonFollowers:
-        typeof body.hideAgeFromNonFollowers === "boolean" ? body.hideAgeFromNonFollowers : undefined,
-      hideContactFromNonFollowers:
-        typeof body.hideContactFromNonFollowers === "boolean" ? body.hideContactFromNonFollowers : undefined,
-      hidePhotoFromNonFollowers:
-        typeof body.hidePhotoFromNonFollowers === "boolean" ? body.hidePhotoFromNonFollowers : undefined,
     };
 
     const profile = await prisma.profile.upsert({

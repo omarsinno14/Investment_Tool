@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { RefreshCcw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
+import { DisclosureBanner } from "@/components/app/DisclosureBanner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -83,6 +84,8 @@ export default function HeadlinesPage() {
           Refresh
         </Button>
       </div>
+
+      <DisclosureBanner />
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="relative md:w-[320px]">

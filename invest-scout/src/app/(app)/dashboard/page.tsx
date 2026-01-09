@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Optional (only if you installed them)
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DisclosureBanner } from "@/components/app/DisclosureBanner";
 
 type Opportunity = any;
 type Interest = { type: string; value: string };
@@ -178,6 +179,7 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Row */}
+      <DisclosureBanner />
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="py-4">

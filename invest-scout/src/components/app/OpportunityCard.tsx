@@ -19,13 +19,7 @@ type Opportunity = {
   imageUrls?: string[] | null;
   tags?: string[] | null;
   createdByUser?: {
-    profile?: {
-      name?: string | null;
-      username?: string | null;
-      imageUrl?: string | null;
-      emailVerified?: boolean | null;
-      phoneVerified?: boolean | null;
-    } | null;
+    profile?: { name?: string | null; username?: string | null; imageUrl?: string | null } | null;
   } | null;
   publishedAt?: string | null;
   fetchedAt?: string | null;
@@ -55,9 +49,6 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
   const imageUrl = opp.imageUrl ?? opp.imageUrls?.[0] ?? null;
   const poster =
     opp.createdByUser?.profile?.username || opp.createdByUser?.profile?.name || undefined;
-  const isVerified = Boolean(
-    opp.createdByUser?.profile?.emailVerified && opp.createdByUser?.profile?.phoneVerified
-  );
 
   async function setState(nextState: Opportunity["action"]["state"], investedAmt?: number) {
     setBusy(true);
@@ -138,12 +129,7 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
         <div className="flex flex-wrap items-center gap-2">
           {state !== "NONE" && <Badge>{state}</Badge>}
           {opp.source && <Badge variant="secondary">{opp.source}</Badge>}
-          {poster && (
-            <Badge variant="outline">
-              Posted by {poster}
-              {isVerified && <span className="ml-1 text-xs">✓ Verified</span>}
-            </Badge>
-          )}
+          {poster && <Badge variant="outline">Posted by {poster}</Badge>}
           {dateLabel && <span className="text-xs text-muted-foreground">{dateLabel}</span>}
         </div>
       </CardHeader>

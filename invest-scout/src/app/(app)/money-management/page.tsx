@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DisclosureBanner } from "@/components/app/DisclosureBanner";
 
 type MoneyForm = {
   incomeMonthly: string;
@@ -210,6 +211,8 @@ export default function MoneyManagementPage() {
           Track income, spending, and goals to understand your monthly cashflow and net worth.
         </p>
       </div>
+
+      <DisclosureBanner />
 
       <Card>
         <CardHeader>

@@ -26,6 +26,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
+import { DisclosureBanner } from "@/components/app/DisclosureBanner";
 
 type ActionState = "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
 
@@ -47,16 +48,8 @@ type Opportunity = {
   locationName?: string | null;
   locationMapUrl?: string | null;
   createdByUser?: {
-    id?: string;
     email?: string | null;
-    profile?: {
-      name?: string | null;
-      username?: string | null;
-      imageUrl?: string | null;
-      phone?: string | null;
-      emailVerified?: boolean | null;
-      phoneVerified?: boolean | null;
-    } | null;
+    profile?: { name?: string | null; username?: string | null; imageUrl?: string | null; phone?: string | null } | null;
   } | null;
   publishedAt?: string | null;
   fetchedAt?: string | null;
@@ -133,10 +126,6 @@ export default function OpportunityDetailPage() {
     opportunity?.createdByUser?.profile?.name ||
     opportunity?.createdByUser?.email ||
     null;
-  const posterId = opportunity?.createdByUser?.id ?? null;
-  const isVerified = Boolean(
-    opportunity?.createdByUser?.profile?.emailVerified && opportunity?.createdByUser?.profile?.phoneVerified
-  );
 
   const images = (opportunity?.imageUrls?.length
     ? opportunity?.imageUrls
@@ -296,6 +285,7 @@ export default function OpportunityDetailPage() {
 
   return (
     <div className="space-y-6">
+      <DisclosureBanner />
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -364,9 +354,7 @@ export default function OpportunityDetailPage() {
               {opportunity.askAmount != null && (
                 <StatRow label="Ask amount" value={`$${opportunity.askAmount.toLocaleString()}`} />
               )}
-              {posterName && (
-                <StatRow label="Posted by" value={`${posterName}${isVerified ? " (Verified)" : ""}`} />
-              )}
+              {posterName && <StatRow label="Posted by" value={posterName} />}
             </div>
 
             <Separator />
@@ -427,11 +415,6 @@ export default function OpportunityDetailPage() {
                       {opportunity.contactPhone && <div>Phone: {opportunity.contactPhone}</div>}
                       {opportunity.contactUsername && <div>Username: {opportunity.contactUsername}</div>}
                     </div>
-                  )}
-                  {posterId && (
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/users/${posterId}`}>View profile</Link>
-                    </Button>
                   )}
                 </div>
               </>

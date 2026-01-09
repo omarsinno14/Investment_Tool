@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -89,9 +89,6 @@ export default function SettingsPage() {
           name: form.name || undefined,
           username: form.username || undefined,
           phone: form.phone || undefined,
-          bio: form.bio || undefined,
-          occupation: form.occupation || undefined,
-          currency: form.currency || undefined,
           age: form.age === "" ? undefined : Number(form.age),
           familySituation: form.familySituation || undefined,
           netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
@@ -126,30 +123,6 @@ export default function SettingsPage() {
       setSaving(false);
     }
   }
-
-  const riskOptions = useMemo(
-    () => [
-      "EXTREMELY_LOW",
-      "LOW",
-      "MEDIUM",
-      "MEDIUM_HIGH",
-      "HIGH",
-      "EXTREMELY_HIGH",
-    ],
-    []
-  );
-
-  const riskLabels = {
-    EXTREMELY_LOW: "Extremely low",
-    LOW: "Low",
-    MEDIUM: "Medium",
-    MEDIUM_HIGH: "Medium high",
-    HIGH: "High",
-    EXTREMELY_HIGH: "Extremely high",
-  } as const;
-
-  const safeRiskIndex = riskOptions.indexOf(form.riskTolerance);
-  const sliderValue = safeRiskIndex === -1 ? 2 : safeRiskIndex;
 
   async function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -218,14 +191,32 @@ export default function SettingsPage() {
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
 
-          <div className="space-y-2">
-            <Label>Occupation</Label>
-            <Input value={form.occupation} onChange={(e) => setForm({ ...form, occupation: e.target.value })} />
-          </div>
-
           <div className="space-y-2 md:col-span-2">
-            <Label>Bio</Label>
-            <Input value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
+            <Label>Preview</Label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary/70"
+                title="Upload profile photo"
+              >
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={form.imageUrl || undefined} alt="Profile preview" />
+                  <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoChange}
+              />
+              <div className="text-sm text-muted-foreground">
+                Click your avatar to upload a JPG, PNG, or other image.
+              </div>
+            </div>
+            {uploading && <div className="text-xs text-muted-foreground">Uploading photo...</div>}
           </div>
 
           <div className="space-y-2">
@@ -241,22 +232,6 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label>Phone number</Label>
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Preferred currency</Label>
-            <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select currency" />
-              </SelectTrigger>
-              <SelectContent>
-                {["USD", "EUR", "GBP", "CAD", "AUD", "NGN", "KES", "GHS", "ZAR", "INR"].map((cur) => (
-                  <SelectItem key={cur} value={cur}>
-                    {cur}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-2">
@@ -276,7 +251,7 @@ export default function SettingsPage() {
                 type="range"
                 min={0}
                 max={riskOptions.length - 1}
-                value={sliderValue}
+                value={riskIndex}
                 onChange={(e) =>
                   setForm({ ...form, riskTolerance: riskOptions[Number(e.target.value)] })
                 }

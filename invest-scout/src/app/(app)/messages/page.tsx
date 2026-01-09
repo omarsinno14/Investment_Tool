@@ -38,9 +38,6 @@ export default function MessagesPage() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [followSearch, setFollowSearch] = useState("");
-  const [following, setFollowing] = useState<FollowUser[]>([]);
-  const [followers, setFollowers] = useState<FollowUser[]>([]);
   const searchParams = useSearchParams();
 
   async function loadMessages(currentIdentifier = identifier) {
