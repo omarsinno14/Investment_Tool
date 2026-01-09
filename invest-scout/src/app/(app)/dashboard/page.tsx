@@ -423,6 +423,16 @@ export default function DashboardPage() {
                   Update profile settings <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
+              <Button asChild variant="outline" className="justify-between">
+                <Link href="/messages">
+                  Open messages <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-between">
+                <Link href="/money-management">
+                  Review money management <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>

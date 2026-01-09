@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null);
     if (!body) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
 
+    const phone = body.phone ? String(body.phone).replace(/[^\d+]/g, "") : null;
     const profile = await prisma.profile.upsert({
       where: { userId },
       create: {
