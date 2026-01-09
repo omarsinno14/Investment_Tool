@@ -37,8 +37,6 @@ model User {
   interests Interest[]
   actions   OpportunityAction[]
   moneyManagement MoneyManagement?
-  messagesSent Message[] @relation("MessageSender")
-  messagesReceived Message[] @relation("MessageRecipient")
 
   @@index([email])
 }
@@ -50,8 +48,6 @@ model Profile {
 
   name            String?
   imageUrl        String?
-  username        String?
-  phone           String?
   age             Int?
   familySituation String?
   netWorth        Float?
@@ -121,6 +117,7 @@ model MoneyManagement {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   incomeMonthly            Float?
+  incomeYearly             Float?
   taxRate                  Float?
   locationCountry          String?
   locationRegion           String?
@@ -128,32 +125,19 @@ model MoneyManagement {
   investmentsCashflow      Float?
   debts                    Float?
   spendingDaily            Float?
+  liabilities              Float?
+  spendingDaily            Float?
+  spendingWeekly           Float?
+  spendingMonthly          Float?
   savingsCurrent           Float?
   dependents               Int?
   goalSavings              Float?
   goalInvestments          Float?
+  goalNetWorth             Float?
   hideSensitive            Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
-}
-
-model Message {
-  id            String   @id @default(cuid())
-  fromUserId    String
-  toUserId      String
-  opportunityId String?
-
-  fromUser      User       @relation("MessageSender", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser        User       @relation("MessageRecipient", fields: [toUserId], references: [id], onDelete: Cascade)
-  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
-
-  body          String
-  createdAt     DateTime @default(now())
-
-  @@index([fromUserId])
-  @@index([toUserId])
-  @@index([opportunityId])
 }

@@ -16,6 +16,11 @@ export type RssSource = {
   url: string;
 };
 
+export type RssSource = {
+  name: string;
+  url: string;
+};
+
 const parser = new Parser();
 
 export async function fetchRss(url: string) {

@@ -15,7 +15,6 @@ export function Navbar() {
           <Link href="/opportunities" className="hover:underline">Opportunities</Link>
           <Link href="/interests" className="hover:underline">Interests</Link>
           <Link href="/money-management" className="hover:underline">Money management</Link>
-          <Link href="/messages" className="hover:underline">Messages</Link>
           <Link href="/settings" className="hover:underline">Settings</Link>
           <Button variant="outline" onClick={() => signOut({ callbackUrl: "/login" })}>
             Logout

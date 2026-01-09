@@ -12,8 +12,6 @@ export default function SettingsPage() {
   const [form, setForm] = useState<any>({
     name: "",
     imageUrl: "",
-    username: "",
-    phone: "",
     age: "",
     familySituation: "",
     netWorth: "",
@@ -40,9 +38,6 @@ export default function SettingsPage() {
           const p = data.profile ?? {};
           setForm({
             name: p.name ?? "",
-            imageUrl: p.imageUrl ?? "",
-            username: p.username ?? "",
-            phone: p.phone ?? "",
             age: p.age ?? "",
             familySituation: p.familySituation ?? "",
             netWorth: p.netWorth ?? "",
@@ -70,8 +65,6 @@ export default function SettingsPage() {
         body: JSON.stringify({
           name: form.name || undefined,
           imageUrl: form.imageUrl || undefined,
-          username: form.username || undefined,
-          phone: form.phone || undefined,
           age: form.age === "" ? undefined : Number(form.age),
           familySituation: form.familySituation || undefined,
           netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
@@ -118,49 +111,23 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label>Username</Label>
-            <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Phone</Label>
-            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <Label>Profile photo URL</Label>
+            <Input
+              value={form.imageUrl}
+              onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+              placeholder="https://example.com/avatar.jpg"
+            />
           </div>
 
           <div className="space-y-2 md:col-span-2">
-            <Label>Profile photo</Label>
+            <Label>Preview</Label>
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                className="rounded-full border-2 border-dashed border-muted-foreground/40 p-1"
-                onClick={() => fileRef.current?.click()}
-                aria-label="Upload profile photo"
-              >
-                <Avatar className="h-14 w-14">
-                  <AvatarImage src={form.imageUrl || undefined} alt="Profile preview" />
-                  <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-              </button>
-              <input
-                ref={fileRef}
-                className="hidden"
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    const result = reader.result;
-                    if (typeof result === "string") {
-                      setForm((prev: any) => ({ ...prev, imageUrl: result }));
-                    }
-                  };
-                  reader.readAsDataURL(file);
-                }}
-              />
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={form.imageUrl || undefined} alt="Profile preview" />
+                <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
               <div className="text-sm text-muted-foreground">
-                Click the avatar to upload a JPG/PNG/GIF and save.
+                Paste a public image URL to update your profile photo.
               </div>
             </div>
           </div>
