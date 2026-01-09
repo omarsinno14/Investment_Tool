@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 
 type MoneyForm = {
   incomeMonthly: string;
+  incomeYearly: string;
   taxRate: string;
   locationCountry: string;
   locationRegion: string;
@@ -17,15 +18,21 @@ type MoneyForm = {
   investmentsCashflow: string;
   debts: string;
   spendingDaily: string;
+  liabilities: string;
+  spendingDaily: string;
+  spendingWeekly: string;
+  spendingMonthly: string;
   savingsCurrent: string;
   dependents: string;
   goalSavings: string;
   goalInvestments: string;
+  goalNetWorth: string;
   hideSensitive: boolean;
 };
 
 const defaultForm: MoneyForm = {
   incomeMonthly: "",
+  incomeYearly: "",
   taxRate: "",
   locationCountry: "",
   locationRegion: "",
@@ -33,10 +40,15 @@ const defaultForm: MoneyForm = {
   investmentsCashflow: "",
   debts: "",
   spendingDaily: "",
+  liabilities: "",
+  spendingDaily: "",
+  spendingWeekly: "",
+  spendingMonthly: "",
   savingsCurrent: "",
   dependents: "",
   goalSavings: "",
   goalInvestments: "",
+  goalNetWorth: "",
   hideSensitive: false,
 };
 
@@ -75,17 +87,22 @@ export default function MoneyManagementPage() {
         const m = data.money ?? {};
         setForm({
           incomeMonthly: m.incomeMonthly?.toString() ?? "",
+          incomeYearly: m.incomeYearly?.toString() ?? "",
           taxRate: m.taxRate?.toString() ?? "",
           locationCountry: m.locationCountry ?? "",
           locationRegion: m.locationRegion ?? "",
           investmentsValue: m.investmentsValue?.toString() ?? "",
           investmentsCashflow: m.investmentsCashflow?.toString() ?? "",
           debts: m.debts?.toString() ?? "",
+          liabilities: m.liabilities?.toString() ?? "",
           spendingDaily: m.spendingDaily?.toString() ?? "",
+          spendingWeekly: m.spendingWeekly?.toString() ?? "",
+          spendingMonthly: m.spendingMonthly?.toString() ?? "",
           savingsCurrent: m.savingsCurrent?.toString() ?? "",
           dependents: m.dependents?.toString() ?? "",
           goalSavings: m.goalSavings?.toString() ?? "",
           goalInvestments: m.goalInvestments?.toString() ?? "",
+          goalNetWorth: m.goalNetWorth?.toString() ?? "",
           hideSensitive: Boolean(m.hideSensitive),
         });
       } catch (e) {
@@ -99,38 +116,24 @@ export default function MoneyManagementPage() {
 
   const metrics = useMemo(() => {
     const incomeMonthly = asNumber(form.incomeMonthly);
+    const incomeYearly = asNumber(form.incomeYearly);
     const taxRate = asNumber(form.taxRate);
     const investmentsValue = asNumber(form.investmentsValue);
     const investmentsCashflow = asNumber(form.investmentsCashflow);
     const debts = asNumber(form.debts);
+    const liabilities = asNumber(form.liabilities);
     const spendingDaily = asNumber(form.spendingDaily);
+    const spendingWeekly = asNumber(form.spendingWeekly);
+    const spendingMonthly = asNumber(form.spendingMonthly);
     const savingsCurrent = asNumber(form.savingsCurrent);
 
-    const grossMonthly = incomeMonthly;
+    const grossMonthly = incomeMonthly || (incomeYearly ? incomeYearly / 12 : 0);
     const netMonthly = grossMonthly * (1 - Math.min(Math.max(taxRate, 0), 100) / 100);
-    const spendingTotal = spendingDaily * 30;
+    const spendingTotal = spendingMonthly + spendingWeekly * 4 + spendingDaily * 30;
     const netCashflow = netMonthly + investmentsCashflow - spendingTotal;
-    const emergencyTarget = spendingTotal * 3;
-    const savingsRunway = spendingTotal > 0 ? savingsCurrent / spendingTotal : 0;
-    const savingsGap = emergencyTarget - savingsCurrent;
-    const debtToIncome = grossMonthly > 0 ? debts / (grossMonthly * 12) : 0;
-    const allocationNeeds = netMonthly * 0.5;
-    const allocationWants = netMonthly * 0.3;
-    const allocationInvest = netMonthly * 0.2;
+    const netWorth = investmentsValue + savingsCurrent - debts - liabilities;
 
-    return {
-      grossMonthly,
-      netMonthly,
-      spendingTotal,
-      netCashflow,
-      emergencyTarget,
-      savingsRunway,
-      savingsGap,
-      debtToIncome,
-      allocationNeeds,
-      allocationWants,
-      allocationInvest,
-    };
+    return { grossMonthly, netMonthly, spendingTotal, netCashflow, netWorth };
   }, [form]);
 
   function display(value: number) {
@@ -147,17 +150,22 @@ export default function MoneyManagementPage() {
         credentials: "include",
         body: JSON.stringify({
           incomeMonthly: form.incomeMonthly === "" ? undefined : Number(form.incomeMonthly),
+          incomeYearly: form.incomeYearly === "" ? undefined : Number(form.incomeYearly),
           taxRate: form.taxRate === "" ? undefined : Number(form.taxRate),
           locationCountry: form.locationCountry || undefined,
           locationRegion: form.locationRegion || undefined,
           investmentsValue: form.investmentsValue === "" ? undefined : Number(form.investmentsValue),
           investmentsCashflow: form.investmentsCashflow === "" ? undefined : Number(form.investmentsCashflow),
           debts: form.debts === "" ? undefined : Number(form.debts),
+          liabilities: form.liabilities === "" ? undefined : Number(form.liabilities),
           spendingDaily: form.spendingDaily === "" ? undefined : Number(form.spendingDaily),
+          spendingWeekly: form.spendingWeekly === "" ? undefined : Number(form.spendingWeekly),
+          spendingMonthly: form.spendingMonthly === "" ? undefined : Number(form.spendingMonthly),
           savingsCurrent: form.savingsCurrent === "" ? undefined : Number(form.savingsCurrent),
           dependents: form.dependents === "" ? undefined : Number(form.dependents),
           goalSavings: form.goalSavings === "" ? undefined : Number(form.goalSavings),
           goalInvestments: form.goalInvestments === "" ? undefined : Number(form.goalInvestments),
+          goalNetWorth: form.goalNetWorth === "" ? undefined : Number(form.goalNetWorth),
           hideSensitive: form.hideSensitive,
         }),
       });
@@ -186,7 +194,7 @@ export default function MoneyManagementPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Money management</h1>
         <p className="text-muted-foreground">
-          Track income, spending, and goals to understand your monthly cashflow and savings runway.
+          Track income, spending, and goals to understand your monthly cashflow and net worth.
         </p>
       </div>
 
@@ -221,6 +229,10 @@ export default function MoneyManagementPage() {
             <Input value={form.incomeMonthly} onChange={(e) => setForm({ ...form, incomeMonthly: e.target.value })} type="number" />
           </div>
           <div className="space-y-2">
+            <Label>Yearly income</Label>
+            <Input value={form.incomeYearly} onChange={(e) => setForm({ ...form, incomeYearly: e.target.value })} type="number" />
+          </div>
+          <div className="space-y-2">
             <Label>Tax rate (%)</Label>
             <Input value={form.taxRate} onChange={(e) => setForm({ ...form, taxRate: e.target.value })} type="number" />
           </div>
@@ -237,7 +249,7 @@ export default function MoneyManagementPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Investments and debts</CardTitle>
+          <CardTitle>Investments, debts, and liabilities</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
@@ -251,6 +263,10 @@ export default function MoneyManagementPage() {
           <div className="space-y-2">
             <Label>Debts</Label>
             <Input value={form.debts} onChange={(e) => setForm({ ...form, debts: e.target.value })} type="number" />
+          </div>
+          <div className="space-y-2">
+            <Label>Liabilities</Label>
+            <Input value={form.liabilities} onChange={(e) => setForm({ ...form, liabilities: e.target.value })} type="number" />
           </div>
           <div className="space-y-2">
             <Label>Current savings</Label>
@@ -272,28 +288,13 @@ export default function MoneyManagementPage() {
             <Label>Daily spending</Label>
             <Input value={form.spendingDaily} onChange={(e) => setForm({ ...form, spendingDaily: e.target.value })} type="number" />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Suggested allocation</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3 text-sm">
-          <div className="rounded-lg border p-3">
-            <div className="text-muted-foreground">Needs (50%)</div>
-            <div className="text-lg font-semibold">${display(metrics.allocationNeeds)}</div>
-            <div className="text-muted-foreground text-xs">Housing, essentials, insurance</div>
+          <div className="space-y-2">
+            <Label>Weekly spending</Label>
+            <Input value={form.spendingWeekly} onChange={(e) => setForm({ ...form, spendingWeekly: e.target.value })} type="number" />
           </div>
-          <div className="rounded-lg border p-3">
-            <div className="text-muted-foreground">Wants (30%)</div>
-            <div className="text-lg font-semibold">${display(metrics.allocationWants)}</div>
-            <div className="text-muted-foreground text-xs">Lifestyle, travel, extras</div>
-          </div>
-          <div className="rounded-lg border p-3">
-            <div className="text-muted-foreground">Invest / save (20%)</div>
-            <div className="text-lg font-semibold">${display(metrics.allocationInvest)}</div>
-            <div className="text-muted-foreground text-xs">Savings, investments, debt</div>
+          <div className="space-y-2">
+            <Label>Monthly spending</Label>
+            <Input value={form.spendingMonthly} onChange={(e) => setForm({ ...form, spendingMonthly: e.target.value })} type="number" />
           </div>
         </CardContent>
       </Card>
@@ -311,12 +312,16 @@ export default function MoneyManagementPage() {
             <Label>Investment goal</Label>
             <Input value={form.goalInvestments} onChange={(e) => setForm({ ...form, goalInvestments: e.target.value })} type="number" />
           </div>
+          <div className="space-y-2">
+            <Label>Net worth goal</Label>
+            <Input value={form.goalNetWorth} onChange={(e) => setForm({ ...form, goalNetWorth: e.target.value })} type="number" />
+          </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Privacy, insights, and next steps</CardTitle>
+          <CardTitle>Privacy & summary</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
@@ -334,59 +339,16 @@ export default function MoneyManagementPage() {
               <div className="font-semibold">${display(metrics.spendingTotal)}</div>
             </div>
             <div>
+              <div className="text-muted-foreground">Net worth</div>
+              <div className="font-semibold">${display(metrics.netWorth)}</div>
+            </div>
+            <div>
               <div className="text-muted-foreground">Savings progress</div>
               <div className="font-semibold">
                 {form.hideSensitive
                   ? "•••"
                   : `${formatMoney(asNumber(form.savingsCurrent))} / ${formatMoney(asNumber(form.goalSavings))}`}
               </div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Emergency fund target (3x spend)</div>
-              <div className="font-semibold">${display(metrics.emergencyTarget)}</div>
-            </div>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-3 text-sm">
-            <div>
-              <div className="text-muted-foreground">Savings runway</div>
-              <div className="font-semibold">
-                {form.hideSensitive ? "•••" : `${metrics.savingsRunway.toFixed(1)} months`}
-              </div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Savings gap to target</div>
-              <div className="font-semibold">${display(Math.max(metrics.savingsGap, 0))}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Debt-to-income ratio</div>
-              <div className="font-semibold">
-                {form.hideSensitive ? "•••" : `${(metrics.debtToIncome * 100).toFixed(1)}%`}
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-lg border p-4 text-sm space-y-2">
-            <div className="font-semibold">Smart tips</div>
-            <ul className="list-disc list-inside text-muted-foreground space-y-1">
-              <li>Keep daily spend below 30% of net monthly for better savings velocity.</li>
-              <li>Build a 3–6 month emergency fund before increasing investment risk.</li>
-              <li>Use the exclude keywords filter in Opportunities to keep your feed focused.</li>
-              <li>Negative cashflow? Reduce daily spend or adjust tax rate to see impact.</li>
-            </ul>
-          </div>
-
-          <div className="rounded-lg bg-muted/40 p-4 text-sm space-y-2">
-            <div className="font-semibold">Money snapshot</div>
-            <div className="text-muted-foreground">
-              {form.hideSensitive
-                ? "•••"
-                : `Net monthly $${formatMoney(metrics.netMonthly)}, daily spend $${formatMoney(asNumber(form.spendingDaily))}, cashflow $${formatMoney(metrics.netCashflow)}.`}
-            </div>
-            <div className="text-muted-foreground">
-              {metrics.netCashflow < 0
-                ? "You're spending more than you bring in. Trim daily spend or increase income to turn cashflow positive."
-                : "Cashflow positive. Consider boosting savings or investment goals."}
             </div>
           </div>
 
