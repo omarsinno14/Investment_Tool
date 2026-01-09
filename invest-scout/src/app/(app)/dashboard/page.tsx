@@ -50,7 +50,7 @@ export default function DashboardPage() {
       const [pRes, iRes, oRes] = await Promise.all([
         fetch("/api/user/profile", { cache: "no-store" }),
         fetch("/api/user/interests", { cache: "no-store" }),
-        fetch("/api/opportunities", { cache: "no-store" }),
+        fetch("/api/opportunities?type=community", { cache: "no-store" }),
       ]);
 
       if (pRes.status === 401 || iRes.status === 401 || oRes.status === 401) {
@@ -414,8 +414,23 @@ export default function DashboardPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="justify-between">
+                <Link href="/headlines">
+                  Browse headlines <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-between">
                 <Link href="/interests">
                   Add / refine interests <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-between">
+                <Link href="/forums">
+                  Visit forums <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-between">
+                <Link href="/tools">
+                  Open tools <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild variant="outline" className="justify-between">

@@ -7,9 +7,12 @@ datasource db {
 }
 
 enum RiskTolerance {
+  EXTREMELY_LOW
   LOW
   MEDIUM
+  MEDIUM_HIGH
   HIGH
+  EXTREMELY_HIGH
 }
 
 enum InterestType {
@@ -37,6 +40,16 @@ model User {
   interests Interest[]
   actions   OpportunityAction[]
   moneyManagement MoneyManagement?
+  postedOpportunities Opportunity[]
+  messagesSent Message[] @relation("MessageFromUser")
+  messagesReceived Message[] @relation("MessageToUser")
+  followers Follow[] @relation("FollowFollowing")
+  following Follow[] @relation("FollowFollower")
+  forumPosts ForumPost[]
+  forumComments ForumComment[]
+  forumReactions ForumReaction[]
+  forumSaves ForumSave[]
+  forumReposts ForumRepost[]
 
   @@index([email])
 }
@@ -47,12 +60,22 @@ model Profile {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name            String?
+  username        String? @unique
+  phone           String? @unique
   imageUrl        String?
+  bio             String?
+  occupation      String?
+  currency        String?
   age             Int?
   familySituation String?
   netWorth        Float?
   riskTolerance   RiskTolerance @default(MEDIUM)
   investAmount    Float?
+  emailVerified   Boolean @default(false)
+  phoneVerified   Boolean @default(false)
+  hideAgeFromNonFollowers     Boolean @default(false)
+  hideContactFromNonFollowers Boolean @default(false)
+  hidePhotoFromNonFollowers   Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -75,15 +98,29 @@ model Interest {
 model Opportunity {
   id          String    @id @default(cuid())
   title       String
-  url         String    @unique
+  url         String?   @unique
   source      String?
   summary     String?
   imageUrl    String?
+  imageUrls   String[] @default([])
+  details     String?
+  askAmount   Float?
+  benefits    String?
+  sectors     String[] @default([])
+  industries  String[] @default([])
+  countries   String[] @default([])
+  contactEmail    String?
+  contactPhone    String?
+  contactUsername String?
+  locationName    String?
+  locationMapUrl  String?
+  tags        String[] @default([])
+  createdByUserId String?
+  createdByUser User? @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
   publishedAt DateTime?
   fetchedAt   DateTime  @default(now())
 
   categories String[] @default([])
-  countries  String[] @default([])
   keywords   String[] @default([])
 
   actions OpportunityAction[]
@@ -111,6 +148,109 @@ model OpportunityAction {
   @@index([opportunityId])
 }
 
+model Follow {
+  id           String   @id @default(cuid())
+  followerId   String
+  followingId  String
+  createdAt    DateTime @default(now())
+
+  follower  User @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("FollowFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+}
+
+model ForumPost {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments  ForumComment[]
+  reactions ForumReaction[]
+  saves     ForumSave[]
+  reposts   ForumRepost[]
+
+  @@index([createdAt])
+}
+
+model ForumComment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+enum ForumReactionType {
+  LIKE
+  INSIGHTFUL
+  CURIOUS
+}
+
+model ForumReaction {
+  id        String             @id @default(cuid())
+  postId    String
+  userId    String
+  type      ForumReactionType
+  createdAt DateTime           @default(now())
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, type])
+  @@index([postId])
+}
+
+model ForumSave {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model ForumRepost {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model Message {
+  id            String   @id @default(cuid())
+  fromUserId    String
+  toUserId      String
+  body          String
+  opportunityId String?
+  createdAt     DateTime @default(now())
+
+  fromUser    User @relation("MessageFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser      User @relation("MessageToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([opportunityId])
+}
+
 model MoneyManagement {
   id     String @id @default(cuid())
   userId String @unique
@@ -135,9 +275,25 @@ model MoneyManagement {
   goalInvestments          Float?
   goalNetWorth             Float?
   hideSensitive            Boolean @default(false)
+  snapshots               MoneySnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+model MoneySnapshot {
+  id               String   @id @default(cuid())
+  moneyManagementId String
+  grossMonthly     Float
+  netMonthly       Float
+  spendingTotal    Float
+  netCashflow      Float
+  savingsCurrent   Float
+  createdAt        DateTime @default(now())
+
+  moneyManagement MoneyManagement @relation(fields: [moneyManagementId], references: [id], onDelete: Cascade)
+
+  @@index([moneyManagementId, createdAt])
 }
