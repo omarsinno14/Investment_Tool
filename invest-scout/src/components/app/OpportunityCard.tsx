@@ -14,6 +14,7 @@ type Opportunity = {
   url: string;
   summary?: string | null;
   source?: string | null;
+  imageUrl?: string | null;
   publishedAt?: string | null;
   fetchedAt?: string | null;
   categories?: string[];
@@ -39,6 +40,7 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
   const state = opp.action?.state ?? "NONE";
   const tags = (opp.categories ?? []).slice(0, 2);
   const keywords = (opp.keywords ?? []).slice(0, 3);
+  const imageUrl = opp.imageUrl ?? null;
 
   async function setState(nextState: Opportunity["action"]["state"], investedAmt?: number) {
     setBusy(true);
@@ -86,6 +88,16 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
   return (
     <Card className="hover:shadow-sm transition-shadow">
       <CardHeader className="space-y-2">
+        {imageUrl && (
+          <div className="overflow-hidden rounded-md border bg-muted/20">
+            <img
+              src={imageUrl}
+              alt={opp.title}
+              className="h-40 w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        )}
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-base leading-snug">
             <Link href={`/opportunities/${opp.id}`} className="hover:underline">

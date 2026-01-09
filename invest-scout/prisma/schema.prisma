@@ -78,6 +78,7 @@ model Opportunity {
   url         String    @unique
   source      String?
   summary     String?
+  imageUrl    String?
   publishedAt DateTime?
   fetchedAt   DateTime  @default(now())
 
