@@ -34,6 +34,7 @@ export async function POST(req: Request) {
       create: {
         userId,
         name: body.name ?? null,
+        imageUrl: body.imageUrl ?? null,
         age: typeof body.age === "number" ? body.age : null,
         familySituation: body.familySituation ?? null,
         netWorth: typeof body.netWorth === "number" ? body.netWorth : null,
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
       },
       update: {
         name: body.name ?? null,
+        imageUrl: body.imageUrl ?? null,
         age: typeof body.age === "number" ? body.age : null,
         familySituation: body.familySituation ?? null,
         netWorth: typeof body.netWorth === "number" ? body.netWorth : null,

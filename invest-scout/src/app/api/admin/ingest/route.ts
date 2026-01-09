@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
-import { fetchRss, googleNewsRss } from "@/lib/rss";
+import { buildNewsSources, fetchRss } from "@/lib/rss";
+
+function normalize(str: string) {
+  return str.toLowerCase();
+}
+
+function shouldKeep(item: { title?: string; contentSnippet?: string }, terms: string[]) {
+  if (!terms.length) return true;
+  const hay = normalize(`${item.title ?? ""} ${item.contentSnippet ?? ""}`);
+  return terms.some((t) => t.length >= 2 && hay.includes(normalize(t)));
+}
 
 export async function POST(req: Request) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -28,32 +38,37 @@ export async function POST(req: Request) {
   ).slice(0, 40);
 
   const queries = values.map((v) => `${v} investment opportunity OR funding OR acquisition OR IPO`);
+  const terms = values.map((v) => v.toLowerCase());
 
   let inserted = 0;
 
   for (const q of queries) {
-    const url = googleNewsRss(q);
-    const items = await fetchRss(url);
+    const sources = buildNewsSources(q);
 
-    for (const it of items) {
-      if (!it.link || !it.title) continue;
+    for (const source of sources) {
+      const items = await fetchRss(source.url);
 
-      const publishedAt = it.isoDate ? new Date(it.isoDate) : it.pubDate ? new Date(it.pubDate) : null;
+      for (const it of items) {
+        if (!it.link || !it.title) continue;
+        if (!shouldKeep(it, terms)) continue;
 
-      try {
-        await prisma.opportunity.create({
-          data: {
-            title: it.title,
-            url: it.link,
-            summary: it.contentSnippet ?? null,
-            publishedAt,
-            source: "Google News RSS",
-            keywords: q.split(" ").slice(0, 10),
-          },
-        });
-        inserted += 1;
-      } catch {
-        // ignore duplicates (unique on url)
+        const publishedAt = it.isoDate ? new Date(it.isoDate) : it.pubDate ? new Date(it.pubDate) : null;
+
+        try {
+          await prisma.opportunity.create({
+            data: {
+              title: it.title,
+              url: it.link,
+              summary: it.contentSnippet ?? null,
+              publishedAt,
+              source: source.name,
+              keywords: q.split(" ").slice(0, 10),
+            },
+          });
+          inserted += 1;
+        } catch {
+          // ignore duplicates (unique on url)
+        }
       }
     }
   }

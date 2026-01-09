@@ -58,6 +58,7 @@ export default function OpportunitiesPage() {
   const [loading, setLoading] = useState(true);
   const [opps, setOpps] = useState<Opportunity[]>([]);
   const [query, setQuery] = useState("");
+  const [exclude, setExclude] = useState("");
   const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED" | "INVESTED">("ALL");
   const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
 
@@ -104,6 +105,10 @@ export default function OpportunitiesPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const excluded = exclude
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
 
     let list = opps;
 
@@ -115,6 +120,13 @@ export default function OpportunitiesPage() {
       list = list.filter((o: any) => {
         const hay = `${o.title ?? ""} ${o.summary ?? ""}`.toLowerCase();
         return hay.includes(q);
+      });
+    }
+
+    if (excluded.length) {
+      list = list.filter((o: any) => {
+        const hay = `${o.title ?? ""} ${o.summary ?? ""}`.toLowerCase();
+        return !excluded.some((term) => term.length >= 2 && hay.includes(term));
       });
     }
 
@@ -230,13 +242,20 @@ export default function OpportunitiesPage() {
         <div className="space-y-4">
           {/* Filters */}
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="relative md:w-[420px]">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:w-[640px]">
+              <div className="relative md:w-[320px]">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Search titles & summaries..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
               <Input
-                className="pl-9"
-                placeholder="Search titles & summaries..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Exclude keywords (comma-separated)"
+                value={exclude}
+                onChange={(e) => setExclude(e.target.value)}
               />
             </div>
 
