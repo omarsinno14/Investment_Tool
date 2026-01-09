@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -19,22 +17,6 @@ import {
 } from "@/components/ui/select";
 
 type Opportunity = any;
-type OpportunityPost = {
-  id: string;
-  title: string;
-  description: string;
-  askAmount?: number | null;
-  benefits?: string | null;
-  tags: string[];
-  images: string[];
-  locationName?: string | null;
-  mapUrl?: string | null;
-  contactEmail?: string | null;
-  contactPhone?: string | null;
-  contactUsername?: string | null;
-  createdAt: string;
-  user?: { email?: string | null; profile?: { username?: string | null } | null } | null;
-};
 
 function toDateValue(o: any) {
   const d = o.publishedAt ?? o.fetchedAt;
@@ -75,35 +57,17 @@ function tokenizeTitle(title: string) {
 export default function OpportunitiesPage() {
   const [loading, setLoading] = useState(true);
   const [opps, setOpps] = useState<Opportunity[]>([]);
-  const [posts, setPosts] = useState<OpportunityPost[]>([]);
   const [query, setQuery] = useState("");
   const [exclude, setExclude] = useState("");
   const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED" | "INVESTED">("ALL");
   const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
-  const [postForm, setPostForm] = useState({
-    title: "",
-    description: "",
-    askAmount: "",
-    benefits: "",
-    tags: "",
-    locationName: "",
-    mapUrl: "",
-    contactEmail: "",
-    contactPhone: "",
-    contactUsername: "",
-    images: [] as string[],
-  });
-  const [publishing, setPublishing] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
-      const [res, postRes] = await Promise.all([
-        fetch("/api/opportunities", { cache: "no-store", credentials: "include" }),
-        fetch("/api/user/opportunity-posts", { cache: "no-store", credentials: "include" }),
-      ]);
+      const res = await fetch("/api/opportunities", { cache: "no-store", credentials: "include" });
 
-      if (res.status === 401 || postRes.status === 401) {
+      if (res.status === 401) {
         toast.error("Please log in again.");
         window.location.href = "/login";
         return;
@@ -112,7 +76,6 @@ export default function OpportunitiesPage() {
       const ct = res.headers.get("content-type") ?? "";
       const isJson = ct.includes("application/json");
       const data = isJson ? await res.json() : null;
-      const postData = await postRes.json().catch(() => ({}));
 
       if (!res.ok) {
         const errMsg = isJson
@@ -127,7 +90,6 @@ export default function OpportunitiesPage() {
       }
 
       setOpps(data.opportunities ?? []);
-      setPosts(postData.posts ?? []);
     } catch (e) {
       console.error(e);
       toast.error("Failed to load opportunities");
@@ -173,60 +135,7 @@ export default function OpportunitiesPage() {
     );
 
     return list;
-  }, [opps, query, tab, sort, exclude]);
-
-  async function publishPost() {
-    if (!postForm.title.trim() || !postForm.description.trim()) {
-      toast.error("Add a title and description");
-      return;
-    }
-    setPublishing(true);
-    try {
-      const res = await fetch("/api/user/opportunity-posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          title: postForm.title,
-          description: postForm.description,
-          askAmount: postForm.askAmount === "" ? undefined : Number(postForm.askAmount),
-          benefits: postForm.benefits,
-          tags: postForm.tags.split(",").map((t) => t.trim()).filter(Boolean),
-          images: postForm.images,
-          locationName: postForm.locationName,
-          mapUrl: postForm.mapUrl,
-          contactEmail: postForm.contactEmail,
-          contactPhone: postForm.contactPhone,
-          contactUsername: postForm.contactUsername,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data?.error ?? "Unable to publish");
-        return;
-      }
-      setPostForm({
-        title: "",
-        description: "",
-        askAmount: "",
-        benefits: "",
-        tags: "",
-        locationName: "",
-        mapUrl: "",
-        contactEmail: "",
-        contactPhone: "",
-        contactUsername: "",
-        images: [],
-      });
-      await load();
-      toast.success("Opportunity posted");
-    } catch (e) {
-      console.error(e);
-      toast.error("Unable to publish");
-    } finally {
-      setPublishing(false);
-    }
-  }
+  }, [opps, query, tab, sort]);
 
   const kpis = useMemo(() => {
     const total = opps.length;
@@ -331,151 +240,6 @@ export default function OpportunitiesPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Main column */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Post an opportunity</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Title</Label>
-                  <Input
-                    value={postForm.title}
-                    onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
-                    placeholder="e.g. Aerospace defense AI platform"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Ask amount</Label>
-                  <Input
-                    value={postForm.askAmount}
-                    onChange={(e) => setPostForm({ ...postForm, askAmount: e.target.value })}
-                    type="number"
-                    placeholder="500000"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Details</Label>
-                <Textarea
-                  value={postForm.description}
-                  onChange={(e) => setPostForm({ ...postForm, description: e.target.value })}
-                  rows={4}
-                  placeholder="Describe the opportunity, traction, timeline, and what you're looking for."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Benefits</Label>
-                <Textarea
-                  value={postForm.benefits}
-                  onChange={(e) => setPostForm({ ...postForm, benefits: e.target.value })}
-                  rows={2}
-                  placeholder="What investors/partners get: equity %, revenue share, strategic access, etc."
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>Tags</Label>
-                  <Input
-                    value={postForm.tags}
-                    onChange={(e) => setPostForm({ ...postForm, tags: e.target.value })}
-                    placeholder="AI, aerospace, defense"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Location</Label>
-                  <Input
-                    value={postForm.locationName}
-                    onChange={(e) => setPostForm({ ...postForm, locationName: e.target.value })}
-                    placeholder="City, Country"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Map link</Label>
-                  <Input
-                    value={postForm.mapUrl}
-                    onChange={(e) => setPostForm({ ...postForm, mapUrl: e.target.value })}
-                    placeholder="https://maps.google.com/..."
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>Contact email</Label>
-                  <Input
-                    value={postForm.contactEmail}
-                    onChange={(e) => setPostForm({ ...postForm, contactEmail: e.target.value })}
-                    placeholder="founder@company.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Contact phone</Label>
-                  <Input
-                    value={postForm.contactPhone}
-                    onChange={(e) => setPostForm({ ...postForm, contactPhone: e.target.value })}
-                    placeholder="+1 555 123 4567"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Contact username</Label>
-                  <Input
-                    value={postForm.contactUsername}
-                    onChange={(e) => setPostForm({ ...postForm, contactUsername: e.target.value })}
-                    placeholder="@username"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Images</Label>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files ?? []).slice(0, 4);
-                    if (!files.length) return;
-                    const readers = files.map(
-                      (file) =>
-                        new Promise<string>((resolve) => {
-                          const reader = new FileReader();
-                          reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-                          reader.readAsDataURL(file);
-                        })
-                    );
-                    Promise.all(readers).then((images) => {
-                      setPostForm((prev) => ({
-                        ...prev,
-                        images: [...prev.images, ...images.filter(Boolean)].slice(0, 6),
-                      }));
-                    });
-                  }}
-                />
-                {postForm.images.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {postForm.images.map((img, idx) => (
-                      <img
-                        key={`${img}-${idx}`}
-                        src={img}
-                        alt="Upload preview"
-                        className="h-20 w-24 rounded-md object-cover border"
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end">
-                <Button onClick={publishPost} disabled={publishing}>
-                  {publishing ? "Publishing..." : "Publish to feed"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
           {/* Filters */}
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:w-[640px]">
@@ -556,71 +320,6 @@ export default function OpportunitiesPage() {
             </div>
           ) : (
             <>
-              {posts.length > 0 && (
-                <div className="space-y-4">
-                  <h2 className="text-lg font-semibold">Community opportunities</h2>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {posts.map((post) => (
-                      <Card key={post.id} className="space-y-2">
-                        <CardHeader className="space-y-2">
-                          <CardTitle className="text-base">{post.title}</CardTitle>
-                          <div className="text-xs text-muted-foreground">
-                            Posted {new Date(post.createdAt).toLocaleDateString()}
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          {post.images.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2">
-                              {post.images.slice(0, 4).map((img, idx) => (
-                                <img
-                                  key={`${post.id}-img-${idx}`}
-                                  src={img}
-                                  alt={post.title}
-                                  className="h-24 w-full rounded-md object-cover border"
-                                  loading="lazy"
-                                />
-                              ))}
-                            </div>
-                          )}
-                          <p className="text-sm text-muted-foreground">{post.description}</p>
-                          {post.benefits && (
-                            <div className="text-sm">
-                              <span className="font-medium">Benefits:</span> {post.benefits}
-                            </div>
-                          )}
-                          {post.askAmount ? (
-                            <div className="text-sm">
-                              <span className="font-medium">Ask:</span> ${post.askAmount.toLocaleString()}
-                            </div>
-                          ) : null}
-                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                            {post.tags.map((tag) => (
-                              <span key={`${post.id}-${tag}`} className="rounded-full border px-2 py-1">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                          {(post.locationName || post.mapUrl) && (
-                            <div className="text-sm text-muted-foreground">
-                              {post.locationName}
-                              {post.mapUrl && (
-                                <a className="ml-2 underline" href={post.mapUrl} target="_blank" rel="noreferrer">
-                                  Map
-                                </a>
-                              )}
-                            </div>
-                          )}
-                          <div className="text-sm text-muted-foreground space-y-1">
-                            {post.contactEmail && <div>Email: {post.contactEmail}</div>}
-                            {post.contactPhone && <div>Phone: {post.contactPhone}</div>}
-                            {post.contactUsername && <div>Username: {post.contactUsername}</div>}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
               <div className="grid gap-4 md:grid-cols-2">
                 {filtered.map((opp: any) => (
                   <OpportunityCard key={opp.id} opp={opp} onActionUpdated={load} />
