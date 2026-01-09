@@ -36,27 +36,12 @@ export async function POST(req: Request) {
     const contactPhone = toString(formData.get("contactPhone"));
     const contactUsername = toString(formData.get("contactUsername"));
     const tagString = toString(formData.get("tags"));
-    const sectorString = toString(formData.get("sectors"));
-    const industryString = toString(formData.get("industries"));
-    const countryString = toString(formData.get("countries"));
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
 
     const tags = tagString
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-    const sectors = sectorString
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-    const industries = industryString
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-    const countries = countryString
       .split(",")
       .map((tag) => tag.trim())
       .filter(Boolean);
@@ -91,9 +76,6 @@ export async function POST(req: Request) {
         contactPhone: contactPhone || null,
         contactUsername: contactUsername || null,
         tags,
-        sectors,
-        industries,
-        countries,
         imageUrl: imageUrls[0] ?? null,
         imageUrls,
         source: "Community post",

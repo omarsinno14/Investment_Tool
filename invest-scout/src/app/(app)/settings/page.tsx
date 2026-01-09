@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -89,9 +89,6 @@ export default function SettingsPage() {
           name: form.name || undefined,
           username: form.username || undefined,
           phone: form.phone || undefined,
-          bio: form.bio || undefined,
-          occupation: form.occupation || undefined,
-          currency: form.currency || undefined,
           age: form.age === "" ? undefined : Number(form.age),
           familySituation: form.familySituation || undefined,
           netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
@@ -126,29 +123,6 @@ export default function SettingsPage() {
       setSaving(false);
     }
   }
-
-  const riskOptions = useMemo(
-    () => [
-      "EXTREMELY_LOW",
-      "LOW",
-      "MEDIUM",
-      "MEDIUM_HIGH",
-      "HIGH",
-      "EXTREMELY_HIGH",
-    ],
-    []
-  );
-
-  const riskLabels = {
-    EXTREMELY_LOW: "Extremely low",
-    LOW: "Low",
-    MEDIUM: "Medium",
-    MEDIUM_HIGH: "Medium high",
-    HIGH: "High",
-    EXTREMELY_HIGH: "Extremely high",
-  } as const;
-
-  const riskIndex = Math.max(0, riskOptions.indexOf(form.riskTolerance));
 
   async function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -192,11 +166,6 @@ export default function SettingsPage() {
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
 
-          <div className="space-y-2">
-            <Label>Occupation</Label>
-            <Input value={form.occupation} onChange={(e) => setForm({ ...form, occupation: e.target.value })} />
-          </div>
-
           <div className="space-y-2 md:col-span-2">
             <Label>Preview</Label>
             <div className="flex items-center gap-3">
@@ -225,11 +194,6 @@ export default function SettingsPage() {
             {uploading && <div className="text-xs text-muted-foreground">Uploading photo...</div>}
           </div>
 
-          <div className="space-y-2 md:col-span-2">
-            <Label>Bio</Label>
-            <Input value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
-          </div>
-
           <div className="space-y-2">
             <Label>Age</Label>
             <Input value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} type="number" />
@@ -243,22 +207,6 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label>Phone number</Label>
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Preferred currency</Label>
-            <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select currency" />
-              </SelectTrigger>
-              <SelectContent>
-                {["USD", "EUR", "GBP", "CAD", "AUD", "NGN", "KES", "GHS", "ZAR", "INR"].map((cur) => (
-                  <SelectItem key={cur} value={cur}>
-                    {cur}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-2">

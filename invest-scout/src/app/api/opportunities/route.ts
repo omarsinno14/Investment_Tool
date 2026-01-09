@@ -7,13 +7,7 @@ type OpportunityWithUser = Opportunity & {
   createdByUser?: {
     id: string;
     email: string;
-    profile?: {
-      name?: string | null;
-      username?: string | null;
-      imageUrl?: string | null;
-      emailVerified?: boolean | null;
-      phoneVerified?: boolean | null;
-    } | null;
+    profile?: { name?: string | null; username?: string | null; imageUrl?: string | null } | null;
   } | null;
 };
 
@@ -43,27 +37,7 @@ export async function GET(req: Request) {
       .filter(Boolean)
       .map(norm);
 
-    const followedIds =
-      type === "community"
-        ? (
-            await prisma.follow.findMany({
-              where: { followerId: userId },
-              select: { followingId: true },
-            })
-          ).map((f) => f.followingId)
-        : [];
-
-    const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type");
-    const whereClause =
-      type === "headlines"
-        ? { createdByUserId: null }
-        : type === "community"
-          ? { createdByUserId: { not: null } }
-          : {};
-
     const recent: OpportunityWithUser[] = await prisma.opportunity.findMany({
-      where: whereClause,
       orderBy: { fetchedAt: "desc" },
       take: 400,
       include: {
@@ -71,7 +45,7 @@ export async function GET(req: Request) {
           select: {
             id: true,
             email: true,
-            profile: { select: { name: true, username: true, imageUrl: true, emailVerified: true, phoneVerified: true } },
+            profile: { select: { name: true, username: true, imageUrl: true } },
           },
         },
       },
@@ -82,11 +56,8 @@ export async function GET(req: Request) {
         ? recent.slice(0, 120)
         : recent
             .filter((o: OpportunityWithUser) => {
-              if (followedIds.length && o.createdByUserId && followedIds.includes(o.createdByUserId)) {
-                return true;
-              }
               const hay = norm(
-                `${o.title ?? ""} ${o.summary ?? ""} ${o.details ?? ""} ${(o.tags ?? []).join(" ")} ${(o.sectors ?? []).join(" ")} ${(o.industries ?? []).join(" ")} ${(o.countries ?? []).join(" ")}`
+                `${o.title ?? ""} ${o.summary ?? ""} ${o.details ?? ""} ${(o.tags ?? []).join(" ")}`
               );
               return terms.some((t: string) => t.length >= 2 && hay.includes(t));
             })

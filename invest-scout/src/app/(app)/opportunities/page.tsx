@@ -74,51 +74,21 @@ export default function OpportunitiesPage() {
   const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED" | "INVESTED">("ALL");
   const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
   const [posting, setPosting] = useState(false);
-  const [showStats, setShowStats] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [postForm, setPostForm] = useState({
     title: "",
     summary: "",
     details: "",
     askAmount: "",
     benefits: "",
+    tags: "",
     locationName: "",
     locationMapUrl: "",
     contactEmail: "",
     contactPhone: "",
     contactUsername: "",
     images: [] as File[],
-    tags: [] as string[],
-    sectors: [] as string[],
-    industries: [] as string[],
-    countries: [] as string[],
   });
-  const [tagSelect, setTagSelect] = useState("");
-  const [tagCustom, setTagCustom] = useState("");
-  const [sectorSelect, setSectorSelect] = useState("");
-  const [industrySelect, setIndustrySelect] = useState("");
-  const [countrySelect, setCountrySelect] = useState("");
   const uploadRef = useRef<HTMLInputElement | null>(null);
-
-  const baseTagOptions = [
-    "Real Estate",
-    "Fintech",
-    "Healthcare",
-    "AI",
-    "Energy",
-    "Consumer",
-    "Infrastructure",
-    "SaaS",
-    "Climate",
-  ];
-  const tagOptions = useMemo(() => {
-    const dynamic = new Set<string>();
-    for (const opp of opps) {
-      (opp.tags ?? []).forEach((t: string) => dynamic.add(t));
-    }
-    return ["All", ...Array.from(new Set([...baseTagOptions, ...dynamic])).sort()];
-  }, [opps]);
-  const industryOptions = Object.values(INDUSTRIES_BY_SECTOR).flat();
 
   async function load() {
     setLoading(true);
@@ -169,10 +139,7 @@ export default function OpportunitiesPage() {
       formData.append("details", postForm.details);
       formData.append("askAmount", postForm.askAmount);
       formData.append("benefits", postForm.benefits);
-      formData.append("tags", postForm.tags.join(","));
-      formData.append("sectors", postForm.sectors.join(","));
-      formData.append("industries", postForm.industries.join(","));
-      formData.append("countries", postForm.countries.join(","));
+      formData.append("tags", postForm.tags);
       formData.append("locationName", postForm.locationName);
       formData.append("locationMapUrl", postForm.locationMapUrl);
       formData.append("contactEmail", postForm.contactEmail);
@@ -196,24 +163,15 @@ export default function OpportunitiesPage() {
         details: "",
         askAmount: "",
         benefits: "",
+        tags: "",
         locationName: "",
         locationMapUrl: "",
         contactEmail: "",
         contactPhone: "",
         contactUsername: "",
         images: [],
-        tags: [],
-        sectors: [],
-        industries: [],
-        countries: [],
       });
-      setTagSelect("");
-      setTagCustom("");
-      setSectorSelect("");
-      setIndustrySelect("");
-      setCountrySelect("");
       if (uploadRef.current) uploadRef.current.value = "";
-      setDialogOpen(false);
       await load();
     } catch (e) {
       console.error(e);
@@ -221,34 +179,6 @@ export default function OpportunitiesPage() {
     } finally {
       setPosting(false);
     }
-  }
-
-  function addTag(value: string) {
-    if (!value || value === "All") return;
-    setPostForm((prev) =>
-      prev.tags.includes(value) ? prev : { ...prev, tags: [...prev.tags, value] }
-    );
-  }
-
-  function addSector(value: string) {
-    if (!value || value === "All") return;
-    setPostForm((prev) =>
-      prev.sectors.includes(value) ? prev : { ...prev, sectors: [...prev.sectors, value] }
-    );
-  }
-
-  function addIndustry(value: string) {
-    if (!value || value === "All") return;
-    setPostForm((prev) =>
-      prev.industries.includes(value) ? prev : { ...prev, industries: [...prev.industries, value] }
-    );
-  }
-
-  function addCountry(value: string) {
-    if (!value || value === "All") return;
-    setPostForm((prev) =>
-      prev.countries.includes(value) ? prev : { ...prev, countries: [...prev.countries, value] }
-    );
   }
 
   useEffect(() => {
@@ -431,235 +361,112 @@ export default function OpportunitiesPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Main column */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">Create a community post</div>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Post an opportunity
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Post an opportunity</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
+                <Input
+                  placeholder="Title"
+                  value={postForm.title}
+                  onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Input
+                  placeholder="Short summary"
+                  value={postForm.summary}
+                  onChange={(e) => setPostForm({ ...postForm, summary: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Textarea
+                  placeholder="Details / explanation"
+                  value={postForm.details}
+                  onChange={(e) => setPostForm({ ...postForm, details: e.target.value })}
+                  rows={4}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  type="number"
+                  placeholder="Ask amount"
+                  value={postForm.askAmount}
+                  onChange={(e) => setPostForm({ ...postForm, askAmount: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Textarea
+                  placeholder="Benefits"
+                  value={postForm.benefits}
+                  onChange={(e) => setPostForm({ ...postForm, benefits: e.target.value })}
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Input
+                  placeholder="Tags (comma-separated)"
+                  value={postForm.tags}
+                  onChange={(e) => setPostForm({ ...postForm, tags: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Location"
+                  value={postForm.locationName}
+                  onChange={(e) => setPostForm({ ...postForm, locationName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Map link (optional)"
+                  value={postForm.locationMapUrl}
+                  onChange={(e) => setPostForm({ ...postForm, locationMapUrl: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Contact email"
+                  value={postForm.contactEmail}
+                  onChange={(e) => setPostForm({ ...postForm, contactEmail: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Contact phone"
+                  value={postForm.contactPhone}
+                  onChange={(e) => setPostForm({ ...postForm, contactPhone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Input
+                  placeholder="Contact username"
+                  value={postForm.contactUsername}
+                  onChange={(e) => setPostForm({ ...postForm, contactUsername: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Input
+                  ref={uploadRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => setPostForm({ ...postForm, images: Array.from(e.target.files ?? []) })}
+                />
+                {postForm.images.length > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    {postForm.images.length} image(s) selected
+                  </div>
+                )}
+              </div>
+              <div className="md:col-span-2 flex justify-end">
+                <Button onClick={submitPost} disabled={posting}>
+                  {posting ? "Publishing..." : "Publish to feed"}
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Post an opportunity</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2 md:col-span-2">
-                    <Input
-                      placeholder="Title"
-                      value={postForm.title}
-                      onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Input
-                      placeholder="Short summary"
-                      value={postForm.summary}
-                      onChange={(e) => setPostForm({ ...postForm, summary: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Textarea
-                      placeholder="Details / explanation"
-                      value={postForm.details}
-                      onChange={(e) => setPostForm({ ...postForm, details: e.target.value })}
-                      rows={4}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Input
-                      type="number"
-                      placeholder="Ask amount"
-                      value={postForm.askAmount}
-                      onChange={(e) => setPostForm({ ...postForm, askAmount: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Textarea
-                      placeholder="Benefits"
-                      value={postForm.benefits}
-                      onChange={(e) => setPostForm({ ...postForm, benefits: e.target.value })}
-                      rows={2}
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <div className="flex gap-2">
-                      <Select value={tagSelect} onValueChange={(v) => setTagSelect(v)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Tags (select or add)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tagOptions.map((tag) => (
-                            <SelectItem key={tag} value={tag}>
-                              {tag}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          addTag(tagSelect);
-                          setTagSelect("");
-                        }}
-                      >
-                        Add
-                      </Button>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Custom tag"
-                        value={tagCustom}
-                        onChange={(e) => setTagCustom(e.target.value)}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          addTag(tagCustom.trim());
-                          setTagCustom("");
-                        }}
-                      >
-                        Add custom
-                      </Button>
-                    </div>
-                    {postForm.tags.length > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        Tags: {postForm.tags.join(", ")}
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Select value={sectorSelect} onValueChange={(v) => setSectorSelect(v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sector" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="All">All</SelectItem>
-                        {SECTORS.map((sector) => (
-                          <SelectItem key={sector} value={sector}>
-                            {sector}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="outline" onClick={() => addSector(sectorSelect)}>
-                      Add sector
-                    </Button>
-                    {postForm.sectors.length > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        {postForm.sectors.join(", ")}
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Select value={industrySelect} onValueChange={(v) => setIndustrySelect(v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Industry" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="All">All</SelectItem>
-                        {industryOptions.map((industry) => (
-                          <SelectItem key={industry} value={industry}>
-                            {industry}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="outline" onClick={() => addIndustry(industrySelect)}>
-                      Add industry
-                    </Button>
-                    {postForm.industries.length > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        {postForm.industries.join(", ")}
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Select value={countrySelect} onValueChange={(v) => setCountrySelect(v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="All">All</SelectItem>
-                        {COUNTRIES_ALL.map((country) => (
-                          <SelectItem key={country} value={country}>
-                            {country}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="outline" onClick={() => addCountry(countrySelect)}>
-                      Add country
-                    </Button>
-                    {postForm.countries.length > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        {postForm.countries.join(", ")}
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Location"
-                      value={postForm.locationName}
-                      onChange={(e) => setPostForm({ ...postForm, locationName: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Map link (optional)"
-                      value={postForm.locationMapUrl}
-                      onChange={(e) => setPostForm({ ...postForm, locationMapUrl: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Contact email"
-                      value={postForm.contactEmail}
-                      onChange={(e) => setPostForm({ ...postForm, contactEmail: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Contact phone"
-                      value={postForm.contactPhone}
-                      onChange={(e) => setPostForm({ ...postForm, contactPhone: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Input
-                      placeholder="Contact username"
-                      value={postForm.contactUsername}
-                      onChange={(e) => setPostForm({ ...postForm, contactUsername: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Input
-                      ref={uploadRef}
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={(e) =>
-                        setPostForm({ ...postForm, images: Array.from(e.target.files ?? []) })
-                      }
-                    />
-                    {postForm.images.length > 0 && (
-                      <div className="text-xs text-muted-foreground">
-                        {postForm.images.length} image(s) selected
-                      </div>
-                    )}
-                  </div>
-                  <div className="md:col-span-2 flex justify-end">
-                    <Button onClick={submitPost} disabled={posting}>
-                      {posting ? "Publishing..." : "Publish to feed"}
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Filters */}
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

@@ -43,13 +43,6 @@ model User {
   postedOpportunities Opportunity[]
   messagesSent Message[] @relation("MessageFromUser")
   messagesReceived Message[] @relation("MessageToUser")
-  followers Follow[] @relation("FollowFollowing")
-  following Follow[] @relation("FollowFollower")
-  forumPosts ForumPost[]
-  forumComments ForumComment[]
-  forumReactions ForumReaction[]
-  forumSaves ForumSave[]
-  forumReposts ForumRepost[]
 
   @@index([email])
 }
@@ -106,9 +99,6 @@ model Opportunity {
   details     String?
   askAmount   Float?
   benefits    String?
-  sectors     String[] @default([])
-  industries  String[] @default([])
-  countries   String[] @default([])
   contactEmail    String?
   contactPhone    String?
   contactUsername String?
@@ -146,92 +136,6 @@ model OpportunityAction {
   @@unique([userId, opportunityId])
   @@index([userId, state])
   @@index([opportunityId])
-}
-
-model Follow {
-  id           String   @id @default(cuid())
-  followerId   String
-  followingId  String
-  createdAt    DateTime @default(now())
-
-  follower  User @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
-  following User @relation("FollowFollowing", fields: [followingId], references: [id], onDelete: Cascade)
-
-  @@unique([followerId, followingId])
-  @@index([followingId])
-}
-
-model ForumPost {
-  id        String   @id @default(cuid())
-  userId    String
-  title     String
-  body      String
-  createdAt DateTime @default(now())
-
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  comments  ForumComment[]
-  reactions ForumReaction[]
-  saves     ForumSave[]
-  reposts   ForumRepost[]
-
-  @@index([createdAt])
-}
-
-model ForumComment {
-  id        String   @id @default(cuid())
-  postId    String
-  userId    String
-  body      String
-  createdAt DateTime @default(now())
-
-  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([postId])
-}
-
-enum ForumReactionType {
-  LIKE
-  INSIGHTFUL
-  CURIOUS
-}
-
-model ForumReaction {
-  id        String             @id @default(cuid())
-  postId    String
-  userId    String
-  type      ForumReactionType
-  createdAt DateTime           @default(now())
-
-  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, userId, type])
-  @@index([postId])
-}
-
-model ForumSave {
-  id        String   @id @default(cuid())
-  postId    String
-  userId    String
-  createdAt DateTime @default(now())
-
-  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, userId])
-}
-
-model ForumRepost {
-  id        String   @id @default(cuid())
-  postId    String
-  userId    String
-  createdAt DateTime @default(now())
-
-  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, userId])
 }
 
 model Message {

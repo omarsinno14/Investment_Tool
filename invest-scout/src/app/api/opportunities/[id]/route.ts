@@ -31,7 +31,7 @@ export async function GET(
           select: {
             id: true,
             email: true,
-            profile: { select: { name: true, username: true, imageUrl: true, phone: true, emailVerified: true, phoneVerified: true } },
+            profile: { select: { name: true, username: true, imageUrl: true, phone: true } },
           },
         },
       },
@@ -64,7 +64,7 @@ export async function GET(
           select: {
             id: true,
             email: true,
-            profile: { select: { name: true, username: true, imageUrl: true, emailVerified: true, phoneVerified: true } },
+            profile: { select: { name: true, username: true, imageUrl: true } },
           },
         },
       },
