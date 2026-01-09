@@ -28,7 +28,6 @@ type Message = {
 };
 
 type Opportunity = { id: string; title: string };
-type FollowUser = { id: string; email?: string | null; profile?: { username?: string | null; name?: string | null } | null };
 
 export default function MessagesPage() {
   const [identifier, setIdentifier] = useState("");
@@ -64,19 +63,13 @@ export default function MessagesPage() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/opportunities?type=community", { cache: "no-store", credentials: "include" });
+        const res = await fetch("/api/opportunities", { cache: "no-store", credentials: "include" });
         if (res.status === 401) {
           window.location.href = "/login";
           return;
         }
         const data = await res.json().catch(() => ({}));
         setOpportunities((data.opportunities ?? []).slice(0, 50));
-        const followRes = await fetch("/api/user/follows", { credentials: "include" });
-        const followData = await followRes.json().catch(() => ({}));
-        if (followRes.ok) {
-          setFollowing(followData.following ?? []);
-          setFollowers(followData.followers ?? []);
-        }
       } catch (e) {
         console.error(e);
         toast.error("Failed to load opportunities");
@@ -140,52 +133,6 @@ export default function MessagesPage() {
           Share opportunities with teammates or friends by email, username, or phone.
         </p>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Find someone to message</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input
-            placeholder="Search followers or following..."
-            value={followSearch}
-            onChange={(e) => setFollowSearch(e.target.value)}
-          />
-          <div className="grid gap-2 md:grid-cols-2 text-sm">
-            {[{ label: "Following", list: following }, { label: "Followers", list: followers }].map((group) => {
-              const filtered = group.list.filter((u) => {
-                const label = u.profile?.username || u.profile?.name || u.email || "";
-                return label.toLowerCase().includes(followSearch.trim().toLowerCase());
-              });
-              return (
-                <div key={group.label} className="space-y-2">
-                  <div className="text-xs text-muted-foreground">{group.label}</div>
-                  {filtered.length === 0 ? (
-                    <div className="text-xs text-muted-foreground">No matches.</div>
-                  ) : (
-                    filtered.map((u) => {
-                      const label = u.profile?.username || u.profile?.name || u.email || "User";
-                      return (
-                        <Button
-                          key={u.id}
-                          variant="outline"
-                          className="w-full justify-start"
-                          onClick={() => {
-                            setIdentifier(label);
-                            loadMessages(label);
-                          }}
-                        >
-                          {label}
-                        </Button>
-                      );
-                    })
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
