@@ -161,6 +161,31 @@ export default function SettingsPage() {
       <Card>
         <CardHeader><CardTitle>Profile</CardTitle></CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="md:col-span-2 flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary/70"
+              title="Upload profile photo"
+            >
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={form.imageUrl || undefined} alt="Profile preview" />
+                <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
+            <div className="text-sm text-muted-foreground">
+              Click your photo to upload a JPG, PNG, or other image.
+            </div>
+            {uploading && <div className="text-xs text-muted-foreground">Uploading photo...</div>}
+          </div>
+
           <div className="space-y-2">
             <Label>Name</Label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

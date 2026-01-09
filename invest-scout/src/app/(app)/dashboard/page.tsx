@@ -426,6 +426,16 @@ export default function DashboardPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="justify-between">
+                <Link href="/forums">
+                  Visit forums <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-between">
+                <Link href="/tools">
+                  Open tools <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="justify-between">
                 <Link href="/settings">
                   Update profile settings <ArrowRight className="h-4 w-4" />
                 </Link>
