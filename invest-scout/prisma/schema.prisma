@@ -123,6 +123,7 @@ model MoneyManagement {
   investmentsValue         Float?
   investmentsCashflow      Float?
   debts                    Float?
+  spendingDaily            Float?
   liabilities              Float?
   spendingDaily            Float?
   spendingWeekly           Float?

@@ -17,6 +17,7 @@ type MoneyForm = {
   investmentsValue: string;
   investmentsCashflow: string;
   debts: string;
+  spendingDaily: string;
   liabilities: string;
   spendingDaily: string;
   spendingWeekly: string;
@@ -38,6 +39,7 @@ const defaultForm: MoneyForm = {
   investmentsValue: "",
   investmentsCashflow: "",
   debts: "",
+  spendingDaily: "",
   liabilities: "",
   spendingDaily: "",
   spendingWeekly: "",
