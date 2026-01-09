@@ -170,7 +170,6 @@ model MoneyManagement {
   debts                    Float?
   spendingDaily            Float?
   liabilities              Float?
-  spendingDaily            Float?
   spendingWeekly           Float?
   spendingMonthly          Float?
   savingsCurrent           Float?
