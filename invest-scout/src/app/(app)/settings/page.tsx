@@ -37,7 +37,6 @@ export default function SettingsPage() {
           const p = data.profile ?? {};
           setForm({
             name: p.name ?? "",
-            imageUrl: p.imageUrl ?? "",
             age: p.age ?? "",
             familySituation: p.familySituation ?? "",
             netWorth: p.netWorth ?? "",
