@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
-import { buildNewsSources, extractImageUrl, fetchOgImage, fetchRss } from "@/lib/rss";
+import { fetchRss, googleNewsRss } from "@/lib/rss";
 
 type InterestRecord = { type: string; value: string; parent?: string | null };
 
@@ -33,23 +33,7 @@ function buildQueries(interests: InterestRecord[]) {
   }
 
   if (!queries.length) return [];
-  return queries.slice(0, 24);
-}
-
-function normalize(value: string) {
-  return value.toLowerCase();
-}
-
-function shouldKeep(
-  item: { title?: string; contentSnippet?: string },
-  terms: string[],
-  countries: string[]
-) {
-  const hay = normalize(`${item.title ?? ""} ${item.contentSnippet ?? ""}`);
-  const matchesTerm = terms.length === 0 || terms.some((t) => t.length >= 2 && hay.includes(normalize(t)));
-  const matchesCountry =
-    countries.length === 0 || countries.some((c) => c.length >= 2 && hay.includes(normalize(c)));
-  return matchesTerm && matchesCountry;
+  return queries.slice(0, 12);
 }
 
 export async function POST() {
@@ -69,54 +53,37 @@ export async function POST() {
       select: { type: true, value: true, parent: true },
     });
 
-    const typedInterests = interests as InterestRecord[];
-    const queries = buildQueries(typedInterests);
+    const queries = buildQueries(interests as InterestRecord[]);
     if (!queries.length) {
       return NextResponse.json({ ok: true, inserted: 0 });
     }
 
-    const terms = dedupe(
-      typedInterests
-        .filter((i) => i.type !== "COUNTRY")
-        .flatMap((i) => [i.value, i.parent].filter(Boolean) as string[])
-    );
-    const countries = dedupe(typedInterests.filter((i) => i.type === "COUNTRY").map((i) => i.value));
-
     let inserted = 0;
 
     for (const q of queries) {
-      const sources = buildNewsSources(q);
+      const url = googleNewsRss(q);
+      const items = await fetchRss(url);
 
-      for (const source of sources) {
-        const items = await fetchRss(source.url);
+      for (const it of items) {
+        if (!it.link || !it.title) continue;
 
-        for (const it of items) {
-          if (!it.link || !it.title) continue;
-          if (!shouldKeep(it, terms, countries)) continue;
+        const publishedAt = it.isoDate ? new Date(it.isoDate) : it.pubDate ? new Date(it.pubDate) : null;
+        const keywords = q.split(" ").slice(0, 12);
 
-          const publishedAt = it.isoDate ? new Date(it.isoDate) : it.pubDate ? new Date(it.pubDate) : null;
-          let imageUrl = extractImageUrl(it);
-          if (!imageUrl && it.link) {
-            imageUrl = await fetchOgImage(it.link);
-          }
-          const keywords = q.split(" ").slice(0, 12);
-
-          try {
-            await prisma.opportunity.create({
-              data: {
-                title: it.title,
-                url: it.link,
-                summary: it.contentSnippet ?? null,
-                imageUrl,
-                publishedAt,
-                source: source.name,
-                keywords,
-              },
-            });
-            inserted += 1;
-          } catch {
-            // ignore duplicates (unique on url)
-          }
+        try {
+          await prisma.opportunity.create({
+            data: {
+              title: it.title,
+              url: it.link,
+              summary: it.contentSnippet ?? null,
+              publishedAt,
+              source: "Google News RSS",
+              keywords,
+            },
+          });
+          inserted += 1;
+        } catch {
+          // ignore duplicates (unique on url)
         }
       }
     }
