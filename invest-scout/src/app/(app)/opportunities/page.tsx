@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { RefreshCcw, Search } from "lucide-react";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -61,6 +62,22 @@ export default function OpportunitiesPage() {
   const [exclude, setExclude] = useState("");
   const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED" | "INVESTED">("ALL");
   const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
+  const [posting, setPosting] = useState(false);
+  const [postForm, setPostForm] = useState({
+    title: "",
+    summary: "",
+    details: "",
+    askAmount: "",
+    benefits: "",
+    tags: "",
+    locationName: "",
+    locationMapUrl: "",
+    contactEmail: "",
+    contactPhone: "",
+    contactUsername: "",
+    images: [] as File[],
+  });
+  const uploadRef = useRef<HTMLInputElement | null>(null);
 
   async function load() {
     setLoading(true);
@@ -95,6 +112,61 @@ export default function OpportunitiesPage() {
       toast.error("Failed to load opportunities");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function submitPost() {
+    if (!postForm.title.trim()) {
+      toast.error("Add a title for your opportunity");
+      return;
+    }
+    setPosting(true);
+    try {
+      const formData = new FormData();
+      formData.append("title", postForm.title);
+      formData.append("summary", postForm.summary);
+      formData.append("details", postForm.details);
+      formData.append("askAmount", postForm.askAmount);
+      formData.append("benefits", postForm.benefits);
+      formData.append("tags", postForm.tags);
+      formData.append("locationName", postForm.locationName);
+      formData.append("locationMapUrl", postForm.locationMapUrl);
+      formData.append("contactEmail", postForm.contactEmail);
+      formData.append("contactPhone", postForm.contactPhone);
+      formData.append("contactUsername", postForm.contactUsername);
+      postForm.images.forEach((file) => formData.append("images", file));
+
+      const res = await fetch("/api/user/opportunities", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Failed to post");
+      }
+      toast.success("Opportunity posted to the feed");
+      setPostForm({
+        title: "",
+        summary: "",
+        details: "",
+        askAmount: "",
+        benefits: "",
+        tags: "",
+        locationName: "",
+        locationMapUrl: "",
+        contactEmail: "",
+        contactPhone: "",
+        contactUsername: "",
+        images: [],
+      });
+      if (uploadRef.current) uploadRef.current.value = "";
+      await load();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to post opportunity");
+    } finally {
+      setPosting(false);
     }
   }
 
@@ -240,6 +312,113 @@ export default function OpportunitiesPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Main column */}
         <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Post an opportunity</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
+                <Input
+                  placeholder="Title"
+                  value={postForm.title}
+                  onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Input
+                  placeholder="Short summary"
+                  value={postForm.summary}
+                  onChange={(e) => setPostForm({ ...postForm, summary: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Textarea
+                  placeholder="Details / explanation"
+                  value={postForm.details}
+                  onChange={(e) => setPostForm({ ...postForm, details: e.target.value })}
+                  rows={4}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  type="number"
+                  placeholder="Ask amount"
+                  value={postForm.askAmount}
+                  onChange={(e) => setPostForm({ ...postForm, askAmount: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Textarea
+                  placeholder="Benefits"
+                  value={postForm.benefits}
+                  onChange={(e) => setPostForm({ ...postForm, benefits: e.target.value })}
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Input
+                  placeholder="Tags (comma-separated)"
+                  value={postForm.tags}
+                  onChange={(e) => setPostForm({ ...postForm, tags: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Location"
+                  value={postForm.locationName}
+                  onChange={(e) => setPostForm({ ...postForm, locationName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Map link (optional)"
+                  value={postForm.locationMapUrl}
+                  onChange={(e) => setPostForm({ ...postForm, locationMapUrl: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Contact email"
+                  value={postForm.contactEmail}
+                  onChange={(e) => setPostForm({ ...postForm, contactEmail: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Contact phone"
+                  value={postForm.contactPhone}
+                  onChange={(e) => setPostForm({ ...postForm, contactPhone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Input
+                  placeholder="Contact username"
+                  value={postForm.contactUsername}
+                  onChange={(e) => setPostForm({ ...postForm, contactUsername: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Input
+                  ref={uploadRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => setPostForm({ ...postForm, images: Array.from(e.target.files ?? []) })}
+                />
+                {postForm.images.length > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    {postForm.images.length} image(s) selected
+                  </div>
+                )}
+              </div>
+              <div className="md:col-span-2 flex justify-end">
+                <Button onClick={submitPost} disabled={posting}>
+                  {posting ? "Publishing..." : "Publish to feed"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Filters */}
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:w-[640px]">
