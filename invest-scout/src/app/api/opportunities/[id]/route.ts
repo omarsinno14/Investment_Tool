@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireUserId } from "@/lib/auth-server";
 import { getPrismaClient } from "@/lib/db";
-import type { Opportunity, OpportunityAction } from "@prisma/client";
+import type { OpportunityAction } from "@prisma/client";
 
 export async function GET(
   _req: Request,
@@ -24,7 +24,18 @@ export async function GET(
       return NextResponse.json({ error: "Missing id" }, { status: 400 });
     }
 
-    const opportunity = await prisma.opportunity.findUnique({ where: { id } });
+    const opportunity = await prisma.opportunity.findUnique({
+      where: { id },
+      include: {
+        createdByUser: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true, username: true, imageUrl: true, phone: true, emailVerified: true, phoneVerified: true } },
+          },
+        },
+      },
+    });
     if (!opportunity) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
@@ -41,10 +52,22 @@ export async function GET(
           opportunity.keywords.length
             ? { keywords: { hasSome: opportunity.keywords.slice(0, 5) } }
             : undefined,
+          opportunity.tags?.length
+            ? { tags: { hasSome: opportunity.tags.slice(0, 5) } }
+            : undefined,
         ].filter(Boolean) as any,
       },
       orderBy: { fetchedAt: "desc" },
       take: 6,
+      include: {
+        createdByUser: {
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true, username: true, imageUrl: true, emailVerified: true, phoneVerified: true } },
+          },
+        },
+      },
     });
 
     const relatedActions: OpportunityAction[] = related.length
@@ -59,7 +82,7 @@ export async function GET(
 
     return NextResponse.json({
       opportunity: { ...opportunity, action: action ?? null },
-      related: related.map((r: Opportunity) => ({
+      related: related.map((r) => ({
         ...r,
         action: relatedActionMap.get(r.id) ?? null,
       })),

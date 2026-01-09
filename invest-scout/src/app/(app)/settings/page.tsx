@@ -1,24 +1,36 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function SettingsPage() {
   const [form, setForm] = useState<any>({
     name: "",
+    username: "",
+    phone: "",
     imageUrl: "",
     age: "",
+    bio: "",
+    occupation: "",
+    currency: "USD",
     familySituation: "",
     netWorth: "",
     riskTolerance: "MEDIUM",
     investAmount: "",
+    emailVerified: false,
+    phoneVerified: false,
+    hideAgeFromNonFollowers: false,
+    hideContactFromNonFollowers: false,
+    hidePhotoFromNonFollowers: false,
   });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -38,11 +50,22 @@ export default function SettingsPage() {
           const p = data.profile ?? {};
           setForm({
             name: p.name ?? "",
+            username: p.username ?? "",
+            phone: p.phone ?? "",
+            imageUrl: p.imageUrl ?? "",
             age: p.age ?? "",
+            bio: p.bio ?? "",
+            occupation: p.occupation ?? "",
+            currency: p.currency ?? "USD",
             familySituation: p.familySituation ?? "",
             netWorth: p.netWorth ?? "",
             riskTolerance: p.riskTolerance ?? "MEDIUM",
             investAmount: p.investAmount ?? "",
+            emailVerified: Boolean(p.emailVerified),
+            phoneVerified: Boolean(p.phoneVerified),
+            hideAgeFromNonFollowers: Boolean(p.hideAgeFromNonFollowers),
+            hideContactFromNonFollowers: Boolean(p.hideContactFromNonFollowers),
+            hidePhotoFromNonFollowers: Boolean(p.hidePhotoFromNonFollowers),
           });
         } else {
           const message = isJson ? data?.error || "Failed to load profile" : "Failed to load profile";
@@ -64,12 +87,21 @@ export default function SettingsPage() {
         credentials: "include",
         body: JSON.stringify({
           name: form.name || undefined,
-          imageUrl: form.imageUrl || undefined,
+          username: form.username || undefined,
+          phone: form.phone || undefined,
+          bio: form.bio || undefined,
+          occupation: form.occupation || undefined,
+          currency: form.currency || undefined,
           age: form.age === "" ? undefined : Number(form.age),
           familySituation: form.familySituation || undefined,
           netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
           riskTolerance: form.riskTolerance,
           investAmount: form.investAmount === "" ? undefined : Number(form.investAmount),
+          emailVerified: form.emailVerified,
+          phoneVerified: form.phoneVerified,
+          hideAgeFromNonFollowers: form.hideAgeFromNonFollowers,
+          hideContactFromNonFollowers: form.hideContactFromNonFollowers,
+          hidePhotoFromNonFollowers: form.hidePhotoFromNonFollowers,
         }),
       });
 
@@ -95,6 +127,56 @@ export default function SettingsPage() {
     }
   }
 
+  const riskOptions = useMemo(
+    () => [
+      "EXTREMELY_LOW",
+      "LOW",
+      "MEDIUM",
+      "MEDIUM_HIGH",
+      "HIGH",
+      "EXTREMELY_HIGH",
+    ],
+    []
+  );
+
+  const riskLabels = {
+    EXTREMELY_LOW: "Extremely low",
+    LOW: "Low",
+    MEDIUM: "Medium",
+    MEDIUM_HIGH: "Medium high",
+    HIGH: "High",
+    EXTREMELY_HIGH: "Extremely high",
+  } as const;
+
+  const riskIndex = Math.max(0, riskOptions.indexOf(form.riskTolerance));
+
+  async function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/user/profile/photo", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Upload failed");
+      }
+      setForm((prev: any) => ({ ...prev, imageUrl: data.imageUrl ?? "" }));
+      toast.success("Profile photo updated");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to upload photo");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -111,30 +193,72 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label>Profile photo URL</Label>
-            <Input
-              value={form.imageUrl}
-              onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-              placeholder="https://example.com/avatar.jpg"
-            />
+            <Label>Occupation</Label>
+            <Input value={form.occupation} onChange={(e) => setForm({ ...form, occupation: e.target.value })} />
           </div>
 
           <div className="space-y-2 md:col-span-2">
             <Label>Preview</Label>
             <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={form.imageUrl || undefined} alt="Profile preview" />
-                <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary/70"
+                title="Upload profile photo"
+              >
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={form.imageUrl || undefined} alt="Profile preview" />
+                  <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoChange}
+              />
               <div className="text-sm text-muted-foreground">
-                Paste a public image URL to update your profile photo.
+                Click your avatar to upload a JPG, PNG, or other image.
               </div>
             </div>
+            {uploading && <div className="text-xs text-muted-foreground">Uploading photo...</div>}
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>Bio</Label>
+            <Input value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
           </div>
 
           <div className="space-y-2">
             <Label>Age</Label>
             <Input value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} type="number" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Username</Label>
+            <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Phone number</Label>
+            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Preferred currency</Label>
+            <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                {["USD", "EUR", "GBP", "CAD", "AUD", "NGN", "KES", "GHS", "ZAR", "INR"].map((cur) => (
+                  <SelectItem key={cur} value={cur}>
+                    {cur}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -148,13 +272,75 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label>Risk tolerance (LOW / MEDIUM / HIGH)</Label>
-            <Input value={form.riskTolerance} onChange={(e) => setForm({ ...form, riskTolerance: e.target.value })} />
+            <Label>Risk tolerance</Label>
+            <div className="space-y-2">
+              <input
+                type="range"
+                min={0}
+                max={riskOptions.length - 1}
+                value={riskIndex}
+                onChange={(e) =>
+                  setForm({ ...form, riskTolerance: riskOptions[Number(e.target.value)] })
+                }
+                className="w-full"
+              />
+              <div className="text-sm text-muted-foreground">
+                {riskLabels[form.riskTolerance as keyof typeof riskLabels]}
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label>Amount you’re looking to invest</Label>
             <Input value={form.investAmount} onChange={(e) => setForm({ ...form, investAmount: e.target.value })} type="number" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Email verified</Label>
+            <input
+              type="checkbox"
+              checked={form.emailVerified}
+              onChange={(e) => setForm({ ...form, emailVerified: e.target.checked })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Phone verified</Label>
+            <input
+              type="checkbox"
+              checked={form.phoneVerified}
+              onChange={(e) => setForm({ ...form, phoneVerified: e.target.checked })}
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>Privacy</Label>
+            <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.hideAgeFromNonFollowers}
+                  onChange={(e) => setForm({ ...form, hideAgeFromNonFollowers: e.target.checked })}
+                />
+                Hide age from non-followers
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.hideContactFromNonFollowers}
+                  onChange={(e) => setForm({ ...form, hideContactFromNonFollowers: e.target.checked })}
+                />
+                Hide contact info from non-followers
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.hidePhotoFromNonFollowers}
+                  onChange={(e) => setForm({ ...form, hidePhotoFromNonFollowers: e.target.checked })}
+                />
+                Hide profile photo from non-followers
+              </label>
+            </div>
           </div>
 
           <div className="md:col-span-2">

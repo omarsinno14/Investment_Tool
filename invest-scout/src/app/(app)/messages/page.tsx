@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,7 @@ export default function MessagesPage() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const searchParams = useSearchParams();
 
   async function loadMessages(currentIdentifier = identifier) {
     if (!currentIdentifier.trim()) {
@@ -76,6 +78,14 @@ export default function MessagesPage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    const partner = searchParams.get("partner");
+    if (partner) {
+      setIdentifier(partner);
+      loadMessages(partner);
+    }
+  }, [searchParams]);
 
   const sortedMessages = useMemo(() => {
     return [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());

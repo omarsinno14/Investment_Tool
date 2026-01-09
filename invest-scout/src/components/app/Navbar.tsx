@@ -13,8 +13,12 @@ export function Navbar() {
         </Link>
         <nav className="flex items-center gap-3 text-sm">
           <Link href="/opportunities" className="hover:underline">Opportunities</Link>
+          <Link href="/headlines" className="hover:underline">Headlines</Link>
           <Link href="/interests" className="hover:underline">Interests</Link>
           <Link href="/money-management" className="hover:underline">Money management</Link>
+          <Link href="/messages" className="hover:underline">Messages</Link>
+          <Link href="/forums" className="hover:underline">Forums</Link>
+          <Link href="/tools" className="hover:underline">Tools</Link>
           <Link href="/settings" className="hover:underline">Settings</Link>
           <Button variant="outline" onClick={() => signOut({ callbackUrl: "/login" })}>
             Logout

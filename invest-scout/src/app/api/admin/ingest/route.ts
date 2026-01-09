@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
-import { buildNewsSources, fetchRss } from "@/lib/rss";
+import { buildNewsSources, extractImageUrl, fetchOgImage, fetchRss } from "@/lib/rss";
 
 function normalize(str: string) {
   return str.toLowerCase();
@@ -53,6 +53,7 @@ export async function POST(req: Request) {
         if (!shouldKeep(it, terms)) continue;
 
         const publishedAt = it.isoDate ? new Date(it.isoDate) : it.pubDate ? new Date(it.pubDate) : null;
+        const imageUrl = extractImageUrl(it) ?? (it.link ? await fetchOgImage(it.link) : null);
 
         try {
           await prisma.opportunity.create({
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
               title: it.title,
               url: it.link,
               summary: it.contentSnippet ?? null,
+              imageUrl,
               publishedAt,
               source: source.name,
               keywords: q.split(" ").slice(0, 10),

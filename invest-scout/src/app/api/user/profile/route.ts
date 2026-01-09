@@ -29,26 +29,42 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null);
     if (!body) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
 
+    const cleanUsername = typeof body.username === "string" ? body.username.trim() : null;
+    const cleanPhone =
+      typeof body.phone === "string" ? body.phone.replace(/[^\d+]/g, "").trim() : null;
+
+    const baseData = {
+      name: body.name ?? null,
+      username: cleanUsername || null,
+      phone: cleanPhone || null,
+      bio: body.bio ?? null,
+      occupation: body.occupation ?? null,
+      currency: body.currency ?? null,
+      age: typeof body.age === "number" ? body.age : null,
+      familySituation: body.familySituation ?? null,
+      netWorth: typeof body.netWorth === "number" ? body.netWorth : null,
+      riskTolerance: body.riskTolerance ?? "MEDIUM",
+      investAmount: typeof body.investAmount === "number" ? body.investAmount : null,
+      emailVerified: typeof body.emailVerified === "boolean" ? body.emailVerified : undefined,
+      phoneVerified: typeof body.phoneVerified === "boolean" ? body.phoneVerified : undefined,
+      hideAgeFromNonFollowers:
+        typeof body.hideAgeFromNonFollowers === "boolean" ? body.hideAgeFromNonFollowers : undefined,
+      hideContactFromNonFollowers:
+        typeof body.hideContactFromNonFollowers === "boolean" ? body.hideContactFromNonFollowers : undefined,
+      hidePhotoFromNonFollowers:
+        typeof body.hidePhotoFromNonFollowers === "boolean" ? body.hidePhotoFromNonFollowers : undefined,
+    };
+
     const profile = await prisma.profile.upsert({
       where: { userId },
       create: {
         userId,
-        name: body.name ?? null,
         imageUrl: body.imageUrl ?? null,
-        age: typeof body.age === "number" ? body.age : null,
-        familySituation: body.familySituation ?? null,
-        netWorth: typeof body.netWorth === "number" ? body.netWorth : null,
-        riskTolerance: body.riskTolerance ?? "MEDIUM",
-        investAmount: typeof body.investAmount === "number" ? body.investAmount : null,
+        ...baseData,
       },
       update: {
-        name: body.name ?? null,
-        imageUrl: body.imageUrl ?? null,
-        age: typeof body.age === "number" ? body.age : null,
-        familySituation: body.familySituation ?? null,
-        netWorth: typeof body.netWorth === "number" ? body.netWorth : null,
-        riskTolerance: body.riskTolerance ?? "MEDIUM",
-        investAmount: typeof body.investAmount === "number" ? body.investAmount : null,
+        ...baseData,
+        ...(body.imageUrl ? { imageUrl: body.imageUrl } : {}),
       },
     });
 
