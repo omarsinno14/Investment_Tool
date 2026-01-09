@@ -202,6 +202,16 @@ export function InterestPicker() {
       }
 
       toast.success("Interests saved");
+      const ingestRes = await fetch("/api/user/ingest", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!ingestRes.ok) {
+        const data = await ingestRes.json().catch(() => ({}));
+        toast.error(data?.error ?? "Unable to fetch fresh headlines");
+        return;
+      }
+      toast.message("Fetching new headlines for your interests");
     } catch (e) {
       console.error(e);
       toast.error("Network error");
