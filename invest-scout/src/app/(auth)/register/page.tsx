@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
@@ -13,11 +14,18 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setErr(null);
+
+    if (password.length < 8) {
+      setErr("Password must be at least 8 characters");
+      setLoading(false);
+      return;
+    }
 
     const res = await fetch("/api/register", {
       method: "POST",
@@ -26,14 +34,28 @@ export default function RegisterPage() {
     });
 
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setErr(data?.error ?? "Registration failed");
+      const ct = res.headers.get("content-type") ?? "";
+      const isJson = ct.includes("application/json");
+      const data = isJson ? await res.json().catch(() => ({})) : {};
+      const fallback = isJson ? data?.error : await res.text().catch(() => "");
+      setErr(fallback || "Registration failed");
       setLoading(false);
       return;
     }
 
     // auto-login
-    await signIn("credentials", { email, password, redirect: true, callbackUrl: "/dashboard" });
+    const loginRes = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+      callbackUrl: "/dashboard",
+    });
+    if (loginRes?.error) {
+      setErr(loginRes.error === "CredentialsSignin" ? "Unable to log in" : "Login failed");
+      setLoading(false);
+      return;
+    }
+    router.push(loginRes?.url ?? "/dashboard");
     setLoading(false);
   }
 
