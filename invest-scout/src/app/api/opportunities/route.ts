@@ -15,7 +15,7 @@ function norm(s: string) {
   return s.toLowerCase();
 }
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const prisma = getPrismaClient();
     if (!prisma) {

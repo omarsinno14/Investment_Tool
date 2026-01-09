@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DisclosureBanner } from "@/components/app/DisclosureBanner";
 
 type MoneyForm = {
   incomeMonthly: string;
@@ -28,15 +28,6 @@ type MoneyForm = {
   goalInvestments: string;
   goalNetWorth: string;
   hideSensitive: boolean;
-  snapshots?: {
-    id: string;
-    grossMonthly: number;
-    netMonthly: number;
-    spendingTotal: number;
-    netCashflow: number;
-    savingsCurrent: number;
-    createdAt: string;
-  }[];
 };
 
 const defaultForm: MoneyForm = {
@@ -59,7 +50,6 @@ const defaultForm: MoneyForm = {
   goalInvestments: "",
   goalNetWorth: "",
   hideSensitive: false,
-  snapshots: [],
 };
 
 function asNumber(value: string) {
@@ -114,7 +104,6 @@ export default function MoneyManagementPage() {
           goalInvestments: m.goalInvestments?.toString() ?? "",
           goalNetWorth: m.goalNetWorth?.toString() ?? "",
           hideSensitive: Boolean(m.hideSensitive),
-          snapshots: m.snapshots ?? [],
         });
       } catch (e) {
         console.error(e);
@@ -146,9 +135,6 @@ export default function MoneyManagementPage() {
 
     return { grossMonthly, netMonthly, spendingTotal, netCashflow, netWorth };
   }, [form]);
-
-  const hideAll = form.hideSensitive;
-  const snapshots = form.snapshots ?? [];
 
   function display(value: number) {
     if (form.hideSensitive) return "•••";
@@ -212,86 +198,32 @@ export default function MoneyManagementPage() {
         </p>
       </div>
 
-      <DisclosureBanner />
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Gross monthly</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">${display(metrics.grossMonthly)}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Net monthly</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">${display(metrics.netMonthly)}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Net cashflow</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">${display(metrics.netCashflow)}</CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Privacy</CardTitle>
+          <CardTitle>Income & taxes</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">Hide everything on this page</div>
-          <Button
-            variant={form.hideSensitive ? "default" : "outline"}
-            onClick={() => setForm({ ...form, hideSensitive: !form.hideSensitive })}
-          >
-            {form.hideSensitive ? "Show details" : "Hide details"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {!hideAll && (
-        <>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Gross monthly</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold">${display(metrics.grossMonthly)}</CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Net monthly</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold">${display(metrics.netMonthly)}</CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Net cashflow</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold">${display(metrics.netCashflow)}</CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Trends over time</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {snapshots.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Save your data to build history.</div>
-              ) : (
-                <div className="space-y-2">
-                  {snapshots.map((snap) => (
-                    <div key={snap.id} className="grid gap-2 md:grid-cols-[140px_1fr] text-sm">
-                      <div className="text-muted-foreground">
-                        {new Date(snap.createdAt).toLocaleDateString()}
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <div>
-                          Cashflow: <span className="font-medium">${formatMoney(snap.netCashflow)}</span>
-                        </div>
-                        <div>
-                          Spending: <span className="font-medium">${formatMoney(snap.spendingTotal)}</span>
-                        </div>
-                        <div>
-                          Savings: <span className="font-medium">${formatMoney(snap.savingsCurrent)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
-      )}
-
-      {!hideAll && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Income & taxes</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
+        <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label>Monthly income</Label>
             <Input value={form.incomeMonthly} onChange={(e) => setForm({ ...form, incomeMonthly: e.target.value })} type="number" />
@@ -312,16 +244,14 @@ export default function MoneyManagementPage() {
             <Label>State / province</Label>
             <Input value={form.locationRegion} onChange={(e) => setForm({ ...form, locationRegion: e.target.value })} />
           </div>
-          </CardContent>
-        </Card>
-      )}
+        </CardContent>
+      </Card>
 
-      {!hideAll && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Investments, debts, and liabilities</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
+      <Card>
+        <CardHeader>
+          <CardTitle>Investments, debts, and liabilities</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label>Investments value</Label>
             <Input value={form.investmentsValue} onChange={(e) => setForm({ ...form, investmentsValue: e.target.value })} type="number" />
@@ -346,16 +276,14 @@ export default function MoneyManagementPage() {
             <Label>Dependents</Label>
             <Input value={form.dependents} onChange={(e) => setForm({ ...form, dependents: e.target.value })} type="number" />
           </div>
-          </CardContent>
-        </Card>
-      )}
+        </CardContent>
+      </Card>
 
-      {!hideAll && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Spending habits</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
+      <Card>
+        <CardHeader>
+          <CardTitle>Spending habits</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label>Daily spending</Label>
             <Input value={form.spendingDaily} onChange={(e) => setForm({ ...form, spendingDaily: e.target.value })} type="number" />
@@ -368,16 +296,14 @@ export default function MoneyManagementPage() {
             <Label>Monthly spending</Label>
             <Input value={form.spendingMonthly} onChange={(e) => setForm({ ...form, spendingMonthly: e.target.value })} type="number" />
           </div>
-          </CardContent>
-        </Card>
-      )}
+        </CardContent>
+      </Card>
 
-      {!hideAll && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Goals</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
+      <Card>
+        <CardHeader>
+          <CardTitle>Goals</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label>Saving goal</Label>
             <Input value={form.goalSavings} onChange={(e) => setForm({ ...form, goalSavings: e.target.value })} type="number" />
@@ -390,35 +316,41 @@ export default function MoneyManagementPage() {
             <Label>Net worth goal</Label>
             <Input value={form.goalNetWorth} onChange={(e) => setForm({ ...form, goalNetWorth: e.target.value })} type="number" />
           </div>
-          </CardContent>
-        </Card>
-      )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Summary</CardTitle>
+          <CardTitle>Privacy & summary</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!hideAll && (
-            <div className="grid gap-3 md:grid-cols-3 text-sm">
-              <div>
-                <div className="text-muted-foreground">Monthly spending total</div>
-                <div className="font-semibold">${display(metrics.spendingTotal)}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Net worth</div>
-                <div className="font-semibold">${display(metrics.netWorth)}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Savings progress</div>
-                <div className="font-semibold">
-                  {form.hideSensitive
-                    ? "•••"
-                    : `${formatMoney(asNumber(form.savingsCurrent))} / ${formatMoney(asNumber(form.goalSavings))}`}
-                </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="hideSensitive"
+              checked={form.hideSensitive}
+              onCheckedChange={(value) => setForm({ ...form, hideSensitive: Boolean(value) })}
+            />
+            <Label htmlFor="hideSensitive">Hide sensitive values</Label>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3 text-sm">
+            <div>
+              <div className="text-muted-foreground">Monthly spending total</div>
+              <div className="font-semibold">${display(metrics.spendingTotal)}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Net worth</div>
+              <div className="font-semibold">${display(metrics.netWorth)}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Savings progress</div>
+              <div className="font-semibold">
+                {form.hideSensitive
+                  ? "•••"
+                  : `${formatMoney(asNumber(form.savingsCurrent))} / ${formatMoney(asNumber(form.goalSavings))}`}
               </div>
             </div>
-          )}
+          </div>
 
           <Button onClick={save} disabled={saving}>
             {saving ? "Saving..." : "Save money management"}
