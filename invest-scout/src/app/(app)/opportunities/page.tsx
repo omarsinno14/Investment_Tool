@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { RefreshCcw, Search } from "lucide-react";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
+import { SUPPORTED_CURRENCIES, useCurrency } from "@/components/app/CurrencyProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -69,6 +70,7 @@ export default function OpportunitiesPage() {
   const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
   const [showStats, setShowStats] = useState(true);
   const [postOpen, setPostOpen] = useState(false);
+  const { currency, convert, format } = useCurrency();
 
   const [posting, setPosting] = useState(false);
   const [postForm, setPostForm] = useState({
@@ -76,6 +78,9 @@ export default function OpportunitiesPage() {
     summary: "",
     details: "",
     askAmount: "",
+    askCurrency: currency,
+    expectedRoiPercent: "",
+    expectedRoiDurationMonths: "",
     benefits: "",
     tags: "",
     locationName: "",
@@ -166,6 +171,9 @@ export default function OpportunitiesPage() {
       formData.append("summary", postForm.summary);
       formData.append("details", postForm.details);
       formData.append("askAmount", postForm.askAmount);
+      formData.append("askCurrency", postForm.askCurrency);
+      formData.append("expectedRoiPercent", postForm.expectedRoiPercent);
+      formData.append("expectedRoiDurationMonths", postForm.expectedRoiDurationMonths);
       formData.append("benefits", postForm.benefits);
       formData.append("tags", postForm.tags);
       formData.append("locationName", postForm.locationName);
@@ -190,6 +198,9 @@ export default function OpportunitiesPage() {
         summary: "",
         details: "",
         askAmount: "",
+        askCurrency: currency,
+        expectedRoiPercent: "",
+        expectedRoiDurationMonths: "",
         benefits: "",
         tags: "",
         locationName: "",
@@ -284,7 +295,12 @@ export default function OpportunitiesPage() {
     if (maxAsk.trim() !== "") {
       const max = Number(maxAsk);
       if (Number.isFinite(max)) {
-        list = list.filter((o: any) => (o.askAmount ?? 0) <= max);
+        list = list.filter((o: any) => {
+          const amount = Number(o.askAmount ?? 0);
+          const fromCurrency = o.askCurrency ?? "USD";
+          const converted = convert(amount, fromCurrency, currency);
+          return converted <= max;
+        });
       }
     }
 
@@ -412,6 +428,40 @@ export default function OpportunitiesPage() {
                     placeholder="Ask amount"
                     value={postForm.askAmount}
                     onChange={(e) => setPostForm({ ...postForm, askAmount: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Select
+                    value={postForm.askCurrency}
+                    onValueChange={(value) => setPostForm({ ...postForm, askCurrency: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPORTED_CURRENCIES.map((code) => (
+                        <SelectItem key={code} value={code}>
+                          {code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Input
+                    type="number"
+                    placeholder="Expected ROI (%)"
+                    value={postForm.expectedRoiPercent}
+                    onChange={(e) => setPostForm({ ...postForm, expectedRoiPercent: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="number"
+                    placeholder="ROI duration (months)"
+                    value={postForm.expectedRoiDurationMonths}
+                    onChange={(e) => setPostForm({ ...postForm, expectedRoiDurationMonths: e.target.value })}
                   />
                 </div>
 
@@ -550,9 +600,9 @@ export default function OpportunitiesPage() {
 
           <Card>
             <CardHeader className="py-4">
-              <CardTitle className="text-sm text-muted-foreground">Invested $</CardTitle>
+              <CardTitle className="text-sm text-muted-foreground">Invested</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0 text-2xl font-semibold">{kpis.investedAmt.toLocaleString()}</CardContent>
+            <CardContent className="pt-0 text-2xl font-semibold">{format(kpis.investedAmt)}</CardContent>
           </Card>
         </div>
       )}
@@ -643,7 +693,7 @@ export default function OpportunitiesPage() {
                 </SelectContent>
               </Select>
 
-              <Input className="w-[140px]" type="number" placeholder="Max ask" value={maxAsk} onChange={(e) => setMaxAsk(e.target.value)} />
+              <Input className="w-[140px]" type="number" placeholder={`Max ask (${currency})`} value={maxAsk} onChange={(e) => setMaxAsk(e.target.value)} />
               <Input className="w-[180px]" placeholder="Benefit keyword" value={benefitFilter} onChange={(e) => setBenefitFilter(e.target.value)} />
             </div>
 

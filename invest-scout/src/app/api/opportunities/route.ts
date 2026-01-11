@@ -91,7 +91,17 @@ export async function GET(req: Request) {
       matchScore: getMatchScore(o, context),
     }));
 
-    return NextResponse.json({ opportunities });
+    const now = Date.now();
+    const sorted = opportunities.slice().sort((a: any, b: any) => {
+      const aBoosted = a.boostedUntil ? new Date(a.boostedUntil).getTime() > now : false;
+      const bBoosted = b.boostedUntil ? new Date(b.boostedUntil).getTime() > now : false;
+      if (aBoosted !== bBoosted) return aBoosted ? -1 : 1;
+      const scoreDiff = (b.matchScore ?? 0) - (a.matchScore ?? 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      return new Date(b.fetchedAt ?? 0).getTime() - new Date(a.fetchedAt ?? 0).getTime();
+    });
+
+    return NextResponse.json({ opportunities: sorted });
   } catch (e) {
     console.error("Failed to fetch opportunities", e);
     return NextResponse.json({ error: "Failed to fetch opportunities" }, { status: 500 });

@@ -30,6 +30,9 @@ export async function POST(req: Request) {
     const details = toString(formData.get("details"));
     const benefits = toString(formData.get("benefits"));
     const askAmount = toNumber(formData.get("askAmount"));
+    const askCurrency = toString(formData.get("askCurrency")) || "USD";
+    const expectedRoiPercent = toNumber(formData.get("expectedRoiPercent"));
+    const expectedRoiDurationMonths = toNumber(formData.get("expectedRoiDurationMonths"));
     const locationName = toString(formData.get("locationName"));
     const locationMapUrl = toString(formData.get("locationMapUrl"));
     const contactEmail = toString(formData.get("contactEmail"));
@@ -70,6 +73,9 @@ export async function POST(req: Request) {
         details: details || null,
         benefits: benefits || null,
         askAmount: askAmount ?? null,
+        askCurrency,
+        expectedRoiPercent,
+        expectedRoiDurationMonths: expectedRoiDurationMonths ? Math.round(expectedRoiDurationMonths) : null,
         locationName: locationName || null,
         locationMapUrl: locationMapUrl || null,
         contactEmail: contactEmail || null,

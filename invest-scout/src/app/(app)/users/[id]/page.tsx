@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { BadgeCheck, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,9 @@ type UserProfile = {
     phone?: string | null;
     emailVerified?: boolean;
     phoneVerified?: boolean;
+    identityVerified?: boolean;
+    expertiseTags?: string[];
+    verifiedExpertiseTags?: string[];
   } | null;
   interests?: { type: string; value: string }[];
 };
@@ -81,7 +85,10 @@ export default function UserProfilePage() {
 
   const displayName = user.profile?.username || user.profile?.name || user.email || "User";
   const isVerified = Boolean(user.profile?.emailVerified && user.profile?.phoneVerified);
+  const isIdentityVerified = Boolean(user.profile?.identityVerified);
   const identifier = user.profile?.username || user.email;
+  const expertiseTags = user.profile?.expertiseTags ?? [];
+  const verifiedExpertiseTags = new Set(user.profile?.verifiedExpertiseTags ?? []);
 
   return (
     <div className="space-y-6">
@@ -95,7 +102,16 @@ export default function UserProfilePage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-semibold">{displayName}</h1>
-                {isVerified && <Badge variant="secondary">Verified</Badge>}
+                {isIdentityVerified && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <ShieldCheck className="h-3 w-3" /> Verified ID
+                  </Badge>
+                )}
+                {isVerified && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <BadgeCheck className="h-3 w-3" /> Verified contact
+                  </Badge>
+                )}
               </div>
               {user.profile?.occupation && (
                 <div className="text-sm text-muted-foreground">{user.profile.occupation}</div>
@@ -149,6 +165,20 @@ export default function UserProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Expertise</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2 text-sm">
+          {expertiseTags.length === 0 && <div className="text-muted-foreground">No expertise tags yet.</div>}
+          {expertiseTags.map((tag) => (
+            <Badge key={tag} variant={verifiedExpertiseTags.has(tag) ? "default" : "outline"}>
+              {tag}
+            </Badge>
+          ))}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

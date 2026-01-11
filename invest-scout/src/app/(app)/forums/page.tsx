@@ -73,6 +73,23 @@ export default function ForumsPage() {
     }
   }
 
+  async function toggleReaction(postId: string, type: string) {
+    try {
+      const res = await fetch(`/api/forums/${postId}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ type }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to react");
+      await load();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update reaction");
+    }
+  }
+
   useEffect(() => {
     load();
   }, []);
@@ -139,6 +156,13 @@ export default function ForumsPage() {
           {posts.map((post) => {
             const userLabel = post.user?.profile?.username || post.user?.profile?.name || post.user?.email;
             const isVerified = Boolean(post.user?.profile?.emailVerified && post.user?.profile?.phoneVerified);
+            const isIdentityVerified = Boolean(post.user?.profile?.identityVerified);
+            const reactions = post.reactions ?? [];
+            const counts = {
+              LIKE: reactions.filter((r: any) => r.type === "LIKE").length,
+              INSIGHTFUL: reactions.filter((r: any) => r.type === "INSIGHTFUL").length,
+              CURIOUS: reactions.filter((r: any) => r.type === "CURIOUS").length,
+            };
             return (
               <Card key={post.id} className="hover:shadow-sm transition-shadow">
                 <CardHeader className="space-y-2">
@@ -153,7 +177,11 @@ export default function ForumsPage() {
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {userLabel} {isVerified ? "• Verified" : ""} • {new Date(post.createdAt).toLocaleString()}
+                    {userLabel}
+                    {isIdentityVerified ? " • Verified ID" : ""}
+                    {isVerified ? " • Verified contact" : ""}
+                    {" • "}
+                    {new Date(post.createdAt).toLocaleString()}
                   </div>
                   {post.imageUrl && (
                     <div className="overflow-hidden rounded-md border bg-muted/20">
@@ -163,6 +191,17 @@ export default function ForumsPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="text-sm text-muted-foreground line-clamp-3">{post.body}</div>
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <Button size="sm" variant="outline" onClick={() => toggleReaction(post.id, "LIKE")}>
+                      👍 {counts.LIKE}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => toggleReaction(post.id, "INSIGHTFUL")}>
+                      💡 {counts.INSIGHTFUL}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => toggleReaction(post.id, "CURIOUS")}>
+                      ❓ {counts.CURIOUS}
+                    </Button>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {(post.tags ?? []).map((tag: string) => (
                       <Badge key={tag} variant="secondary">

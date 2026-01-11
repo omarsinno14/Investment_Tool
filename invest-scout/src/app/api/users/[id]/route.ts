@@ -39,17 +39,23 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
       }
     }
 
-    const opportunities = await prisma.opportunity.findMany({
-      where: { createdByUserId: id },
-      orderBy: { publishedAt: "desc" },
-      take: 50,
-    });
+    const showPosts = Boolean(isFollowing || !profile?.hidePostsFromNonFollowers);
 
-    const forumPosts = await prisma.forumPost.findMany({
-      where: { userId: id, archivedAt: null },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
+    const opportunities = showPosts
+      ? await prisma.opportunity.findMany({
+          where: { createdByUserId: id, archivedAt: null },
+          orderBy: { publishedAt: "desc" },
+          take: 50,
+        })
+      : [];
+
+    const forumPosts = showPosts
+      ? await prisma.forumPost.findMany({
+          where: { userId: id, archivedAt: null },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        })
+      : [];
 
     const followerCount = await prisma.follow.count({ where: { followingId: id } });
     const followingCount = await prisma.follow.count({ where: { followerId: id } });

@@ -48,6 +48,16 @@ export async function PATCH(req: Request, { params }: { params: { id?: string } 
 
     const archived =
       typeof body.archived === "boolean" ? body.archived : undefined;
+    const repost = body.repost === true;
+    const boost = body.boost;
+
+    const boostBudget = boost && typeof boost.budget === "number" ? boost.budget : null;
+    const boostDays = boost && typeof boost.days === "number" ? boost.days : null;
+    const boostCurrency = boost && typeof boost.currency === "string" ? boost.currency : null;
+
+    if (boost && (!boostBudget || !boostDays)) {
+      return NextResponse.json({ error: "Boost budget and duration are required" }, { status: 400 });
+    }
 
     const updated = await prisma.opportunity.update({
       where: { id },
@@ -57,6 +67,17 @@ export async function PATCH(req: Request, { params }: { params: { id?: string } 
         ...(body.details !== undefined ? { details: toString(body.details) || null } : {}),
         ...(body.benefits !== undefined ? { benefits: toString(body.benefits) || null } : {}),
         ...(body.askAmount !== undefined ? { askAmount: toNumber(body.askAmount) } : {}),
+        ...(body.askCurrency !== undefined
+          ? { askCurrency: toString(body.askCurrency) || "USD" }
+          : {}),
+        ...(body.expectedRoiPercent !== undefined ? { expectedRoiPercent: toNumber(body.expectedRoiPercent) } : {}),
+        ...(body.expectedRoiDurationMonths !== undefined
+          ? {
+              expectedRoiDurationMonths: toNumber(body.expectedRoiDurationMonths)
+                ? Math.round(Number(body.expectedRoiDurationMonths))
+                : null,
+            }
+          : {}),
         ...(body.locationName !== undefined ? { locationName: toString(body.locationName) || null } : {}),
         ...(body.locationMapUrl !== undefined ? { locationMapUrl: toString(body.locationMapUrl) || null } : {}),
         ...(body.contactEmail !== undefined ? { contactEmail: toString(body.contactEmail) || null } : {}),
@@ -64,6 +85,15 @@ export async function PATCH(req: Request, { params }: { params: { id?: string } 
         ...(body.contactUsername !== undefined ? { contactUsername: toString(body.contactUsername) || null } : {}),
         ...(body.tags !== undefined ? { tags } : {}),
         ...(archived !== undefined ? { archivedAt: archived ? new Date() : null } : {}),
+        ...(repost ? { publishedAt: new Date(), archivedAt: null } : {}),
+        ...(boost
+          ? {
+              boostedAt: new Date(),
+              boostedUntil: new Date(Date.now() + Math.max(1, boostDays ?? 1) * 24 * 60 * 60 * 1000),
+              boostedBudget: boostBudget,
+              boostedCurrency: boostCurrency || "USD",
+            }
+          : {}),
       },
     });
 

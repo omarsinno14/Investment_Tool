@@ -25,7 +25,16 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
           select: {
             id: true,
             email: true,
-            profile: { select: { name: true, username: true, imageUrl: true, emailVerified: true, phoneVerified: true } },
+            profile: {
+              select: {
+                name: true,
+                username: true,
+                imageUrl: true,
+                emailVerified: true,
+                phoneVerified: true,
+                identityVerified: true,
+              },
+            },
           },
         },
         comments: true,

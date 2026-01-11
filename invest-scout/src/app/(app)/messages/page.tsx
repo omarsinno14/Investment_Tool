@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 type Message = {
   id: string;
@@ -28,6 +29,16 @@ type Message = {
 };
 
 type Opportunity = { id: string; title: string };
+type Group = {
+  id: string;
+  name: string;
+  imageUrl?: string;
+  members: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+const GROUPS_KEY = "invesco-message-groups";
 
 export default function MessagesPage() {
   const [identifier, setIdentifier] = useState("");
@@ -40,6 +51,12 @@ export default function MessagesPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showComposer, setShowComposer] = useState(true);
   const searchParams = useSearchParams();
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [groupForm, setGroupForm] = useState({ name: "", imageUrl: "", members: "" });
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [groupMessage, setGroupMessage] = useState("");
+  const [newMember, setNewMember] = useState("");
 
   async function loadMessages(currentIdentifier = identifier) {
     if (!currentIdentifier.trim()) {
@@ -81,6 +98,20 @@ export default function MessagesPage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(GROUPS_KEY);
+    if (!stored) return;
+    try {
+      setGroups(JSON.parse(stored) as Group[]);
+    } catch (e) {
+      console.error("Failed to load message groups", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
+  }, [groups]);
 
   useEffect(() => {
     const partner = searchParams.get("partner");
@@ -126,6 +157,128 @@ export default function MessagesPage() {
     } finally {
       setSending(false);
     }
+  }
+
+  async function ensureMutual(identifier: string) {
+    const res = await fetch(`/api/user/mutuals?identifier=${encodeURIComponent(identifier)}`, {
+      credentials: "include",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.mutual) {
+      return false;
+    }
+    return true;
+  }
+
+  async function createGroup() {
+    if (!groupForm.name.trim()) {
+      toast.error("Add a group name");
+      return;
+    }
+    const members = groupForm.members
+      .split(",")
+      .map((m) => m.trim())
+      .filter(Boolean);
+    if (members.length === 0) {
+      toast.error("Add at least one group member");
+      return;
+    }
+    const allowed: string[] = [];
+    for (const member of members) {
+      // eslint-disable-next-line no-await-in-loop
+      const ok = await ensureMutual(member);
+      if (!ok) {
+        toast.error(`${member} must be a mutual follower`);
+        continue;
+      }
+      allowed.push(member);
+    }
+    if (allowed.length === 0) return;
+    const timestamp = new Date().toISOString();
+    const next: Group = {
+      id: `grp-${Date.now()}`,
+      name: groupForm.name.trim(),
+      imageUrl: groupForm.imageUrl.trim() || undefined,
+      members: allowed,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    setGroups((prev) => [next, ...prev]);
+    setGroupForm({ name: "", imageUrl: "", members: "" });
+    setGroupOpen(false);
+    toast.success("Group created");
+  }
+
+  function selectedGroup() {
+    return groups.find((group) => group.id === selectedGroupId) ?? null;
+  }
+
+  async function addGroupMember() {
+    const group = selectedGroup();
+    if (!group || !newMember.trim()) return;
+    const identifier = newMember.trim();
+    const ok = await ensureMutual(identifier);
+    if (!ok) {
+      toast.error(`${identifier} must be a mutual follower`);
+      return;
+    }
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === group.id && !g.members.includes(identifier)
+          ? { ...g, members: [...g.members, identifier], updatedAt: new Date().toISOString() }
+          : g
+      )
+    );
+    setNewMember("");
+  }
+
+  function removeGroupMember(identifier: string) {
+    const group = selectedGroup();
+    if (!group) return;
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === group.id
+          ? { ...g, members: g.members.filter((m) => m !== identifier), updatedAt: new Date().toISOString() }
+          : g
+      )
+    );
+  }
+
+  async function sendGroupMessage() {
+    const group = selectedGroup();
+    if (!group) return;
+    if (!groupMessage.trim()) {
+      toast.error("Write a group message");
+      return;
+    }
+    setSending(true);
+    try {
+      for (const member of group.members) {
+        // eslint-disable-next-line no-await-in-loop
+        await fetch("/api/user/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            identifier: member,
+            body: groupMessage,
+            opportunityId,
+          }),
+        });
+      }
+      toast.success("Group message sent");
+      setGroupMessage("");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to send group message");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function removeGroup(id: string) {
+    setGroups((prev) => prev.filter((group) => group.id !== id));
+    if (selectedGroupId === id) setSelectedGroupId(null);
   }
 
   return (
@@ -192,6 +345,120 @@ export default function MessagesPage() {
           </CardContent>
         )}
       </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <CardTitle>Groups</CardTitle>
+          <Dialog open={groupOpen} onOpenChange={setGroupOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline">Create group</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create a group</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <Input
+                  placeholder="Group name"
+                  value={groupForm.name}
+                  onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                />
+                <Input
+                  placeholder="Group image URL (optional)"
+                  value={groupForm.imageUrl}
+                  onChange={(e) => setGroupForm({ ...groupForm, imageUrl: e.target.value })}
+                />
+                <Textarea
+                  placeholder="Members (comma-separated usernames or emails)"
+                  value={groupForm.members}
+                  onChange={(e) => setGroupForm({ ...groupForm, members: e.target.value })}
+                  rows={3}
+                />
+                <div className="text-xs text-muted-foreground">
+                  Only mutual followers can be added to groups.
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setGroupOpen(false)}>Cancel</Button>
+                <Button onClick={createGroup}>Create group</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {groups.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No groups yet.</div>
+          ) : (
+            groups.map((group) => (
+              <div key={group.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+                <div>
+                  <div className="text-sm font-medium">{group.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {group.members.length} members
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setSelectedGroupId(group.id)}>
+                    Open
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => removeGroup(group.id)}>
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      {selectedGroupId && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Group composer</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              Messaging group: {selectedGroup()?.name}
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs text-muted-foreground">Members</div>
+              <div className="flex flex-wrap gap-2">
+                {selectedGroup()?.members.map((member) => (
+                  <span key={member} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
+                    {member}
+                    <button type="button" onClick={() => removeGroupMember(member)} className="text-muted-foreground">
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  placeholder="Add member by username/email"
+                  value={newMember}
+                  onChange={(e) => setNewMember(e.target.value)}
+                  className="max-w-xs"
+                />
+                <Button size="sm" variant="outline" onClick={addGroupMember}>
+                  Add member
+                </Button>
+              </div>
+            </div>
+            <Textarea
+              value={groupMessage}
+              onChange={(e) => setGroupMessage(e.target.value)}
+              placeholder="Share updates with the group..."
+              rows={4}
+            />
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Messages send to all group members.</span>
+              <Button onClick={sendGroupMessage} disabled={sending}>
+                {sending ? "Sending..." : "Send group message"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

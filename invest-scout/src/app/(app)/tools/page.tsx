@@ -21,6 +21,81 @@ const TOOLS = [
     name: "NPV calculator",
     description: "Discount future cashflows to understand present value.",
   },
+  {
+    slug: "budget-split-50-30-20",
+    name: "50/30/20 budget split",
+    description: "Split take-home pay into needs, wants, and savings targets.",
+  },
+  {
+    slug: "debt-income-service",
+    name: "Debt to income and debt to service",
+    description: "Compare total debt and servicing costs against income.",
+  },
+  {
+    slug: "leverage-level",
+    name: "Leverage level",
+    description: "Gauge leverage from total assets and liabilities.",
+  },
+  {
+    slug: "total-salary-income",
+    name: "Total salary and total income",
+    description: "Combine salary, bonuses, and side income in one view.",
+  },
+  {
+    slug: "debt-payoff-priority",
+    name: "Debt payoff priority",
+    description: "Rank debts to focus payments based on interest or balance.",
+  },
+  {
+    slug: "retirement-contribution-requirement",
+    name: "Retirement contribution requirement",
+    description: "Estimate how much to contribute based on goal and timeline.",
+  },
+  {
+    slug: "investment-real-return",
+    name: "Investment real return",
+    description: "Convert nominal returns into inflation-adjusted results.",
+  },
+  {
+    slug: "big-purchase-tco",
+    name: "Big purchase TCO",
+    description: "Estimate total cost of ownership for major purchases.",
+  },
+  {
+    slug: "hourly-value",
+    name: "Your hourly value",
+    description: "Calculate your effective hourly rate from income and hours.",
+  },
+  {
+    slug: "rent-vs-buy-break-even",
+    name: "Rent vs buy break even",
+    description: "Estimate when buying outperforms renting over time.",
+  },
+  {
+    slug: "extra-payment-roi",
+    name: "Extra payment ROI",
+    description: "Measure interest saved from extra debt payments.",
+  },
+  {
+    slug: "true-car-cost",
+    name: "True car cost",
+    description: "Model a full vehicle cost including insurance and upkeep.",
+  },
+  {
+    slug: "tax-drag-raises",
+    name: "Tax drag on raises",
+    description: "See how taxes affect take-home raise amounts.",
+  },
+  {
+    slug: "interest-cost-over-time",
+    name: "Interest cost over time",
+    description: "Visualize total interest paid across a timeline.",
+  },
+  {
+    slug: "debt-snowball-timeline",
+    name: "Debt snowball timeline",
+    description: "Track payoff progress with a snowball schedule.",
+  },
 ];
 
 export default function ToolsPage() {
