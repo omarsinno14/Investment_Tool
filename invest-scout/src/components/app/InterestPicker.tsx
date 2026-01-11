@@ -208,10 +208,10 @@ export function InterestPicker() {
       });
       if (!ingestRes.ok) {
         const data = await ingestRes.json().catch(() => ({}));
-        toast.error(data?.error ?? "Unable to fetch fresh headlines");
+        toast.error(data?.error ?? "Unable to fetch fresh news");
         return;
       }
-      toast.message("Fetching new headlines for your interests");
+      toast.message("Fetching new news for your interests");
     } catch (e) {
       console.error(e);
       toast.error("Network error");

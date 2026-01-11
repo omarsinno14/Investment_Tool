@@ -60,6 +60,7 @@ export async function POST(req: Request) {
             data: {
               title: it.title,
               url: it.link,
+              type: "HEADLINE",
               summary: it.contentSnippet ?? null,
               imageUrl,
               publishedAt,

@@ -30,6 +30,17 @@ enum ActionState {
   INVESTED
 }
 
+enum OpportunityType {
+  HEADLINE
+  COMMUNITY
+}
+
+enum ForumReactionType {
+  LIKE
+  INSIGHTFUL
+  CURIOUS
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -44,6 +55,13 @@ model User {
   postedOpportunities Opportunity[]
   messagesSent Message[] @relation("MessageFromUser")
   messagesReceived Message[] @relation("MessageToUser")
+  forumPosts   ForumPost[]
+  forumComments ForumComment[]
+  forumReactions ForumReaction[]
+  forumSaves   ForumSave[]
+  forumReposts ForumRepost[]
+  followers   Follow[] @relation("FollowToUser")
+  following   Follow[] @relation("FollowFromUser")
 
   @@index([email])
 }
@@ -93,6 +111,7 @@ model Opportunity {
   id          String    @id @default(cuid())
   title       String
   url         String?   @unique
+  type        OpportunityType @default(HEADLINE)
   source      String?
   summary     String?
   imageUrl    String?
@@ -106,6 +125,9 @@ model Opportunity {
   locationName    String?
   locationMapUrl  String?
   tags        String[] @default([])
+  countries   String[] @default([])
+  sectors     String[] @default([])
+  industries  String[] @default([])
   createdByUserId String?
   createdByUser User? @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
   publishedAt DateTime?
@@ -116,6 +138,7 @@ model Opportunity {
 
   actions OpportunityAction[]
 
+  @@index([type, fetchedAt])
   @@index([fetchedAt])
 }
 
@@ -154,6 +177,93 @@ model Message {
   @@index([fromUserId])
   @@index([toUserId])
   @@index([opportunityId])
+}
+
+model Follow {
+  id          String @id @default(cuid())
+  followerId  String
+  followingId String
+  follower    User @relation("FollowFromUser", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User @relation("FollowToUser", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model ForumPost {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+
+  comments  ForumComment[]
+  reactions ForumReaction[]
+  saves     ForumSave[]
+  reposts   ForumRepost[]
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ForumComment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+}
+
+model ForumReaction {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  type      ForumReactionType
+  createdAt DateTime @default(now())
+
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, type])
+  @@index([postId])
+  @@index([userId])
+}
+
+model ForumSave {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model ForumRepost {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
 }
 
 model MoneyManagement {

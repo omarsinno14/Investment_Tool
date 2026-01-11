@@ -7,7 +7,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const riskOptions = [
+  "EXTREMELY_LOW",
+  "LOW",
+  "MEDIUM",
+  "MEDIUM_HIGH",
+  "HIGH",
+  "EXTREMELY_HIGH",
+] as const;
+
+const riskLabels: Record<(typeof riskOptions)[number], string> = {
+  EXTREMELY_LOW: "Capital preservation",
+  LOW: "Low volatility",
+  MEDIUM: "Balanced growth",
+  MEDIUM_HIGH: "Growth focused",
+  HIGH: "Aggressive growth",
+  EXTREMELY_HIGH: "Speculative",
+};
 
 export default function SettingsPage() {
   const [form, setForm] = useState<any>({
@@ -32,6 +49,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const riskIndex = Math.max(0, riskOptions.indexOf(form.riskTolerance ?? "MEDIUM"));
 
   useEffect(() => {
     (async () => {
@@ -161,37 +179,39 @@ export default function SettingsPage() {
       <Card>
         <CardHeader><CardTitle>Profile</CardTitle></CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Name</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </div>
-
           <div className="space-y-2 md:col-span-2">
-            <Label>Preview</Label>
-            <div className="flex items-center gap-3">
+            <Label>Profile photo</Label>
+            <div className="flex items-center gap-4">
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary/70"
                 title="Upload profile photo"
               >
-                <Avatar className="h-12 w-12">
+                <Avatar className="h-16 w-16">
                   <AvatarImage src={form.imageUrl || undefined} alt="Profile preview" />
                   <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePhotoChange}
-              />
-              <div className="text-sm text-muted-foreground">
-                Click your avatar to upload a JPG, PNG, or other image.
+              <div className="space-y-1">
+                <div className="text-sm text-muted-foreground">
+                  Click your avatar to upload a JPG, PNG, or other image from your device.
+                </div>
+                {uploading && <div className="text-xs text-muted-foreground">Uploading photo...</div>}
               </div>
             </div>
-            {uploading && <div className="text-xs text-muted-foreground">Uploading photo...</div>}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Name</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
 
           <div className="space-y-2">

@@ -66,6 +66,7 @@ export async function POST(req: Request) {
     const opportunity = await prisma.opportunity.create({
       data: {
         title,
+        type: "COMMUNITY",
         summary: summary || details || null,
         details: details || null,
         benefits: benefits || null,

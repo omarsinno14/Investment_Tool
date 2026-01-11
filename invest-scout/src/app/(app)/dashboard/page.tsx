@@ -416,8 +416,8 @@ export default function DashboardPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="justify-between">
-                <Link href="/headlines">
-                  Browse headlines <ArrowRight className="h-4 w-4" />
+                <Link href="/news">
+                  Browse news <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild variant="outline" className="justify-between">

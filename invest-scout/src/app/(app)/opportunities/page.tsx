@@ -73,6 +73,8 @@ export default function OpportunitiesPage() {
   const [benefitFilter, setBenefitFilter] = useState("");
   const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED" | "INVESTED">("ALL");
   const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
+  const [showStats, setShowStats] = useState(true);
+  const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [posting, setPosting] = useState(false);
   const [postForm, setPostForm] = useState({
     title: "",
@@ -172,6 +174,7 @@ export default function OpportunitiesPage() {
         images: [],
       });
       if (uploadRef.current) uploadRef.current.value = "";
+      setPostDialogOpen(false);
       await load();
     } catch (e) {
       console.error(e);
@@ -185,6 +188,18 @@ export default function OpportunitiesPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const tagOptions = useMemo(() => {
+    const tags = opps.flatMap((o: any) => (o.tags ?? []) as string[]);
+    return ["All", ...Array.from(new Set(tags)).sort()];
+  }, [opps]);
+
+  const industryOptions = useMemo(() => {
+    if (sectorFilter !== "All") {
+      return INDUSTRIES_BY_SECTOR[sectorFilter] ?? [];
+    }
+    return Array.from(new Set(Object.values(INDUSTRIES_BY_SECTOR).flat()));
+  }, [sectorFilter]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -294,7 +309,7 @@ export default function OpportunitiesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Opportunities</h1>
           <p className="text-muted-foreground">
@@ -302,10 +317,127 @@ export default function OpportunitiesPage() {
           </p>
         </div>
 
-        <Button variant="outline" onClick={load} disabled={loading}>
-          <RefreshCcw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Dialog open={postDialogOpen} onOpenChange={setPostDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Post opportunity
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Post a new opportunity</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2 md:col-span-2">
+                  <Input
+                    placeholder="Title"
+                    value={postForm.title}
+                    onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Input
+                    placeholder="Short summary"
+                    value={postForm.summary}
+                    onChange={(e) => setPostForm({ ...postForm, summary: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Textarea
+                    placeholder="Details / explanation"
+                    value={postForm.details}
+                    onChange={(e) => setPostForm({ ...postForm, details: e.target.value })}
+                    rows={4}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="number"
+                    placeholder="Ask amount"
+                    value={postForm.askAmount}
+                    onChange={(e) => setPostForm({ ...postForm, askAmount: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Textarea
+                    placeholder="Benefits"
+                    value={postForm.benefits}
+                    onChange={(e) => setPostForm({ ...postForm, benefits: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Input
+                    placeholder="Tags (comma-separated)"
+                    value={postForm.tags}
+                    onChange={(e) => setPostForm({ ...postForm, tags: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Location"
+                    value={postForm.locationName}
+                    onChange={(e) => setPostForm({ ...postForm, locationName: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Map link (optional)"
+                    value={postForm.locationMapUrl}
+                    onChange={(e) => setPostForm({ ...postForm, locationMapUrl: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Contact email"
+                    value={postForm.contactEmail}
+                    onChange={(e) => setPostForm({ ...postForm, contactEmail: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Contact phone"
+                    value={postForm.contactPhone}
+                    onChange={(e) => setPostForm({ ...postForm, contactPhone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Input
+                    placeholder="Contact username"
+                    value={postForm.contactUsername}
+                    onChange={(e) => setPostForm({ ...postForm, contactUsername: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Input
+                    ref={uploadRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => setPostForm({ ...postForm, images: Array.from(e.target.files ?? []) })}
+                  />
+                  {postForm.images.length > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      {postForm.images.length} image(s) selected
+                    </div>
+                  )}
+                </div>
+                <div className="md:col-span-2 flex justify-end">
+                  <Button onClick={submitPost} disabled={posting}>
+                    {posting ? "Publishing..." : "Publish to feed"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Button variant="outline" onClick={load} disabled={loading}>
+            <RefreshCcw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* KPI row */}
@@ -361,113 +493,6 @@ export default function OpportunitiesPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Main column */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Post an opportunity</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <Input
-                  placeholder="Title"
-                  value={postForm.title}
-                  onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Input
-                  placeholder="Short summary"
-                  value={postForm.summary}
-                  onChange={(e) => setPostForm({ ...postForm, summary: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Textarea
-                  placeholder="Details / explanation"
-                  value={postForm.details}
-                  onChange={(e) => setPostForm({ ...postForm, details: e.target.value })}
-                  rows={4}
-                />
-              </div>
-              <div className="space-y-2">
-                <Input
-                  type="number"
-                  placeholder="Ask amount"
-                  value={postForm.askAmount}
-                  onChange={(e) => setPostForm({ ...postForm, askAmount: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Textarea
-                  placeholder="Benefits"
-                  value={postForm.benefits}
-                  onChange={(e) => setPostForm({ ...postForm, benefits: e.target.value })}
-                  rows={2}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Input
-                  placeholder="Tags (comma-separated)"
-                  value={postForm.tags}
-                  onChange={(e) => setPostForm({ ...postForm, tags: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Location"
-                  value={postForm.locationName}
-                  onChange={(e) => setPostForm({ ...postForm, locationName: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Map link (optional)"
-                  value={postForm.locationMapUrl}
-                  onChange={(e) => setPostForm({ ...postForm, locationMapUrl: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Contact email"
-                  value={postForm.contactEmail}
-                  onChange={(e) => setPostForm({ ...postForm, contactEmail: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Contact phone"
-                  value={postForm.contactPhone}
-                  onChange={(e) => setPostForm({ ...postForm, contactPhone: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Input
-                  placeholder="Contact username"
-                  value={postForm.contactUsername}
-                  onChange={(e) => setPostForm({ ...postForm, contactUsername: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Input
-                  ref={uploadRef}
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => setPostForm({ ...postForm, images: Array.from(e.target.files ?? []) })}
-                />
-                {postForm.images.length > 0 && (
-                  <div className="text-xs text-muted-foreground">
-                    {postForm.images.length} image(s) selected
-                  </div>
-                )}
-              </div>
-              <div className="md:col-span-2 flex justify-end">
-                <Button onClick={submitPost} disabled={posting}>
-                  {posting ? "Publishing..." : "Publish to feed"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Filters */}
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:w-[640px]">
@@ -631,7 +656,7 @@ export default function OpportunitiesPage() {
                   <CardContent className="py-10 text-center space-y-2">
                     <div className="text-lg font-semibold">Nothing here yet</div>
                     <div className="text-muted-foreground">
-                      Pick more interests, then run the ingestion worker to pull fresh headlines.
+                      Pick more interests, then run the ingestion worker to pull fresh news.
                     </div>
                     <div className="pt-2">
                       <Button asChild>

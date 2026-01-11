@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
-import type { Interest, Opportunity, OpportunityAction } from "@prisma/client";
+import type { Interest, Opportunity, OpportunityAction, OpportunityType } from "@prisma/client";
 
 type OpportunityWithUser = Opportunity & {
   createdByUser?: {
@@ -37,7 +37,17 @@ export async function GET(req: Request) {
       .filter(Boolean)
       .map(norm);
 
+    const { searchParams } = new URL(req.url);
+    const typeParam = searchParams.get("type");
+    const typeFilter: OpportunityType | undefined =
+      typeParam === "community"
+        ? "COMMUNITY"
+        : typeParam === "headlines" || typeParam === "news"
+          ? "HEADLINE"
+          : undefined;
+
     const recent: OpportunityWithUser[] = await prisma.opportunity.findMany({
+      where: typeFilter ? { type: typeFilter } : undefined,
       orderBy: { fetchedAt: "desc" },
       take: 400,
       include: {

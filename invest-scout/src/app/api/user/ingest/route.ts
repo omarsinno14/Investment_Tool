@@ -75,6 +75,7 @@ export async function POST() {
             data: {
               title: it.title,
               url: it.link,
+              type: "HEADLINE",
               summary: it.contentSnippet ?? null,
               publishedAt,
               source: "Google News RSS",
