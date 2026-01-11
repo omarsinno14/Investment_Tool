@@ -1,13 +1,43 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+type Risk3 = "LOW" | "MEDIUM" | "HIGH";
+type Risk5 = "VERY_CONSERVATIVE" | "CONSERVATIVE" | "BALANCED" | "GROWTH" | "AGGRESSIVE";
+type RiskValue = Risk3 | Risk5 | string;
+
+const RISK_SCALE_3: { value: Risk3; label: string; hint: string }[] = [
+  { value: "LOW", label: "Conservative", hint: "Prioritize stability, lower volatility." },
+  { value: "MEDIUM", label: "Balanced", hint: "Mix of stability + growth." },
+  { value: "HIGH", label: "Aggressive", hint: "Higher risk for higher return potential." },
+];
+
+const RISK_SCALE_5: { value: Risk5; label: string; hint: string }[] = [
+  { value: "VERY_CONSERVATIVE", label: "Very Conservative", hint: "Capital preservation first." },
+  { value: "CONSERVATIVE", label: "Conservative", hint: "Lower volatility focus." },
+  { value: "BALANCED", label: "Balanced", hint: "Moderate risk and return." },
+  { value: "GROWTH", label: "Growth", hint: "Higher equity / higher volatility." },
+  { value: "AGGRESSIVE", label: "Aggressive", hint: "Max growth, highest volatility." },
+];
+
+function isRisk3(v: any): v is Risk3 {
+  return v === "LOW" || v === "MEDIUM" || v === "HIGH";
+}
+function isRisk5(v: any): v is Risk5 {
+  return (
+    v === "VERY_CONSERVATIVE" ||
+    v === "CONSERVATIVE" ||
+    v === "BALANCED" ||
+    v === "GROWTH" ||
+    v === "AGGRESSIVE"
+  );
+}
 
 export default function SettingsPage() {
   const [form, setForm] = useState<any>({
@@ -21,7 +51,7 @@ export default function SettingsPage() {
     currency: "USD",
     familySituation: "",
     netWorth: "",
-    riskTolerance: "MEDIUM",
+    riskTolerance: "MEDIUM" as RiskValue,
     investAmount: "",
     emailVerified: false,
     phoneVerified: false,
@@ -29,9 +59,25 @@ export default function SettingsPage() {
     hideContactFromNonFollowers: false,
     hidePhotoFromNonFollowers: false,
   });
+
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  // Choose which risk scale to use based on what the backend returns
+  const riskScale = useMemo(() => {
+    const v = form.riskTolerance;
+    if (isRisk5(v)) return RISK_SCALE_5;
+    if (isRisk3(v)) return RISK_SCALE_3;
+
+    // If unknown, default to 3-level because your app previously used "MEDIUM"
+    return RISK_SCALE_3;
+  }, [form.riskTolerance]);
+
+  const riskIndex = useMemo(() => {
+    const idx = riskScale.findIndex((x) => x.value === form.riskTolerance);
+    return idx >= 0 ? idx : Math.min(1, riskScale.length - 1); // default to "Balanced"/middle-ish
+  }, [riskScale, form.riskTolerance]);
 
   useEffect(() => {
     (async () => {
@@ -81,25 +127,27 @@ export default function SettingsPage() {
   async function save() {
     setSaving(true);
     try {
+      const payload = {
+        name: form.name || undefined,
+        username: form.username || undefined,
+        phone: form.phone || undefined,
+        age: form.age === "" ? undefined : Number(form.age),
+        familySituation: form.familySituation || undefined,
+        netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
+        riskTolerance: form.riskTolerance, // ✅ canonical value, not label
+        investAmount: form.investAmount === "" ? undefined : Number(form.investAmount),
+        emailVerified: form.emailVerified,
+        phoneVerified: form.phoneVerified,
+        hideAgeFromNonFollowers: form.hideAgeFromNonFollowers,
+        hideContactFromNonFollowers: form.hideContactFromNonFollowers,
+        hidePhotoFromNonFollowers: form.hidePhotoFromNonFollowers,
+      };
+
       const res = await fetch("/api/user/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          name: form.name || undefined,
-          username: form.username || undefined,
-          phone: form.phone || undefined,
-          age: form.age === "" ? undefined : Number(form.age),
-          familySituation: form.familySituation || undefined,
-          netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
-          riskTolerance: form.riskTolerance,
-          investAmount: form.investAmount === "" ? undefined : Number(form.investAmount),
-          emailVerified: form.emailVerified,
-          phoneVerified: form.phoneVerified,
-          hideAgeFromNonFollowers: form.hideAgeFromNonFollowers,
-          hideContactFromNonFollowers: form.hideContactFromNonFollowers,
-          hidePhotoFromNonFollowers: form.hidePhotoFromNonFollowers,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const ct = res.headers.get("content-type") ?? "";
@@ -107,18 +155,20 @@ export default function SettingsPage() {
       const body = isJson ? await res.json().catch(() => ({})) : {};
 
       if (!res.ok) {
-        throw new Error(body?.error ?? "Save failed");
+        // ✅ show EXACT server error (very important)
+        console.error("Save profile failed:", { status: res.status, body, payload });
+        throw new Error(body?.error ?? `Save failed (HTTP ${res.status})`);
       }
 
       if (!isJson) {
         const txt = await res.text();
-        throw new Error(`Unexpected response (${ct}): ${txt.slice(0, 120)}`);
+        throw new Error(`Unexpected response (${ct}): ${txt.slice(0, 160)}`);
       }
 
       toast.success("Settings saved");
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      toast.error("Unable to save settings");
+      toast.error(e?.message ?? "Unable to save settings");
     } finally {
       setSaving(false);
     }
@@ -127,24 +177,26 @@ export default function SettingsPage() {
   async function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
+
       const res = await fetch("/api/user/profile/photo", {
         method: "POST",
         credentials: "include",
         body: formData,
       });
+
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.error ?? "Upload failed");
-      }
+      if (!res.ok) throw new Error(data?.error ?? `Upload failed (HTTP ${res.status})`);
+
       setForm((prev: any) => ({ ...prev, imageUrl: data.imageUrl ?? "" }));
       toast.success("Profile photo updated");
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      toast.error("Failed to upload photo");
+      toast.error(e?.message ?? "Failed to upload photo");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -159,7 +211,9 @@ export default function SettingsPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Profile</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label>Name</Label>
@@ -180,16 +234,10 @@ export default function SettingsPage() {
                   <AvatarFallback>{String(form.name || "IN").slice(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePhotoChange}
-              />
-              <div className="text-sm text-muted-foreground">
-                Click your avatar to upload a JPG, PNG, or other image.
-              </div>
+
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+
+              <div className="text-sm text-muted-foreground">Click your avatar to upload an image.</div>
             </div>
             {uploading && <div className="text-xs text-muted-foreground">Uploading photo...</div>}
           </div>
@@ -211,7 +259,10 @@ export default function SettingsPage() {
 
           <div className="space-y-2">
             <Label>Family situation</Label>
-            <Input value={form.familySituation} onChange={(e) => setForm({ ...form, familySituation: e.target.value })} />
+            <Input
+              value={form.familySituation}
+              onChange={(e) => setForm({ ...form, familySituation: e.target.value })}
+            />
           </div>
 
           <div className="space-y-2">
@@ -225,22 +276,29 @@ export default function SettingsPage() {
               <input
                 type="range"
                 min={0}
-                max={riskOptions.length - 1}
+                max={riskScale.length - 1}
                 value={riskIndex}
-                onChange={(e) =>
-                  setForm({ ...form, riskTolerance: riskOptions[Number(e.target.value)] })
-                }
+                onChange={(e) => {
+                  const idx = Number(e.target.value);
+                  const next = riskScale[idx]?.value ?? riskScale[Math.min(1, riskScale.length - 1)]?.value;
+                  setForm({ ...form, riskTolerance: next });
+                }}
                 className="w-full"
               />
               <div className="text-sm text-muted-foreground">
-                {riskLabels[form.riskTolerance as keyof typeof riskLabels]}
+                <span className="font-medium text-foreground">{riskScale[riskIndex]?.label ?? "Balanced"}</span>
+                <span className="ml-2">{riskScale[riskIndex]?.hint ?? ""}</span>
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
             <Label>Amount you’re looking to invest</Label>
-            <Input value={form.investAmount} onChange={(e) => setForm({ ...form, investAmount: e.target.value })} type="number" />
+            <Input
+              value={form.investAmount}
+              onChange={(e) => setForm({ ...form, investAmount: e.target.value })}
+              type="number"
+            />
           </div>
 
           <div className="space-y-2">

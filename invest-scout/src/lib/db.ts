@@ -1,38 +1,28 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma?: PrismaClient | null;
-  prismaError?: Error | null;
-};
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createPrisma() {
-  try {
-    const client = new PrismaClient({
-      log: ["error", "warn"],
-    });
-
-    if (process.env.NODE_ENV !== "production") {
-      globalForPrisma.prisma = client;
-    }
-
-    return client;
-  } catch (e) {
-    const err = e instanceof Error ? e : new Error(String(e));
-    globalForPrisma.prismaError = err;
-    console.error("Failed to initialize Prisma client", err);
-    return null;
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is not set");
   }
+
+  const adapter = new PrismaPg({ connectionString });
+
+  return new PrismaClient({
+    adapter,
+    log: ["error", "warn"],
+  });
 }
 
-/**
- * Lazily obtain the Prisma client without throwing during module evaluation.
- * Routes can return a JSON error instead of Next rendering an HTML error page
- * when the database URL/connection is missing or misconfigured.
- */
-export function getPrismaClient() {
-  if (globalForPrisma.prisma) return globalForPrisma.prisma;
-  if (globalForPrisma.prismaError) return null;
+export const prisma = globalForPrisma.prisma ?? createPrisma();
 
-  globalForPrisma.prisma = createPrisma();
-  return globalForPrisma.prisma ?? null;
+export function getPrismaClient(): PrismaClient {
+  return prisma;
 }
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+export default prisma;

@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum RiskTolerance {
@@ -36,13 +37,13 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  profile             Profile?
-  interests           Interest[]
-  actions             OpportunityAction[]
-  moneyManagement     MoneyManagement?
+  profile   Profile?
+  interests Interest[]
+  actions   OpportunityAction[]
+  moneyManagement MoneyManagement?
   postedOpportunities Opportunity[]
-  messagesSent        Message[]           @relation("MessageFromUser")
-  messagesReceived    Message[]           @relation("MessageToUser")
+  messagesSent Message[] @relation("MessageFromUser")
+  messagesReceived Message[] @relation("MessageToUser")
 
   @@index([email])
 }
@@ -52,23 +53,23 @@ model Profile {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name                        String?
-  username                    String?       @unique
-  phone                       String?       @unique
-  imageUrl                    String?
-  bio                         String?
-  occupation                  String?
-  currency                    String?
-  age                         Int?
-  familySituation             String?
-  netWorth                    Float?
-  riskTolerance               RiskTolerance @default(MEDIUM)
-  investAmount                Float?
-  emailVerified               Boolean       @default(false)
-  phoneVerified               Boolean       @default(false)
-  hideAgeFromNonFollowers     Boolean       @default(false)
-  hideContactFromNonFollowers Boolean       @default(false)
-  hidePhotoFromNonFollowers   Boolean       @default(false)
+  name            String?
+  username        String? @unique
+  phone           String? @unique
+  imageUrl        String?
+  bio             String?
+  occupation      String?
+  currency        String?
+  age             Int?
+  familySituation String?
+  netWorth        Float?
+  riskTolerance   RiskTolerance @default(MEDIUM)
+  investAmount    Float?
+  emailVerified   Boolean @default(false)
+  phoneVerified   Boolean @default(false)
+  hideAgeFromNonFollowers     Boolean @default(false)
+  hideContactFromNonFollowers Boolean @default(false)
+  hidePhotoFromNonFollowers   Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -89,27 +90,26 @@ model Interest {
 }
 
 model Opportunity {
-  id              String    @id @default(cuid())
-  title           String
-  url             String?   @unique
-  source          String?
-  summary         String?
-  imageUrl        String?
-  imageUrls       String[]  @default([])
-  details         String?
-  askAmount       Float?
-  benefits        String?
+  id          String    @id @default(cuid())
+  title       String
+  url         String?   @unique
+  source      String?
+  summary     String?
+  imageUrl    String?
+  imageUrls   String[] @default([])
+  details     String?
+  askAmount   Float?
+  benefits    String?
   contactEmail    String?
   contactPhone    String?
   contactUsername String?
   locationName    String?
   locationMapUrl  String?
-  tags            String[]  @default([])
-  messages        Message[]
+  tags        String[] @default([])
   createdByUserId String?
-  createdByUser   User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
-  publishedAt     DateTime?
-  fetchedAt       DateTime  @default(now())
+  createdByUser User? @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  publishedAt DateTime?
+  fetchedAt   DateTime  @default(now())
 
   categories String[] @default([])
   keywords   String[] @default([])
@@ -147,8 +147,8 @@ model Message {
   opportunityId String?
   createdAt     DateTime @default(now())
 
-  fromUser    User         @relation("MessageFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser      User         @relation("MessageToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+  fromUser    User @relation("MessageFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser      User @relation("MessageToUser", fields: [toUserId], references: [id], onDelete: Cascade)
   opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
 
   @@index([fromUserId])
@@ -161,25 +161,25 @@ model MoneyManagement {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  incomeMonthly       Float?
-  incomeYearly        Float?
-  taxRate             Float?
-  locationCountry     String?
-  locationRegion      String?
-  investmentsValue    Float?
-  investmentsCashflow Float?
-  debts               Float?
-  spendingDaily       Float?
-  liabilities         Float?
-  spendingWeekly      Float?
-  spendingMonthly     Float?
-  savingsCurrent      Float?
-  dependents          Int?
-  goalSavings         Float?
-  goalInvestments     Float?
-  goalNetWorth        Float?
-  hideSensitive       Boolean         @default(false)
-  snapshots           MoneySnapshot[]
+  incomeMonthly            Float?
+  incomeYearly             Float?
+  taxRate                  Float?
+  locationCountry          String?
+  locationRegion           String?
+  investmentsValue         Float?
+  investmentsCashflow      Float?
+  debts                    Float?
+  spendingDaily            Float?
+  liabilities              Float?
+  spendingWeekly           Float?
+  spendingMonthly          Float?
+  savingsCurrent           Float?
+  dependents               Int?
+  goalSavings              Float?
+  goalInvestments          Float?
+  goalNetWorth             Float?
+  hideSensitive            Boolean @default(false)
+  snapshots               MoneySnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -188,14 +188,14 @@ model MoneyManagement {
 }
 
 model MoneySnapshot {
-  id                String   @id @default(cuid())
+  id               String   @id @default(cuid())
   moneyManagementId String
-  grossMonthly      Float
-  netMonthly        Float
-  spendingTotal     Float
-  netCashflow       Float
-  savingsCurrent    Float
-  createdAt         DateTime @default(now())
+  grossMonthly     Float
+  netMonthly       Float
+  spendingTotal    Float
+  netCashflow      Float
+  savingsCurrent   Float
+  createdAt        DateTime @default(now())
 
   moneyManagement MoneyManagement @relation(fields: [moneyManagementId], references: [id], onDelete: Cascade)
 

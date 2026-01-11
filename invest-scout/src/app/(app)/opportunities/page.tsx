@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { PlusCircle, RefreshCcw, Search } from "lucide-react";
+import { RefreshCcw, Search } from "lucide-react";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
 import { DisclosureBanner } from "@/components/app/DisclosureBanner";
 import { Button } from "@/components/ui/button";
@@ -10,14 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { COUNTRIES_ALL } from "@/lib/countries";
 import { INDUSTRIES_BY_SECTOR, SECTORS } from "@/lib/interests";
 
@@ -73,6 +66,8 @@ export default function OpportunitiesPage() {
   const [benefitFilter, setBenefitFilter] = useState("");
   const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED" | "INVESTED">("ALL");
   const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
+  const [showStats, setShowStats] = useState(true);
+
   const [posting, setPosting] = useState(false);
   const [postForm, setPostForm] = useState({
     title: "",
@@ -90,10 +85,42 @@ export default function OpportunitiesPage() {
   });
   const uploadRef = useRef<HTMLInputElement | null>(null);
 
+  const tagOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of opps) {
+      for (const t of o?.tags ?? []) {
+        const s = String(t ?? "").trim();
+        if (s) set.add(s);
+      }
+    }
+    return ["All", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [opps]);
+
+  const industryOptions = useMemo(() => {
+    if (sectorFilter === "All") {
+      const set = new Set<string>();
+      for (const industries of Object.values(INDUSTRIES_BY_SECTOR as any)) {
+        for (const i of industries as string[]) set.add(i);
+      }
+      return ["All", ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+    }
+    const list = (INDUSTRIES_BY_SECTOR as any)[sectorFilter] as string[] | undefined;
+    return ["All", ...(list ?? [])];
+  }, [sectorFilter]);
+
+  useEffect(() => {
+    if (industryFilter !== "All" && !industryOptions.includes(industryFilter)) {
+      setIndustryFilter("All");
+    }
+  }, [industryOptions, industryFilter]);
+
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/opportunities?type=community", { cache: "no-store", credentials: "include" });
+      const res = await fetch("/api/opportunities?type=community", {
+        cache: "no-store",
+        credentials: "include",
+      });
 
       if (res.status === 401) {
         toast.error("Please log in again.");
@@ -106,9 +133,7 @@ export default function OpportunitiesPage() {
       const data = isJson ? await res.json() : null;
 
       if (!res.ok) {
-        const errMsg = isJson
-          ? data?.error || "Failed to load opportunities"
-          : `Unexpected response (${ct})`;
+        const errMsg = isJson ? data?.error || "Failed to load opportunities" : `Unexpected response (${ct})`;
         throw new Error(errMsg);
       }
 
@@ -152,10 +177,10 @@ export default function OpportunitiesPage() {
         credentials: "include",
         body: formData,
       });
+
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.error ?? "Failed to post");
-      }
+      if (!res.ok) throw new Error(data?.error ?? "Failed to post");
+
       toast.success("Opportunity posted to the feed");
       setPostForm({
         title: "",
@@ -247,7 +272,20 @@ export default function OpportunitiesPage() {
     );
 
     return list;
-  }, [opps, query, tab, sort, tagFilter, customTagFilter, countryFilter, sectorFilter, industryFilter, maxAsk, benefitFilter]);
+  }, [
+    opps,
+    query,
+    exclude,
+    tab,
+    sort,
+    tagFilter,
+    customTagFilter,
+    countryFilter,
+    sectorFilter,
+    industryFilter,
+    maxAsk,
+    benefitFilter,
+  ]);
 
   const kpis = useMemo(() => {
     const total = opps.length;
@@ -297,25 +335,25 @@ export default function OpportunitiesPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Opportunities</h1>
-          <p className="text-muted-foreground">
-            A live feed matched to your interests. Save, track, and mark investments.
-          </p>
+          <p className="text-muted-foreground">A live feed matched to your interests. Save, track, and mark investments.</p>
         </div>
 
         <Button variant="outline" onClick={load} disabled={loading}>
-          <RefreshCcw className="h-4 w-4 mr-2" />
+          <RefreshCcw className="mr-2 h-4 w-4" />
           Refresh
         </Button>
       </div>
 
-      {/* KPI row */}
       <DisclosureBanner />
+
+      {/* KPI toggle */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">Stats</div>
         <Button variant="ghost" size="sm" onClick={() => setShowStats((prev) => !prev)}>
           {showStats ? "Hide stats" : "Show stats"}
         </Button>
       </div>
+
       {showStats && (
         <div className="grid gap-4 md:grid-cols-5">
           <Card>
@@ -350,9 +388,7 @@ export default function OpportunitiesPage() {
             <CardHeader className="py-4">
               <CardTitle className="text-sm text-muted-foreground">Invested $</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0 text-2xl font-semibold">
-              {kpis.investedAmt.toLocaleString()}
-            </CardContent>
+            <CardContent className="pt-0 text-2xl font-semibold">{kpis.investedAmt.toLocaleString()}</CardContent>
           </Card>
         </div>
       )}
@@ -373,6 +409,7 @@ export default function OpportunitiesPage() {
                   onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
                 />
               </div>
+
               <div className="space-y-2 md:col-span-2">
                 <Input
                   placeholder="Short summary"
@@ -380,6 +417,7 @@ export default function OpportunitiesPage() {
                   onChange={(e) => setPostForm({ ...postForm, summary: e.target.value })}
                 />
               </div>
+
               <div className="space-y-2 md:col-span-2">
                 <Textarea
                   placeholder="Details / explanation"
@@ -388,6 +426,7 @@ export default function OpportunitiesPage() {
                   rows={4}
                 />
               </div>
+
               <div className="space-y-2">
                 <Input
                   type="number"
@@ -396,6 +435,7 @@ export default function OpportunitiesPage() {
                   onChange={(e) => setPostForm({ ...postForm, askAmount: e.target.value })}
                 />
               </div>
+
               <div className="space-y-2 md:col-span-2">
                 <Textarea
                   placeholder="Benefits"
@@ -404,6 +444,7 @@ export default function OpportunitiesPage() {
                   rows={2}
                 />
               </div>
+
               <div className="space-y-2 md:col-span-2">
                 <Input
                   placeholder="Tags (comma-separated)"
@@ -411,6 +452,7 @@ export default function OpportunitiesPage() {
                   onChange={(e) => setPostForm({ ...postForm, tags: e.target.value })}
                 />
               </div>
+
               <div className="space-y-2">
                 <Input
                   placeholder="Location"
@@ -418,6 +460,7 @@ export default function OpportunitiesPage() {
                   onChange={(e) => setPostForm({ ...postForm, locationName: e.target.value })}
                 />
               </div>
+
               <div className="space-y-2">
                 <Input
                   placeholder="Map link (optional)"
@@ -425,6 +468,7 @@ export default function OpportunitiesPage() {
                   onChange={(e) => setPostForm({ ...postForm, locationMapUrl: e.target.value })}
                 />
               </div>
+
               <div className="space-y-2">
                 <Input
                   placeholder="Contact email"
@@ -432,6 +476,7 @@ export default function OpportunitiesPage() {
                   onChange={(e) => setPostForm({ ...postForm, contactEmail: e.target.value })}
                 />
               </div>
+
               <div className="space-y-2">
                 <Input
                   placeholder="Contact phone"
@@ -439,6 +484,7 @@ export default function OpportunitiesPage() {
                   onChange={(e) => setPostForm({ ...postForm, contactPhone: e.target.value })}
                 />
               </div>
+
               <div className="space-y-2 md:col-span-2">
                 <Input
                   placeholder="Contact username"
@@ -446,6 +492,7 @@ export default function OpportunitiesPage() {
                   onChange={(e) => setPostForm({ ...postForm, contactUsername: e.target.value })}
                 />
               </div>
+
               <div className="space-y-2 md:col-span-2">
                 <Input
                   ref={uploadRef}
@@ -455,11 +502,10 @@ export default function OpportunitiesPage() {
                   onChange={(e) => setPostForm({ ...postForm, images: Array.from(e.target.files ?? []) })}
                 />
                 {postForm.images.length > 0 && (
-                  <div className="text-xs text-muted-foreground">
-                    {postForm.images.length} image(s) selected
-                  </div>
+                  <div className="text-xs text-muted-foreground">{postForm.images.length} image(s) selected</div>
                 )}
               </div>
+
               <div className="md:col-span-2 flex justify-end">
                 <Button onClick={submitPost} disabled={posting}>
                   {posting ? "Publishing..." : "Publish to feed"}
@@ -480,12 +526,14 @@ export default function OpportunitiesPage() {
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
+
               <Input
                 placeholder="Exclude keywords (comma-separated)"
                 value={exclude}
                 onChange={(e) => setExclude(e.target.value)}
               />
             </div>
+
             <div className="flex flex-wrap gap-2">
               <Select value={tagFilter} onValueChange={setTagFilter}>
                 <SelectTrigger className="w-[160px]">
@@ -499,12 +547,14 @@ export default function OpportunitiesPage() {
                   ))}
                 </SelectContent>
               </Select>
+
               <Input
                 className="w-[160px]"
                 placeholder="Custom tag"
                 value={customTagFilter}
                 onChange={(e) => setCustomTagFilter(e.target.value)}
               />
+
               <Select value={countryFilter} onValueChange={setCountryFilter}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Country" />
@@ -518,6 +568,7 @@ export default function OpportunitiesPage() {
                   ))}
                 </SelectContent>
               </Select>
+
               <Select value={sectorFilter} onValueChange={setSectorFilter}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Sector" />
@@ -531,12 +582,12 @@ export default function OpportunitiesPage() {
                   ))}
                 </SelectContent>
               </Select>
+
               <Select value={industryFilter} onValueChange={setIndustryFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Industry" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="All">All</SelectItem>
                   {industryOptions.map((industry) => (
                     <SelectItem key={industry} value={industry}>
                       {industry}
@@ -544,19 +595,9 @@ export default function OpportunitiesPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Input
-                className="w-[140px]"
-                type="number"
-                placeholder="Max ask"
-                value={maxAsk}
-                onChange={(e) => setMaxAsk(e.target.value)}
-              />
-              <Input
-                className="w-[180px]"
-                placeholder="Benefit keyword"
-                value={benefitFilter}
-                onChange={(e) => setBenefitFilter(e.target.value)}
-              />
+
+              <Input className="w-[140px]" type="number" placeholder="Max ask" value={maxAsk} onChange={(e) => setMaxAsk(e.target.value)} />
+              <Input className="w-[180px]" placeholder="Benefit keyword" value={benefitFilter} onChange={(e) => setBenefitFilter(e.target.value)} />
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -628,11 +669,9 @@ export default function OpportunitiesPage() {
 
               {filtered.length === 0 && (
                 <Card>
-                  <CardContent className="py-10 text-center space-y-2">
+                  <CardContent className="space-y-2 py-10 text-center">
                     <div className="text-lg font-semibold">Nothing here yet</div>
-                    <div className="text-muted-foreground">
-                      Pick more interests, then run the ingestion worker to pull fresh headlines.
-                    </div>
+                    <div className="text-muted-foreground">Pick more interests, then run ingestion to pull fresh headlines.</div>
                     <div className="pt-2">
                       <Button asChild>
                         <a href="/interests">Go to Interests</a>
@@ -681,7 +720,7 @@ export default function OpportunitiesPage() {
                   ) : (
                     insights.topSources.map(([s, n]) => (
                       <div key={s} className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground line-clamp-1">{s}</span>
+                        <span className="line-clamp-1 text-muted-foreground">{s}</span>
                         <span className="font-medium">{n}</span>
                       </div>
                     ))
@@ -695,7 +734,7 @@ export default function OpportunitiesPage() {
             <CardHeader>
               <CardTitle className="text-base">Make it smarter next</CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
               <div>• Add a signal score (source quality + novelty + fit).</div>
               <div>• Add charts (weekly volume, saved vs invested).</div>
               <div>• Add alerts when saved items get follow-up news.</div>
