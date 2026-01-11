@@ -56,6 +56,7 @@ model Profile {
   username                    String?       @unique
   phone                       String?       @unique
   imageUrl                    String?
+  cvUrl                       String?
   bio                         String?
   occupation                  String?
   currency                    String?
@@ -64,6 +65,7 @@ model Profile {
   netWorth                    Float?
   riskTolerance               RiskTolerance @default(MEDIUM)
   investAmount                Float?
+  layoutPreference            String?
   emailVerified               Boolean       @default(false)
   phoneVerified               Boolean       @default(false)
   hideAgeFromNonFollowers     Boolean       @default(false)

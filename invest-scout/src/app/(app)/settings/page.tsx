@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 type Risk3 = "LOW" | "MEDIUM" | "HIGH";
 type Risk5 = "VERY_CONSERVATIVE" | "CONSERVATIVE" | "BALANCED" | "GROWTH" | "AGGRESSIVE";
@@ -45,6 +47,7 @@ export default function SettingsPage() {
     username: "",
     phone: "",
     imageUrl: "",
+    cvUrl: "",
     age: "",
     bio: "",
     occupation: "",
@@ -53,6 +56,7 @@ export default function SettingsPage() {
     netWorth: "",
     riskTolerance: "MEDIUM" as RiskValue,
     investAmount: "",
+    layoutPreference: "TOP",
     emailVerified: false,
     phoneVerified: false,
     hideAgeFromNonFollowers: false,
@@ -62,7 +66,9 @@ export default function SettingsPage() {
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingCv, setUploadingCv] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const cvRef = useRef<HTMLInputElement | null>(null);
 
   // Choose which risk scale to use based on what the backend returns
   const riskScale = useMemo(() => {
@@ -99,6 +105,7 @@ export default function SettingsPage() {
             username: p.username ?? "",
             phone: p.phone ?? "",
             imageUrl: p.imageUrl ?? "",
+            cvUrl: p.cvUrl ?? "",
             age: p.age ?? "",
             bio: p.bio ?? "",
             occupation: p.occupation ?? "",
@@ -107,6 +114,7 @@ export default function SettingsPage() {
             netWorth: p.netWorth ?? "",
             riskTolerance: p.riskTolerance ?? "MEDIUM",
             investAmount: p.investAmount ?? "",
+            layoutPreference: p.layoutPreference ?? "TOP",
             emailVerified: Boolean(p.emailVerified),
             phoneVerified: Boolean(p.phoneVerified),
             hideAgeFromNonFollowers: Boolean(p.hideAgeFromNonFollowers),
@@ -131,11 +139,15 @@ export default function SettingsPage() {
         name: form.name || undefined,
         username: form.username || undefined,
         phone: form.phone || undefined,
+        bio: form.bio || undefined,
+        occupation: form.occupation || undefined,
+        currency: form.currency || undefined,
         age: form.age === "" ? undefined : Number(form.age),
         familySituation: form.familySituation || undefined,
         netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
         riskTolerance: form.riskTolerance, // ✅ canonical value, not label
         investAmount: form.investAmount === "" ? undefined : Number(form.investAmount),
+        layoutPreference: form.layoutPreference || undefined,
         emailVerified: form.emailVerified,
         phoneVerified: form.phoneVerified,
         hideAgeFromNonFollowers: form.hideAgeFromNonFollowers,
@@ -203,6 +215,35 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleCvChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingCv(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/user/profile/cv", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? `Upload failed (HTTP ${res.status})`);
+
+      setForm((prev: any) => ({ ...prev, cvUrl: data.cvUrl ?? "" }));
+      toast.success("CV updated");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "Failed to upload CV");
+    } finally {
+      setUploadingCv(false);
+      if (cvRef.current) cvRef.current.value = "";
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -242,6 +283,29 @@ export default function SettingsPage() {
             {uploading && <div className="text-xs text-muted-foreground">Uploading photo...</div>}
           </div>
 
+          <div className="space-y-2 md:col-span-2">
+            <Label>Bio</Label>
+            <Textarea
+              value={form.bio}
+              onChange={(e) => setForm({ ...form, bio: e.target.value })}
+              placeholder="Share a short bio..."
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>CV / Resume</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              <Input ref={cvRef} type="file" accept=".pdf,.doc,.docx" onChange={handleCvChange} />
+              {form.cvUrl && (
+                <a href={form.cvUrl} className="text-sm text-primary underline" target="_blank" rel="noreferrer">
+                  View current CV
+                </a>
+              )}
+            </div>
+            {uploadingCv && <div className="text-xs text-muted-foreground">Uploading CV...</div>}
+          </div>
+
           <div className="space-y-2">
             <Label>Age</Label>
             <Input value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} type="number" />
@@ -255,6 +319,22 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label>Phone number</Label>
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>Layout preference</Label>
+            <Select
+              value={form.layoutPreference}
+              onValueChange={(value) => setForm({ ...form, layoutPreference: value })}
+            >
+              <SelectTrigger className="w-full md:w-[260px]">
+                <SelectValue placeholder="Choose layout" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TOP">Top navigation (current)</SelectItem>
+                <SelectItem value="SIDEBAR">Left sidebar navigation</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

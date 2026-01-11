@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SiteFooter } from "@/components/app/SiteFooter";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -60,35 +61,40 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md">
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle>Create account</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4" onSubmit={onSubmit}>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
-            </div>
-            <div className="space-y-2">
-              <Label>Password (min 8 chars)</Label>
-              <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
-            </div>
-            {err && <p className="text-sm text-red-600">{err}</p>}
-            <Button className="w-full" disabled={loading}>
-              {loading ? "Loading..." : "Create account"}
-            </Button>
-          </form>
+    <div className="min-h-screen flex flex-col">
+      <div className="flex flex-1 items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md">
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle>Create account</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-4" onSubmit={onSubmit}>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Password (min 8 chars)</Label>
+                  <Input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
+                </div>
+                {err && <p className="text-sm text-red-600">{err}</p>}
+                <Button className="w-full" disabled={loading}>
+                  {loading ? "Loading..." : "Create account"}
+                </Button>
+              </form>
 
-          <p className="mt-4 text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link className="underline" href="/login">
-              Log in
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Already have an account?{" "}
+                <Link className="underline" href="/login">
+                  Log in
+                </Link>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      <SiteFooter />
     </div>
   );
 }

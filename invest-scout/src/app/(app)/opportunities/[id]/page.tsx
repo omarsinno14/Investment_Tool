@@ -26,7 +26,6 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
-import { DisclosureBanner } from "@/components/app/DisclosureBanner";
 
 type ActionState = "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
 
@@ -285,7 +284,6 @@ export default function OpportunityDetailPage() {
 
   return (
     <div className="space-y-6">
-      <DisclosureBanner />
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">

@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { RefreshCcw, Search } from "lucide-react";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
-import { DisclosureBanner } from "@/components/app/DisclosureBanner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,6 +53,7 @@ function tokenizeTitle(title: string) {
 }
 
 export default function OpportunitiesPage() {
+  const draftKey = "invesco-opportunity-draft";
   const [loading, setLoading] = useState(true);
   const [opps, setOpps] = useState<Opportunity[]>([]);
   const [query, setQuery] = useState("");
@@ -67,6 +68,7 @@ export default function OpportunitiesPage() {
   const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED" | "INVESTED">("ALL");
   const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
   const [showStats, setShowStats] = useState(true);
+  const [postOpen, setPostOpen] = useState(false);
 
   const [posting, setPosting] = useState(false);
   const [postForm, setPostForm] = useState({
@@ -83,6 +85,7 @@ export default function OpportunitiesPage() {
     contactUsername: "",
     images: [] as File[],
   });
+  const [hasDraft, setHasDraft] = useState(false);
   const uploadRef = useRef<HTMLInputElement | null>(null);
 
   const tagOptions = useMemo(() => {
@@ -197,6 +200,8 @@ export default function OpportunitiesPage() {
         images: [],
       });
       if (uploadRef.current) uploadRef.current.value = "";
+      clearDraft();
+      setPostOpen(false);
       await load();
     } catch (e) {
       console.error(e);
@@ -210,6 +215,34 @@ export default function OpportunitiesPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(draftKey);
+    if (!stored) return;
+    try {
+      const draft = JSON.parse(stored);
+      setPostForm((prev) => ({
+        ...prev,
+        ...draft,
+        images: [],
+      }));
+      setHasDraft(true);
+    } catch (e) {
+      console.error("Failed to load draft", e);
+    }
+  }, [draftKey]);
+
+  function saveDraft() {
+    const draft = { ...postForm, images: [] };
+    localStorage.setItem(draftKey, JSON.stringify(draft));
+    setHasDraft(true);
+    toast.success("Draft saved");
+  }
+
+  function clearDraft() {
+    localStorage.removeItem(draftKey);
+    setHasDraft(false);
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -338,13 +371,144 @@ export default function OpportunitiesPage() {
           <p className="text-muted-foreground">A live feed matched to your interests. Save, track, and mark investments.</p>
         </div>
 
-        <Button variant="outline" onClick={load} disabled={loading}>
-          <RefreshCcw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
+        <div className="flex flex-wrap gap-2">
+          <Dialog open={postOpen} onOpenChange={setPostOpen}>
+            <DialogTrigger asChild>
+              <Button>Post an opportunity</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Post an opportunity</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2 md:col-span-2">
+                  <Input
+                    placeholder="Title"
+                    value={postForm.title}
+                    onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
+                  />
+                </div>
 
-      <DisclosureBanner />
+                <div className="space-y-2 md:col-span-2">
+                  <Input
+                    placeholder="Short summary"
+                    value={postForm.summary}
+                    onChange={(e) => setPostForm({ ...postForm, summary: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Textarea
+                    placeholder="Details / explanation"
+                    value={postForm.details}
+                    onChange={(e) => setPostForm({ ...postForm, details: e.target.value })}
+                    rows={4}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Input
+                    type="number"
+                    placeholder="Ask amount"
+                    value={postForm.askAmount}
+                    onChange={(e) => setPostForm({ ...postForm, askAmount: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Textarea
+                    placeholder="Benefits"
+                    value={postForm.benefits}
+                    onChange={(e) => setPostForm({ ...postForm, benefits: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Input
+                    placeholder="Tags (comma-separated)"
+                    value={postForm.tags}
+                    onChange={(e) => setPostForm({ ...postForm, tags: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Location"
+                    value={postForm.locationName}
+                    onChange={(e) => setPostForm({ ...postForm, locationName: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Map link (optional)"
+                    value={postForm.locationMapUrl}
+                    onChange={(e) => setPostForm({ ...postForm, locationMapUrl: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Contact email"
+                    value={postForm.contactEmail}
+                    onChange={(e) => setPostForm({ ...postForm, contactEmail: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Contact phone"
+                    value={postForm.contactPhone}
+                    onChange={(e) => setPostForm({ ...postForm, contactPhone: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Input
+                    placeholder="Contact username"
+                    value={postForm.contactUsername}
+                    onChange={(e) => setPostForm({ ...postForm, contactUsername: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Input
+                    ref={uploadRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => setPostForm({ ...postForm, images: Array.from(e.target.files ?? []) })}
+                  />
+                  {postForm.images.length > 0 && (
+                    <div className="text-xs text-muted-foreground">{postForm.images.length} image(s) selected</div>
+                  )}
+                  {hasDraft && postForm.title.trim() === "" && (
+                    <div className="text-xs text-muted-foreground">Draft loaded.</div>
+                  )}
+                </div>
+              </div>
+              <DialogFooter className="flex flex-wrap items-center justify-between gap-2">
+                <Button type="button" variant="outline" onClick={saveDraft}>
+                  Save draft
+                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setPostOpen(false)}>
+                    Close
+                  </Button>
+                  <Button onClick={submitPost} disabled={posting}>
+                    {posting ? "Publishing..." : "Publish to feed"}
+                  </Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" onClick={load} disabled={loading}>
+            <RefreshCcw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+      </div>
 
       {/* KPI toggle */}
       <div className="flex items-center justify-between">
@@ -397,123 +561,6 @@ export default function OpportunitiesPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Main column */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Post an opportunity</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <Input
-                  placeholder="Title"
-                  value={postForm.title}
-                  onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Input
-                  placeholder="Short summary"
-                  value={postForm.summary}
-                  onChange={(e) => setPostForm({ ...postForm, summary: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Textarea
-                  placeholder="Details / explanation"
-                  value={postForm.details}
-                  onChange={(e) => setPostForm({ ...postForm, details: e.target.value })}
-                  rows={4}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Input
-                  type="number"
-                  placeholder="Ask amount"
-                  value={postForm.askAmount}
-                  onChange={(e) => setPostForm({ ...postForm, askAmount: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Textarea
-                  placeholder="Benefits"
-                  value={postForm.benefits}
-                  onChange={(e) => setPostForm({ ...postForm, benefits: e.target.value })}
-                  rows={2}
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Input
-                  placeholder="Tags (comma-separated)"
-                  value={postForm.tags}
-                  onChange={(e) => setPostForm({ ...postForm, tags: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Input
-                  placeholder="Location"
-                  value={postForm.locationName}
-                  onChange={(e) => setPostForm({ ...postForm, locationName: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Input
-                  placeholder="Map link (optional)"
-                  value={postForm.locationMapUrl}
-                  onChange={(e) => setPostForm({ ...postForm, locationMapUrl: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Input
-                  placeholder="Contact email"
-                  value={postForm.contactEmail}
-                  onChange={(e) => setPostForm({ ...postForm, contactEmail: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Input
-                  placeholder="Contact phone"
-                  value={postForm.contactPhone}
-                  onChange={(e) => setPostForm({ ...postForm, contactPhone: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Input
-                  placeholder="Contact username"
-                  value={postForm.contactUsername}
-                  onChange={(e) => setPostForm({ ...postForm, contactUsername: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Input
-                  ref={uploadRef}
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => setPostForm({ ...postForm, images: Array.from(e.target.files ?? []) })}
-                />
-                {postForm.images.length > 0 && (
-                  <div className="text-xs text-muted-foreground">{postForm.images.length} image(s) selected</div>
-                )}
-              </div>
-
-              <div className="md:col-span-2 flex justify-end">
-                <Button onClick={submitPost} disabled={posting}>
-                  {posting ? "Publishing..." : "Publish to feed"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Filters */}
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:w-[640px]">
@@ -671,7 +718,7 @@ export default function OpportunitiesPage() {
                 <Card>
                   <CardContent className="space-y-2 py-10 text-center">
                     <div className="text-lg font-semibold">Nothing here yet</div>
-                    <div className="text-muted-foreground">Pick more interests, then run ingestion to pull fresh headlines.</div>
+                    <div className="text-muted-foreground">Pick more interests, then run ingestion to pull fresh opportunities.</div>
                     <div className="pt-2">
                       <Button asChild>
                         <a href="/interests">Go to Interests</a>

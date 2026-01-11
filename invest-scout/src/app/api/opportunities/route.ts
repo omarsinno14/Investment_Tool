@@ -27,6 +27,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get("type");
+    const where =
+      type === "headlines"
+        ? { createdByUserId: null }
+        : type === "community"
+          ? { createdByUserId: { not: null } }
+          : undefined;
+
     const interests: Pick<Interest, "value">[] = await prisma.interest.findMany({
       where: { userId },
       select: { value: true },
@@ -38,6 +47,7 @@ export async function GET(req: Request) {
       .map(norm);
 
     const recent: OpportunityWithUser[] = await prisma.opportunity.findMany({
+      where,
       orderBy: { fetchedAt: "desc" },
       take: 400,
       include: {
