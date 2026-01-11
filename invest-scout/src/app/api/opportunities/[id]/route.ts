@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireUserId } from "@/lib/auth-server";
 import { getPrismaClient } from "@/lib/db";
 import type { OpportunityAction } from "@prisma/client";
+import { buildMatchContext, getMatchScore } from "@/lib/match-score";
 
 export async function GET(
   _req: Request,
@@ -39,14 +40,40 @@ export async function GET(
     if (!opportunity) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+    if (opportunity.archivedAt && opportunity.createdByUserId !== userId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     const action = await prisma.opportunityAction.findUnique({
       where: { userId_opportunityId: { userId, opportunityId: id } },
     });
 
+    const interests = await prisma.interest.findMany({
+      where: { userId },
+      select: { value: true, type: true },
+    });
+
+    const profile = await prisma.profile.findUnique({
+      where: { userId },
+      select: { investAmount: true },
+    });
+
+    const money = await prisma.moneyManagement.findUnique({
+      where: { userId },
+      select: { locationCountry: true, locationRegion: true },
+    });
+
+    const context = buildMatchContext({
+      interests,
+      userCountry: money?.locationCountry ?? null,
+      userRegion: money?.locationRegion ?? null,
+      investAmount: profile?.investAmount ?? null,
+    });
+
     const related = await prisma.opportunity.findMany({
       where: {
         id: { not: id },
+        archivedAt: null,
         OR: [
           opportunity.source ? { source: opportunity.source } : undefined,
           opportunity.keywords.length
@@ -81,10 +108,12 @@ export async function GET(
     );
 
     return NextResponse.json({
-      opportunity: { ...opportunity, action: action ?? null },
+      viewerId: userId,
+      opportunity: { ...opportunity, action: action ?? null, matchScore: getMatchScore(opportunity, context) },
       related: related.map((r) => ({
         ...r,
         action: relatedActionMap.get(r.id) ?? null,
+        matchScore: getMatchScore(r, context),
       })),
     });
   } catch (e) {

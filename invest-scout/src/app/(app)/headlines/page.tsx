@@ -75,8 +75,8 @@ export default function HeadlinesPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Headlines</h1>
-          <p className="text-muted-foreground">Scraped news and investment headlines.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">News</h1>
+          <p className="text-muted-foreground">News and investment headlines tailored to your interests.</p>
         </div>
         <Button variant="outline" onClick={load} disabled={loading}>
           <RefreshCcw className="h-4 w-4 mr-2" />
@@ -89,7 +89,7 @@ export default function HeadlinesPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-9"
-            placeholder="Search headlines..."
+            placeholder="Search news..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />

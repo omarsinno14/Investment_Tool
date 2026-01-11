@@ -177,8 +177,8 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-3">
               <div>
-                <CardTitle className="text-base">Current headlines</CardTitle>
-                <p className="text-sm text-muted-foreground">Latest market and investment headlines.</p>
+                <CardTitle className="text-base">Latest news</CardTitle>
+                <p className="text-sm text-muted-foreground">Market and investment news tailored to your interests.</p>
               </div>
               <Button asChild variant="outline" size="sm">
                 <Link href="/headlines">
@@ -202,11 +202,11 @@ export default function DashboardPage() {
                 </div>
               ) : recentHeadlines.length === 0 ? (
                 <div className="rounded-lg border bg-muted/20 p-4">
-                  <div className="font-medium">No headlines yet</div>
-                  <div className="text-sm text-muted-foreground mt-1">Run ingestion to pull the latest headlines.</div>
+                  <div className="font-medium">No news yet</div>
+                  <div className="text-sm text-muted-foreground mt-1">Run ingestion to pull the latest news.</div>
                   <div className="mt-3 flex gap-2">
                     <Button asChild variant="outline">
-                      <Link href="/headlines">Browse headlines</Link>
+                      <Link href="/headlines">Browse news</Link>
                     </Button>
                   </div>
                 </div>

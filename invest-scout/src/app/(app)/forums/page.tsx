@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -13,9 +16,11 @@ export default function ForumsPage() {
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [tags, setTags] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
-  const [comments, setComments] = useState<Record<string, any[]>>({});
+  const [viewerId, setViewerId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -28,6 +33,7 @@ export default function ForumsPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to load forums");
       setPosts(data.posts ?? []);
+      setViewerId(data.viewerId ?? null);
     } catch (e) {
       console.error(e);
       toast.error("Failed to load forums");
@@ -42,94 +48,28 @@ export default function ForumsPage() {
       return;
     }
     try {
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("body", body);
+      formData.append("tags", tags);
+      if (imageFile) formData.append("image", imageFile);
+
       const res = await fetch("/api/forums", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ title, body }),
+        body: formData,
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to post");
       setTitle("");
       setBody("");
+      setTags("");
+      setImageFile(null);
+      setOpen(false);
       await load();
     } catch (e) {
       console.error(e);
       toast.error("Failed to create post");
-    }
-  }
-
-  async function loadComments(postId: string) {
-    try {
-      const res = await fetch(`/api/forums/${postId}/comments`, { credentials: "include" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to load comments");
-      setComments((prev) => ({ ...prev, [postId]: data.comments ?? [] }));
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to load comments");
-    }
-  }
-
-  async function sendComment(postId: string) {
-    const draft = commentDrafts[postId] ?? "";
-    if (!draft.trim()) return;
-    try {
-      const res = await fetch(`/api/forums/${postId}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ body: draft }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to comment");
-      setCommentDrafts((prev) => ({ ...prev, [postId]: "" }));
-      await loadComments(postId);
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to comment");
-    }
-  }
-
-  async function toggleReaction(postId: string, type: string) {
-    try {
-      const res = await fetch(`/api/forums/${postId}/reactions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ type }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to react");
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to react");
-    }
-  }
-
-  async function toggleSave(postId: string) {
-    try {
-      const res = await fetch(`/api/forums/${postId}/save`, { method: "POST", credentials: "include" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to save");
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to save post");
-    }
-  }
-
-  async function toggleRepost(postId: string) {
-    try {
-      const res = await fetch(`/api/forums/${postId}/repost`, { method: "POST", credentials: "include" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to repost");
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to repost");
     }
   }
 
@@ -139,32 +79,51 @@ export default function ForumsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Forums</h1>
-        <p className="text-muted-foreground">
-          Share investments, outlooks, and questions with the community.
-        </p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Forums</h1>
+          <p className="text-muted-foreground">
+            Share investments, outlooks, and questions with the community.
+          </p>
+        </div>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button>Start a discussion</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Start a discussion</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input
+                placeholder="Title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <Textarea
+                placeholder="Share your thoughts..."
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={5}
+              />
+              <Input
+                placeholder="Tags (comma-separated)"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+              />
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button onClick={createPost}>Post to forums</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Start a discussion</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input
-            placeholder="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <Textarea
-            placeholder="Share your thoughts..."
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={4}
-          />
-          <Button onClick={createPost}>Post to forums</Button>
-        </CardContent>
-      </Card>
 
       {loading && <div>Loading...</div>}
       {!loading && posts.length === 0 && (
@@ -175,72 +134,51 @@ export default function ForumsPage() {
         </Card>
       )}
 
-      {!loading && posts.map((post) => {
-        const reactionCount = post.reactions?.length ?? 0;
-        const commentCount = post.comments?.length ?? 0;
-        const saveCount = post.saves?.length ?? 0;
-        const repostCount = post.reposts?.length ?? 0;
-        const userLabel = post.user?.profile?.username || post.user?.profile?.name || post.user?.email;
-        const isVerified = Boolean(post.user?.profile?.emailVerified && post.user?.profile?.phoneVerified);
-
-        return (
-          <Card key={post.id}>
-            <CardHeader>
-              <CardTitle className="text-base">{post.title}</CardTitle>
-              <div className="text-xs text-muted-foreground">
-                {userLabel} {isVerified ? "• Verified" : ""} • {new Date(post.createdAt).toLocaleString()}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="text-sm text-muted-foreground">{post.body}</div>
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <span>{reactionCount} reactions</span>
-                <span>{commentCount} comments</span>
-                <span>{saveCount} saves</span>
-                <span>{repostCount} reposts</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => toggleReaction(post.id, "LIKE")}>
-                  Like
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => toggleReaction(post.id, "INSIGHTFUL")}>
-                  Insightful
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => toggleReaction(post.id, "CURIOUS")}>
-                  Curious
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => toggleSave(post.id)}>
-                  Save
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => toggleRepost(post.id)}>
-                  Repost
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => loadComments(post.id)}>
-                  Load comments
-                </Button>
-              </div>
-              {(comments[post.id] ?? []).map((comment) => (
-                <div key={comment.id} className="text-sm text-muted-foreground border-t pt-2">
-                  <div className="text-xs">
-                    {comment.user?.profile?.username || comment.user?.profile?.name || comment.user?.email}
+      {!loading && posts.length > 0 && (
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+          {posts.map((post) => {
+            const userLabel = post.user?.profile?.username || post.user?.profile?.name || post.user?.email;
+            const isVerified = Boolean(post.user?.profile?.emailVerified && post.user?.profile?.phoneVerified);
+            return (
+              <Card key={post.id} className="hover:shadow-sm transition-shadow">
+                <CardHeader className="space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <CardTitle className="text-base">
+                      <Link href={`/forums/${post.id}`} className="hover:underline">
+                        {post.title}
+                      </Link>
+                    </CardTitle>
+                    {viewerId && post.userId === viewerId && (
+                      <Badge variant="outline">Your post</Badge>
+                    )}
                   </div>
-                  {comment.body}
-                </div>
-              ))}
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Write a comment"
-                  value={commentDrafts[post.id] ?? ""}
-                  onChange={(e) =>
-                    setCommentDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))
-                  }
-                />
-                <Button size="sm" onClick={() => sendComment(post.id)}>Reply</Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+                  <div className="text-xs text-muted-foreground">
+                    {userLabel} {isVerified ? "• Verified" : ""} • {new Date(post.createdAt).toLocaleString()}
+                  </div>
+                  {post.imageUrl && (
+                    <div className="overflow-hidden rounded-md border bg-muted/20">
+                      <img src={post.imageUrl} alt={post.title} className="h-44 w-full object-cover" />
+                    </div>
+                  )}
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="text-sm text-muted-foreground line-clamp-3">{post.body}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(post.tags ?? []).map((tag: string) => (
+                      <Badge key={tag} variant="secondary">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/forums/${post.id}`}>View discussion</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -30,6 +30,7 @@ type Opportunity = {
     state: "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
     investedAmt?: number | null;
   } | null;
+  matchScore?: number | null;
 };
 
 function formatDate(d?: string | null) {
@@ -128,6 +129,7 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
 
         <div className="flex flex-wrap items-center gap-2">
           {state !== "NONE" && <Badge>{state}</Badge>}
+          {typeof opp.matchScore === "number" && <Badge variant="secondary">Match {opp.matchScore}%</Badge>}
           {opp.source && <Badge variant="secondary">{opp.source}</Badge>}
           {poster && <Badge variant="outline">Posted by {poster}</Badge>}
           {dateLabel && <span className="text-xs text-muted-foreground">{dateLabel}</span>}

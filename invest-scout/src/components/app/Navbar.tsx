@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Navbar() {
   return (
@@ -13,13 +19,35 @@ export function Navbar() {
         </Link>
         <nav className="flex items-center gap-3 text-sm">
           <Link href="/opportunities" className="hover:underline">Opportunities</Link>
-          <Link href="/headlines" className="hover:underline">Headlines</Link>
-          <Link href="/interests" className="hover:underline">Interests</Link>
-          <Link href="/money-management" className="hover:underline">Money management</Link>
-          <Link href="/tools" className="hover:underline">Tools</Link>
+          <Link href="/headlines" className="hover:underline">News</Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="hover:underline">Personal Finance</button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href="/money-management">Money management</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/tools">Tools</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Link href="/forums" className="hover:underline">Forums</Link>
           <Link href="/messages" className="hover:underline">Messages</Link>
-          <Link href="/settings" className="hover:underline">Settings</Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className="hover:underline">Profile</button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href="/settings">Settings</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/interests">Interests</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" onClick={() => signOut({ callbackUrl: "/login" })}>
             Logout
           </Button>

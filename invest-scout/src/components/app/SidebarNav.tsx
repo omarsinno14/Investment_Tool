@@ -3,26 +3,92 @@
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import {
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  Gauge,
+  Lightbulb,
+  MessageSquareText,
+  Newspaper,
+  Wrench,
+  Sparkles,
+  User,
+  Users,
+} from "lucide-react";
 
-export function SidebarNav() {
+type SidebarNavProps = {
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+};
+
+export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavProps) {
   return (
-    <aside className="w-64 flex-col border-r bg-background px-4 py-6 flex">
-      <Link href="/dashboard" className="text-lg font-semibold tracking-tight">
-        Invesco
-      </Link>
-      <nav className="mt-6 flex flex-1 flex-col gap-2 text-sm">
-        <Link href="/dashboard" className="hover:underline">Dashboard</Link>
-        <Link href="/opportunities" className="hover:underline">Opportunities</Link>
-        <Link href="/headlines" className="hover:underline">Headlines</Link>
-        <Link href="/interests" className="hover:underline">Interests</Link>
-        <Link href="/money-management" className="hover:underline">Money management</Link>
-        <Link href="/tools" className="hover:underline">Tools</Link>
-        <Link href="/forums" className="hover:underline">Forums</Link>
-        <Link href="/messages" className="hover:underline">Messages</Link>
-        <Link href="/settings" className="hover:underline">Settings</Link>
+    <aside className={`flex flex-col border-r bg-background py-6 ${collapsed ? "w-20 px-3" : "w-64 px-4"}`}>
+      <div className="flex items-center justify-between">
+        <Link href="/dashboard" className="text-lg font-semibold tracking-tight">
+          {collapsed ? "I" : "Invesco"}
+        </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={onToggleCollapsed}
+          aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </Button>
+      </div>
+      <nav className={`mt-6 flex flex-1 flex-col text-sm ${collapsed ? "gap-1" : "gap-3"}`}>
+        <Link href="/dashboard" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+          <Gauge className="h-4 w-4" />
+          {!collapsed && <span>Dashboard</span>}
+        </Link>
+        <Link href="/opportunities" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+          <Sparkles className="h-4 w-4" />
+          {!collapsed && <span>Opportunities</span>}
+        </Link>
+        <Link href="/headlines" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+          <Newspaper className="h-4 w-4" />
+          {!collapsed && <span>News</span>}
+        </Link>
+        <div className="pt-2">
+          {!collapsed && <div className="px-2 text-xs uppercase tracking-wide text-muted-foreground">Personal Finance</div>}
+          <div className="mt-2 space-y-1">
+            <Link href="/money-management" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+              <Building2 className="h-4 w-4" />
+              {!collapsed && <span>Money management</span>}
+            </Link>
+            <Link href="/tools" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+              <Wrench className="h-4 w-4" />
+              {!collapsed && <span>Tools</span>}
+            </Link>
+          </div>
+        </div>
+        <Link href="/forums" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+          <Users className="h-4 w-4" />
+          {!collapsed && <span>Forums</span>}
+        </Link>
+        <Link href="/messages" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+          <MessageSquareText className="h-4 w-4" />
+          {!collapsed && <span>Messages</span>}
+        </Link>
+        <div className="pt-2">
+          {!collapsed && <div className="px-2 text-xs uppercase tracking-wide text-muted-foreground">Profile</div>}
+          <div className="mt-2 space-y-1">
+            <Link href="/settings" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+              <User className="h-4 w-4" />
+              {!collapsed && <span>Settings</span>}
+            </Link>
+            <Link href="/interests" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+              <Lightbulb className="h-4 w-4" />
+              {!collapsed && <span>Interests</span>}
+            </Link>
+          </div>
+        </div>
       </nav>
       <Button variant="outline" onClick={() => signOut({ callbackUrl: "/login" })}>
-        Logout
+        {collapsed ? "Exit" : "Logout"}
       </Button>
     </aside>
   );

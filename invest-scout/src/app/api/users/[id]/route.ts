@@ -46,7 +46,7 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
     });
 
     const forumPosts = await prisma.forumPost.findMany({
-      where: { userId: id },
+      where: { userId: id, archivedAt: null },
       orderBy: { createdAt: "desc" },
       take: 50,
     });

@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,9 +62,12 @@ type Opportunity = {
     state: ActionState;
     investedAmt?: number | null;
   } | null;
+  matchScore?: number | null;
+  archivedAt?: string | null;
 };
 
 type ApiResponse = {
+  viewerId: string;
   opportunity: Opportunity;
   related: Opportunity[];
 };
@@ -98,9 +102,25 @@ export default function OpportunityDetailPage() {
   const [investAmt, setInvestAmt] = useState<string>("");
   const [replyBody, setReplyBody] = useState("");
   const [replySending, setReplySending] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    summary: "",
+    details: "",
+    askAmount: "",
+    benefits: "",
+    tags: "",
+    locationName: "",
+    locationMapUrl: "",
+    contactEmail: "",
+    contactPhone: "",
+    contactUsername: "",
+  });
 
   const opportunity = data?.opportunity;
   const state = opportunity?.action?.state ?? "NONE";
+  const viewerId = data?.viewerId ?? null;
+  const isOwner = Boolean(viewerId && opportunity?.createdByUser?.id && viewerId === opportunity.createdByUser.id);
 
   const chips = useMemo(() => {
     if (!opportunity) return [] as { label: string; values: string[]; icon: ReactNode }[];
@@ -155,6 +175,19 @@ export default function OpportunityDetailPage() {
           ? String(data.opportunity.action.investedAmt)
           : ""
       );
+      setEditForm({
+        title: data.opportunity.title ?? "",
+        summary: data.opportunity.summary ?? "",
+        details: data.opportunity.details ?? "",
+        askAmount: data.opportunity.askAmount != null ? String(data.opportunity.askAmount) : "",
+        benefits: data.opportunity.benefits ?? "",
+        tags: (data.opportunity.tags ?? []).join(", "),
+        locationName: data.opportunity.locationName ?? "",
+        locationMapUrl: data.opportunity.locationMapUrl ?? "",
+        contactEmail: data.opportunity.contactEmail ?? "",
+        contactPhone: data.opportunity.contactPhone ?? "",
+        contactUsername: data.opportunity.contactUsername ?? "",
+      });
     } catch (e) {
       console.error(e);
       toast.error("Failed to load opportunity");
@@ -200,6 +233,67 @@ export default function OpportunityDetailPage() {
     } catch (e) {
       console.error(e);
       toast.error("Could not update status");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveEdits() {
+    if (!opportunity) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/user/opportunities/${opportunity.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? "Failed to update");
+      toast.success("Opportunity updated");
+      setEditOpen(false);
+      await load();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update opportunity");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleArchive() {
+    if (!opportunity) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/user/opportunities/${opportunity.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: !opportunity.archivedAt }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? "Failed to update");
+      toast.success(opportunity.archivedAt ? "Opportunity restored" : "Opportunity archived");
+      await load();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update opportunity");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteOpportunity() {
+    if (!opportunity) return;
+    if (!window.confirm("Delete this opportunity? This cannot be undone.")) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/user/opportunities/${opportunity.id}`, { method: "DELETE" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? "Failed to delete");
+      toast.success("Opportunity deleted");
+      router.push("/opportunities");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to delete opportunity");
     } finally {
       setBusy(false);
     }
@@ -301,6 +395,9 @@ export default function OpportunityDetailPage() {
             {opportunity.title}
           </h1>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            {typeof opportunity.matchScore === "number" && (
+              <Badge variant="secondary">Match {opportunity.matchScore}%</Badge>
+            )}
             {opportunity.source && <Badge variant="secondary">{opportunity.source}</Badge>}
             <Badge variant="outline">{formatDate(opportunity.publishedAt ?? opportunity.fetchedAt)}</Badge>
             {state !== "NONE" && <Badge className="bg-primary text-primary-foreground">{state}</Badge>}
@@ -308,6 +405,103 @@ export default function OpportunityDetailPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {isOwner && (
+            <>
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" disabled={busy}>Edit</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Edit opportunity</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="md:col-span-2 space-y-1">
+                      <span className="text-sm font-medium">Title</span>
+                      <Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
+                    </div>
+                    <div className="md:col-span-2 space-y-1">
+                      <span className="text-sm font-medium">Summary</span>
+                      <Textarea
+                        value={editForm.summary}
+                        onChange={(e) => setEditForm({ ...editForm, summary: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="md:col-span-2 space-y-1">
+                      <span className="text-sm font-medium">Details</span>
+                      <Textarea
+                        value={editForm.details}
+                        onChange={(e) => setEditForm({ ...editForm, details: e.target.value })}
+                        rows={4}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-sm font-medium">Ask amount</span>
+                      <Input
+                        value={editForm.askAmount}
+                        onChange={(e) => setEditForm({ ...editForm, askAmount: e.target.value })}
+                        type="number"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-sm font-medium">Benefits</span>
+                      <Input value={editForm.benefits} onChange={(e) => setEditForm({ ...editForm, benefits: e.target.value })} />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <span className="text-sm font-medium">Tags (comma-separated)</span>
+                      <Input value={editForm.tags} onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-sm font-medium">Location</span>
+                      <Input
+                        value={editForm.locationName}
+                        onChange={(e) => setEditForm({ ...editForm, locationName: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-sm font-medium">Map link</span>
+                      <Input
+                        value={editForm.locationMapUrl}
+                        onChange={(e) => setEditForm({ ...editForm, locationMapUrl: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-sm font-medium">Contact email</span>
+                      <Input
+                        value={editForm.contactEmail}
+                        onChange={(e) => setEditForm({ ...editForm, contactEmail: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-sm font-medium">Contact phone</span>
+                      <Input
+                        value={editForm.contactPhone}
+                        onChange={(e) => setEditForm({ ...editForm, contactPhone: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <span className="text-sm font-medium">Contact username</span>
+                      <Input
+                        value={editForm.contactUsername}
+                        onChange={(e) => setEditForm({ ...editForm, contactUsername: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+                    <Button onClick={saveEdits} disabled={busy}>Save changes</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" onClick={toggleArchive} disabled={busy}>
+                {opportunity.archivedAt ? "Restore" : "Archive"}
+              </Button>
+              <Button variant="destructive" onClick={deleteOpportunity} disabled={busy}>
+                Delete
+              </Button>
+            </>
+          )}
           {opportunity.url && (
             <Button variant="outline" asChild>
               <a href={opportunity.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2">

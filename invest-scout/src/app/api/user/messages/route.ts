@@ -57,7 +57,7 @@ export async function GET(req: Request) {
         },
       });
 
-      return NextResponse.json({ messages });
+      return NextResponse.json({ messages, currentUserId: userId });
     }
 
     const messages = await prisma.message.findMany({
@@ -73,7 +73,7 @@ export async function GET(req: Request) {
       },
     });
 
-    return NextResponse.json({ messages });
+    return NextResponse.json({ messages, currentUserId: userId });
   } catch (e) {
     console.error("Failed to load messages", e);
     return NextResponse.json({ error: "Failed to load messages" }, { status: 500 });

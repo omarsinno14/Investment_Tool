@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
-import type { Interest, Opportunity, OpportunityAction } from "@prisma/client";
+import type { Opportunity, OpportunityAction } from "@prisma/client";
+import { buildMatchContext, getMatchScore, shouldIncludeOpportunity } from "@/lib/match-score";
 
 type OpportunityWithUser = Opportunity & {
   createdByUser?: {
@@ -10,10 +11,6 @@ type OpportunityWithUser = Opportunity & {
     profile?: { name?: string | null; username?: string | null; imageUrl?: string | null } | null;
   } | null;
 };
-
-function norm(s: string) {
-  return s.toLowerCase();
-}
 
 export async function GET(req: Request) {
   try {
@@ -36,18 +33,30 @@ export async function GET(req: Request) {
           ? { createdByUserId: { not: null } }
           : undefined;
 
-    const interests: Pick<Interest, "value">[] = await prisma.interest.findMany({
+    const interests = await prisma.interest.findMany({
       where: { userId },
-      select: { value: true },
+      select: { value: true, type: true },
     });
 
-    const terms: string[] = interests
-      .map((i: Pick<Interest, "value">) => i.value.trim())
-      .filter(Boolean)
-      .map(norm);
+    const profile = await prisma.profile.findUnique({
+      where: { userId },
+      select: { investAmount: true },
+    });
+
+    const money = await prisma.moneyManagement.findUnique({
+      where: { userId },
+      select: { locationCountry: true, locationRegion: true },
+    });
+
+    const context = buildMatchContext({
+      interests,
+      userCountry: money?.locationCountry ?? null,
+      userRegion: money?.locationRegion ?? null,
+      investAmount: profile?.investAmount ?? null,
+    });
 
     const recent: OpportunityWithUser[] = await prisma.opportunity.findMany({
-      where,
+      where: where ? { ...where, archivedAt: null } : { archivedAt: null },
       orderBy: { fetchedAt: "desc" },
       take: 400,
       include: {
@@ -62,16 +71,9 @@ export async function GET(req: Request) {
     });
 
     const matched: OpportunityWithUser[] =
-      terms.length === 0
-        ? recent.slice(0, 120)
-        : recent
-            .filter((o: OpportunityWithUser) => {
-              const hay = norm(
-                `${o.title ?? ""} ${o.summary ?? ""} ${o.details ?? ""} ${(o.tags ?? []).join(" ")}`
-              );
-              return terms.some((t: string) => t.length >= 2 && hay.includes(t));
-            })
-            .slice(0, 200);
+      type === "headlines"
+        ? recent.filter((o) => shouldIncludeOpportunity(o, context)).slice(0, 200)
+        : recent.filter((o) => shouldIncludeOpportunity(o, context)).slice(0, 200);
 
     const ids: string[] = matched.map((m: Opportunity) => m.id);
 
@@ -86,6 +88,7 @@ export async function GET(req: Request) {
     const opportunities = matched.map((o: OpportunityWithUser) => ({
       ...o,
       action: map.get(o.id) ?? null,
+      matchScore: getMatchScore(o, context),
     }));
 
     return NextResponse.json({ opportunities });

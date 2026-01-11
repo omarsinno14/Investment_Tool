@@ -56,7 +56,7 @@ export default function SettingsPage() {
     netWorth: "",
     riskTolerance: "MEDIUM" as RiskValue,
     investAmount: "",
-    layoutPreference: "TOP",
+    layoutPreference: "SIDEBAR",
     emailVerified: false,
     phoneVerified: false,
     hideAgeFromNonFollowers: false,
@@ -114,7 +114,7 @@ export default function SettingsPage() {
             netWorth: p.netWorth ?? "",
             riskTolerance: p.riskTolerance ?? "MEDIUM",
             investAmount: p.investAmount ?? "",
-            layoutPreference: p.layoutPreference ?? "TOP",
+            layoutPreference: p.layoutPreference ?? "SIDEBAR",
             emailVerified: Boolean(p.emailVerified),
             phoneVerified: Boolean(p.phoneVerified),
             hideAgeFromNonFollowers: Boolean(p.hideAgeFromNonFollowers),
@@ -331,8 +331,8 @@ export default function SettingsPage() {
                 <SelectValue placeholder="Choose layout" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="TOP">Top navigation (current)</SelectItem>
-                <SelectItem value="SIDEBAR">Left sidebar navigation</SelectItem>
+                <SelectItem value="TOP">Top navigation</SelectItem>
+                <SelectItem value="SIDEBAR">Left sidebar navigation (default)</SelectItem>
               </SelectContent>
             </Select>
           </div>
