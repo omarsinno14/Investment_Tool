@@ -112,6 +112,7 @@ model Opportunity {
   createdByUser   User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
   publishedAt     DateTime?
   fetchedAt       DateTime  @default(now())
+  archivedAt      DateTime?
 
   categories String[] @default([])
   keywords   String[] @default([])
@@ -119,6 +120,85 @@ model Opportunity {
   actions OpportunityAction[]
 
   @@index([fetchedAt])
+}
+
+model ForumPost {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  body       String
+  imageUrl   String?
+  tags       String[] @default([])
+  archivedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  comments  ForumComment[]
+  reactions ForumReaction[]
+  saves     ForumSave[]
+  reposts   ForumRepost[]
+
+  @@index([userId])
+}
+
+model ForumComment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@index([userId])
+}
+
+model ForumReaction {
+  id     String @id @default(cuid())
+  postId String
+  userId String
+  type   String
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId, type])
+  @@index([postId])
+  @@index([userId])
+}
+
+model ForumSave {
+  id     String @id @default(cuid())
+  postId String
+  userId String
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model ForumRepost {
+  id     String @id @default(cuid())
+  postId String
+  userId String
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
 }
 
 model OpportunityAction {

@@ -8,7 +8,8 @@ import { SiteFooter } from "@/components/app/SiteFooter";
 type LayoutPreference = "TOP" | "SIDEBAR";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const [layoutPreference, setLayoutPreference] = useState<LayoutPreference>("TOP");
+  const [layoutPreference, setLayoutPreference] = useState<LayoutPreference>("SIDEBAR");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -18,7 +19,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         if (!res.ok) return;
         const data = await res.json().catch(() => ({}));
         if (!active) return;
-        const pref = data?.profile?.layoutPreference;
+        const pref = data?.profile?.layoutPreference ?? "SIDEBAR";
         if (pref === "SIDEBAR" || pref === "TOP") {
           setLayoutPreference(pref);
         }
@@ -35,7 +36,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen flex flex-col">
       {layoutPreference === "SIDEBAR" ? (
         <div className="flex flex-1">
-          <SidebarNav />
+          <SidebarNav
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+          />
           <main className="flex-1 px-6 py-8">
             <div className="mx-auto w-full max-w-6xl">{children}</div>
           </main>

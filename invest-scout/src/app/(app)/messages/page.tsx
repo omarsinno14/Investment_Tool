@@ -37,6 +37,8 @@ export default function MessagesPage() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showComposer, setShowComposer] = useState(true);
   const searchParams = useSearchParams();
 
   async function loadMessages(currentIdentifier = identifier) {
@@ -57,6 +59,7 @@ export default function MessagesPage() {
       return;
     }
     setMessages(data.messages ?? []);
+    setCurrentUserId(data.currentUserId ?? null);
   }
 
   useEffect(() => {
@@ -135,54 +138,59 @@ export default function MessagesPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>Start a conversation</CardTitle>
+          <Button variant="ghost" size="sm" onClick={() => setShowComposer((prev) => !prev)}>
+            {showComposer ? "Hide" : "Show"}
+          </Button>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Recipient</Label>
-            <Input
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              onBlur={() => loadMessages()}
-              placeholder="email, username, or phone"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Attach opportunity (optional)</Label>
-            <Select
-              value={opportunityId ?? "__none__"}
-              onValueChange={(v) => setOpportunityId(v === "__none__" ? null : v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={loading ? "Loading..." : "Select opportunity"} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">No attachment</SelectItem>
-                {opportunities.map((opp) => (
-                  <SelectItem key={opp.id} value={opp.id}>
-                    {opp.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label>Message</Label>
-            <Textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Add context, why this matters, next steps..."
-              rows={4}
-            />
-          </div>
-          <div className="md:col-span-2 flex items-center justify-between text-sm text-muted-foreground">
-            <span>Messages are private to you and the recipient.</span>
-            <Button onClick={send} disabled={sending}>
-              {sending ? "Sending..." : "Send message"}
-            </Button>
-          </div>
-        </CardContent>
+        {showComposer && (
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Recipient</Label>
+              <Input
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                onBlur={() => loadMessages()}
+                placeholder="email, username, or phone"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Attach opportunity (optional)</Label>
+              <Select
+                value={opportunityId ?? "__none__"}
+                onValueChange={(v) => setOpportunityId(v === "__none__" ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loading ? "Loading..." : "Select opportunity"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No attachment</SelectItem>
+                  {opportunities.map((opp) => (
+                    <SelectItem key={opp.id} value={opp.id}>
+                      {opp.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Message</Label>
+              <Textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Add context, why this matters, next steps..."
+                rows={4}
+              />
+            </div>
+            <div className="md:col-span-2 flex items-center justify-between text-sm text-muted-foreground">
+              <span>Messages are private to you and the recipient.</span>
+              <Button onClick={send} disabled={sending}>
+                {sending ? "Sending..." : "Send message"}
+              </Button>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       <Card>
@@ -204,7 +212,28 @@ export default function MessagesPage() {
               >
                 <div className="text-xs text-muted-foreground flex items-center justify-between">
                   <span>{new Date(msg.createdAt).toLocaleString()}</span>
-                  {msg.opportunity && <span>Shared: {msg.opportunity.title}</span>}
+                  <div className="flex items-center gap-2">
+                    {msg.opportunity && <span>Shared: {msg.opportunity.title}</span>}
+                    {currentUserId && msg.fromUserId === currentUserId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={async () => {
+                          if (!window.confirm("Unsend this message?")) return;
+                          const res = await fetch(`/api/user/messages/${msg.id}`, { method: "DELETE" });
+                          if (!res.ok) {
+                            const data = await res.json().catch(() => ({}));
+                            toast.error(data?.error ?? "Failed to unsend");
+                            return;
+                          }
+                          await loadMessages(identifier);
+                        }}
+                      >
+                        Unsend
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="text-sm">{msg.body}</div>
               </div>
