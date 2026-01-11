@@ -37,11 +37,15 @@ export async function POST(req: Request) {
       name: body.name ?? null,
       username: cleanUsername || null,
       phone: cleanPhone || null,
+      bio: body.bio ?? null,
+      occupation: body.occupation ?? null,
+      currency: body.currency ?? null,
       age: typeof body.age === "number" ? body.age : null,
       familySituation: body.familySituation ?? null,
       netWorth: typeof body.netWorth === "number" ? body.netWorth : null,
       riskTolerance: body.riskTolerance ?? "MEDIUM",
       investAmount: typeof body.investAmount === "number" ? body.investAmount : null,
+      layoutPreference: body.layoutPreference ?? null,
     };
 
     const profile = await prisma.profile.upsert({
@@ -49,11 +53,13 @@ export async function POST(req: Request) {
       create: {
         userId,
         imageUrl: body.imageUrl ?? null,
+        cvUrl: body.cvUrl ?? null,
         ...baseData,
       },
       update: {
         ...baseData,
         ...(body.imageUrl ? { imageUrl: body.imageUrl } : {}),
+        ...(body.cvUrl ? { cvUrl: body.cvUrl } : {}),
       },
     });
 
