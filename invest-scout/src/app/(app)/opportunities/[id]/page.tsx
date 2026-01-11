@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
-  ArrowUpRight,
+  ArrowUpRight
   Banknote,
   Bookmark,
   Globe2,
