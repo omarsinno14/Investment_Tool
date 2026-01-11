@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
+import { SUPPORTED_CURRENCIES, useCurrency } from "@/components/app/CurrencyProvider";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +44,8 @@ function isRisk5(v: any): v is Risk5 {
 }
 
 export default function SettingsPage() {
+  const { theme, setTheme } = useTheme();
+  const { setCurrency } = useCurrency();
   const [form, setForm] = useState<any>({
     name: "",
     username: "",
@@ -59,9 +63,13 @@ export default function SettingsPage() {
     layoutPreference: "SIDEBAR",
     emailVerified: false,
     phoneVerified: false,
+    identityVerified: false,
+    expertiseTags: "",
+    verifiedExpertiseTags: "",
     hideAgeFromNonFollowers: false,
     hideContactFromNonFollowers: false,
     hidePhotoFromNonFollowers: false,
+    hidePostsFromNonFollowers: false,
   });
 
   const [saving, setSaving] = useState(false);
@@ -117,9 +125,13 @@ export default function SettingsPage() {
             layoutPreference: p.layoutPreference ?? "SIDEBAR",
             emailVerified: Boolean(p.emailVerified),
             phoneVerified: Boolean(p.phoneVerified),
+            identityVerified: Boolean(p.identityVerified),
+            expertiseTags: (p.expertiseTags ?? []).join(", "),
+            verifiedExpertiseTags: (p.verifiedExpertiseTags ?? []).join(", "),
             hideAgeFromNonFollowers: Boolean(p.hideAgeFromNonFollowers),
             hideContactFromNonFollowers: Boolean(p.hideContactFromNonFollowers),
             hidePhotoFromNonFollowers: Boolean(p.hidePhotoFromNonFollowers),
+            hidePostsFromNonFollowers: Boolean(p.hidePostsFromNonFollowers),
           });
         } else {
           const message = isJson ? data?.error || "Failed to load profile" : "Failed to load profile";
@@ -150,9 +162,19 @@ export default function SettingsPage() {
         layoutPreference: form.layoutPreference || undefined,
         emailVerified: form.emailVerified,
         phoneVerified: form.phoneVerified,
+        identityVerified: form.identityVerified,
+        expertiseTags: String(form.expertiseTags || "")
+          .split(",")
+          .map((tag: string) => tag.trim())
+          .filter(Boolean),
+        verifiedExpertiseTags: String(form.verifiedExpertiseTags || "")
+          .split(",")
+          .map((tag: string) => tag.trim())
+          .filter(Boolean),
         hideAgeFromNonFollowers: form.hideAgeFromNonFollowers,
         hideContactFromNonFollowers: form.hideContactFromNonFollowers,
         hidePhotoFromNonFollowers: form.hidePhotoFromNonFollowers,
+        hidePostsFromNonFollowers: form.hidePostsFromNonFollowers,
       };
 
       const res = await fetch("/api/user/profile", {
@@ -351,6 +373,42 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
+            <Label>Preferred currency</Label>
+            <Select
+              value={form.currency}
+              onValueChange={(value) => {
+                setForm({ ...form, currency: value });
+                setCurrency(value);
+              }}
+            >
+              <SelectTrigger className="w-full md:w-[260px]">
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORTED_CURRENCIES.map((code) => (
+                  <SelectItem key={code} value={code}>
+                    {code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Theme</Label>
+            <Select value={theme ?? "system"} onValueChange={(value) => setTheme(value)}>
+              <SelectTrigger className="w-full md:w-[260px]">
+                <SelectValue placeholder="Select theme" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="light">Light</SelectItem>
+                <SelectItem value="dark">Dark</SelectItem>
+                <SelectItem value="system">System</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label>Risk tolerance</Label>
             <div className="space-y-2">
               <input
@@ -399,6 +457,33 @@ export default function SettingsPage() {
             />
           </div>
 
+          <div className="space-y-2">
+            <Label>Identity verified (gold badge)</Label>
+            <input
+              type="checkbox"
+              checked={form.identityVerified}
+              onChange={(e) => setForm({ ...form, identityVerified: e.target.checked })}
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>Expertise tags</Label>
+            <Input
+              value={form.expertiseTags}
+              onChange={(e) => setForm({ ...form, expertiseTags: e.target.value })}
+              placeholder="e.g. Real Estate, Venture Capital, Crypto"
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>Verified expertise tags (endorsed)</Label>
+            <Input
+              value={form.verifiedExpertiseTags}
+              onChange={(e) => setForm({ ...form, verifiedExpertiseTags: e.target.value })}
+              placeholder="Tags that have been endorsed or verified"
+            />
+          </div>
+
           <div className="space-y-2 md:col-span-2">
             <Label>Privacy</Label>
             <div className="flex flex-col gap-2 text-sm text-muted-foreground">
@@ -425,6 +510,14 @@ export default function SettingsPage() {
                   onChange={(e) => setForm({ ...form, hidePhotoFromNonFollowers: e.target.checked })}
                 />
                 Hide profile photo from non-followers
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.hidePostsFromNonFollowers}
+                  onChange={(e) => setForm({ ...form, hidePostsFromNonFollowers: e.target.checked })}
+                />
+                Hide your posts from non-followers
               </label>
             </div>
           </div>

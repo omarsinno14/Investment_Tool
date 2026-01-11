@@ -46,6 +46,13 @@ export async function POST(req: Request) {
       riskTolerance: body.riskTolerance ?? "MEDIUM",
       investAmount: typeof body.investAmount === "number" ? body.investAmount : null,
       layoutPreference: body.layoutPreference ?? null,
+      identityVerified: Boolean(body.identityVerified),
+      expertiseTags: Array.isArray(body.expertiseTags) ? body.expertiseTags : [],
+      verifiedExpertiseTags: Array.isArray(body.verifiedExpertiseTags) ? body.verifiedExpertiseTags : [],
+      hideAgeFromNonFollowers: Boolean(body.hideAgeFromNonFollowers),
+      hideContactFromNonFollowers: Boolean(body.hideContactFromNonFollowers),
+      hidePhotoFromNonFollowers: Boolean(body.hidePhotoFromNonFollowers),
+      hidePostsFromNonFollowers: Boolean(body.hidePostsFromNonFollowers),
     };
 
     const profile = await prisma.profile.upsert({

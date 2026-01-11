@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ExternalLink, Bookmark, Star, Banknote, RotateCcw } from "lucide-react";
+import { useCurrency } from "@/components/app/CurrencyProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,10 @@ type Opportunity = {
   imageUrl?: string | null;
   imageUrls?: string[] | null;
   tags?: string[] | null;
+  askAmount?: number | null;
+  askCurrency?: string | null;
+  expectedRoiPercent?: number | null;
+  expectedRoiDurationMonths?: number | null;
   createdByUser?: {
     profile?: { name?: string | null; username?: string | null; imageUrl?: string | null } | null;
   } | null;
@@ -31,6 +36,7 @@ type Opportunity = {
     investedAmt?: number | null;
   } | null;
   matchScore?: number | null;
+  boostedUntil?: string | null;
 };
 
 function formatDate(d?: string | null) {
@@ -42,6 +48,7 @@ function formatDate(d?: string | null) {
 
 export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; onActionUpdated?: () => void }) {
   const [busy, setBusy] = useState(false);
+  const { format } = useCurrency();
 
   const dateLabel = formatDate(opp.publishedAt ?? opp.fetchedAt);
   const state = opp.action?.state ?? "NONE";
@@ -50,6 +57,7 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
   const imageUrl = opp.imageUrl ?? opp.imageUrls?.[0] ?? null;
   const poster =
     opp.createdByUser?.profile?.username || opp.createdByUser?.profile?.name || undefined;
+  const isSponsored = opp.boostedUntil ? new Date(opp.boostedUntil).getTime() > Date.now() : false;
 
   async function setState(nextState: Opportunity["action"]["state"], investedAmt?: number) {
     setBusy(true);
@@ -128,6 +136,7 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {isSponsored && <Badge variant="secondary">Sponsored</Badge>}
           {state !== "NONE" && <Badge>{state}</Badge>}
           {typeof opp.matchScore === "number" && <Badge variant="secondary">Match {opp.matchScore}%</Badge>}
           {opp.source && <Badge variant="secondary">{opp.source}</Badge>}
@@ -140,10 +149,20 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
         <p className="text-sm text-muted-foreground line-clamp-2">{opp.summary ?? opp.details ?? "—"}</p>
 
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          {opp.askAmount != null && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              Ask {format(opp.askAmount, { fromCurrency: opp.askCurrency ?? "USD" })}
+            </Badge>
+          )}
+          {opp.expectedRoiPercent != null && (
+            <Badge variant="outline">
+              ROI {opp.expectedRoiPercent}%{opp.expectedRoiDurationMonths ? ` / ${opp.expectedRoiDurationMonths}m` : ""}
+            </Badge>
+          )}
           {state === "INVESTED" && (
             <Badge variant="secondary" className="flex items-center gap-1">
               <Banknote className="h-3 w-3" />
-              ${opp.action?.investedAmt?.toLocaleString() ?? "0"}
+              {format(opp.action?.investedAmt ?? 0)}
             </Badge>
           )}
           {tags.map((t) => (

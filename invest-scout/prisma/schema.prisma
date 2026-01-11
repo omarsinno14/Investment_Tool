@@ -48,6 +48,8 @@ model User {
   forumReactions      ForumReaction[]
   forumSaves          ForumSave[]
   forumReposts        ForumRepost[]
+  following           Follow[]          @relation("Follower")
+  followers           Follow[]          @relation("Following")
 
   @@index([email])
 }
@@ -73,9 +75,13 @@ model Profile {
   layoutPreference            String?
   emailVerified               Boolean       @default(false)
   phoneVerified               Boolean       @default(false)
+  identityVerified            Boolean       @default(false)
+  expertiseTags               String[]      @default([])
+  verifiedExpertiseTags       String[]      @default([])
   hideAgeFromNonFollowers     Boolean       @default(false)
   hideContactFromNonFollowers Boolean       @default(false)
   hidePhotoFromNonFollowers   Boolean       @default(false)
+  hidePostsFromNonFollowers   Boolean       @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -95,6 +101,19 @@ model Interest {
   @@index([userId])
 }
 
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
 model Opportunity {
   id              String    @id @default(cuid())
   title           String
@@ -105,7 +124,10 @@ model Opportunity {
   imageUrls       String[]  @default([])
   details         String?
   askAmount       Float?
+  askCurrency     String?   @default("USD")
   benefits        String?
+  expectedRoiPercent        Float?
+  expectedRoiDurationMonths Int?
   contactEmail    String?
   contactPhone    String?
   contactUsername String?
@@ -118,6 +140,10 @@ model Opportunity {
   publishedAt     DateTime?
   fetchedAt       DateTime  @default(now())
   archivedAt      DateTime?
+  boostedAt       DateTime?
+  boostedUntil    DateTime?
+  boostedBudget   Float?
+  boostedCurrency String?
 
   categories String[] @default([])
   keywords   String[] @default([])

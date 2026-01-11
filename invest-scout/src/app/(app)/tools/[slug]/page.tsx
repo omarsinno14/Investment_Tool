@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useCurrency } from "@/components/app/CurrencyProvider";
 
 function calculateMortgage(principal: number, annualRate: number, years: number) {
   const r = annualRate / 100 / 12;
@@ -79,6 +80,7 @@ function parseCsv(text: string) {
 export default function ToolDetailPage() {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug ?? "";
+  const { format } = useCurrency();
 
   const [principal, setPrincipal] = useState("350000");
   const [rate, setRate] = useState("6.5");
@@ -125,7 +127,71 @@ export default function ToolDetailPage() {
     return null;
   }
 
+  const extraTools: Record<string, { name: string; description: string }> = {
+    "budget-split-50-30-20": {
+      name: "50/30/20 budget split",
+      description: "Plan your take-home pay across needs, wants, and savings.",
+    },
+    "debt-income-service": {
+      name: "Debt to income and debt to service",
+      description: "Track debt ratios and servicing load over time.",
+    },
+    "leverage-level": {
+      name: "Leverage level",
+      description: "Measure leverage using assets, liabilities, and equity.",
+    },
+    "total-salary-income": {
+      name: "Total salary and total income",
+      description: "Add up base pay, bonuses, and additional income streams.",
+    },
+    "debt-payoff-priority": {
+      name: "Debt payoff priority",
+      description: "Order your debts by interest rate or balance size.",
+    },
+    "retirement-contribution-requirement": {
+      name: "Retirement contribution requirement",
+      description: "Estimate contribution levels based on retirement targets.",
+    },
+    "investment-real-return": {
+      name: "Investment real return",
+      description: "Adjust returns for inflation to see real purchasing power.",
+    },
+    "big-purchase-tco": {
+      name: "Big purchase TCO",
+      description: "Account for maintenance, taxes, and ongoing costs.",
+    },
+    "hourly-value": {
+      name: "Your hourly value",
+      description: "Estimate your true hourly earnings from salary and hours.",
+    },
+    "rent-vs-buy-break-even": {
+      name: "Rent vs buy break even",
+      description: "Compare renting and buying over a timeline.",
+    },
+    "extra-payment-roi": {
+      name: "Extra payment ROI",
+      description: "Measure interest savings from extra payments.",
+    },
+    "true-car-cost": {
+      name: "True car cost",
+      description: "Include insurance, fuel, depreciation, and upkeep.",
+    },
+    "tax-drag-raises": {
+      name: "Tax drag on raises",
+      description: "See how taxes affect net raise amounts.",
+    },
+    "interest-cost-over-time": {
+      name: "Interest cost over time",
+      description: "View total interest paid as a timeline.",
+    },
+    "debt-snowball-timeline": {
+      name: "Debt snowball timeline",
+      description: "Track snowball payoff milestones.",
+    },
+  };
+
   const known = ["mortgage-calculator", "irr-calculator", "npv-calculator"].includes(slug);
+  const extra = extraTools[slug];
 
   return (
     <div className="space-y-6">
@@ -146,10 +212,25 @@ export default function ToolDetailPage() {
         </div>
       </div>
 
-      {!known && (
+      {!known && !extra && (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
             Tool not found.
+          </CardContent>
+        </Card>
+      )}
+
+      {extra && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{extra.name}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>{extra.description}</p>
+            <p>
+              This calculator is queued for implementation. In the meantime, use the personal
+              finance sections to log the underlying data for this tool.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -166,7 +247,7 @@ export default function ToolDetailPage() {
               <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Term (years)" />
             </div>
             <div className="text-sm text-muted-foreground">
-              Monthly payment: <span className="font-semibold">${monthlyPayment.toFixed(2)}</span>
+              Monthly payment: <span className="font-semibold">{format(monthlyPayment)}</span>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -221,10 +302,10 @@ export default function ToolDetailPage() {
                   {amortizationRows.map((row) => (
                     <tr key={row.month}>
                       <td className="py-1">{row.month}</td>
-                      <td>${row.payment.toFixed(2)}</td>
-                      <td>${row.principalPaid.toFixed(2)}</td>
-                      <td>${row.interest.toFixed(2)}</td>
-                      <td>${row.balance.toFixed(2)}</td>
+                      <td>{format(row.payment)}</td>
+                      <td>{format(row.principalPaid)}</td>
+                      <td>{format(row.interest)}</td>
+                      <td>{format(row.balance)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -325,7 +406,7 @@ export default function ToolDetailPage() {
                 }}
               />
             </div>
-            <div className="text-base font-semibold">NPV: ${npvValue.toFixed(2)}</div>
+            <div className="text-base font-semibold">NPV: {format(npvValue)}</div>
           </CardContent>
         </Card>
       )}

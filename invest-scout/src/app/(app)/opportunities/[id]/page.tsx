@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
-  ArrowUpRight
+  ArrowUpRight,
   Banknote,
   Bookmark,
   Globe2,
@@ -18,6 +18,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 
+import { useCurrency } from "@/components/app/CurrencyProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +27,8 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SUPPORTED_CURRENCIES } from "@/components/app/CurrencyProvider";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
 
 type ActionState = "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
@@ -41,6 +44,9 @@ type Opportunity = {
   imageUrls?: string[] | null;
   tags?: string[] | null;
   askAmount?: number | null;
+  askCurrency?: string | null;
+  expectedRoiPercent?: number | null;
+  expectedRoiDurationMonths?: number | null;
   benefits?: string | null;
   contactEmail?: string | null;
   contactPhone?: string | null;
@@ -48,6 +54,7 @@ type Opportunity = {
   locationName?: string | null;
   locationMapUrl?: string | null;
   createdByUser?: {
+    id?: string | null;
     email?: string | null;
     profile?: { name?: string | null; username?: string | null; imageUrl?: string | null; phone?: string | null } | null;
   } | null;
@@ -64,6 +71,10 @@ type Opportunity = {
   } | null;
   matchScore?: number | null;
   archivedAt?: string | null;
+  boostedAt?: string | null;
+  boostedUntil?: string | null;
+  boostedBudget?: number | null;
+  boostedCurrency?: string | null;
 };
 
 type ApiResponse = {
@@ -95,6 +106,7 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 export default function OpportunityDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const { format } = useCurrency();
 
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,11 +115,20 @@ export default function OpportunityDetailPage() {
   const [replyBody, setReplyBody] = useState("");
   const [replySending, setReplySending] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [boostOpen, setBoostOpen] = useState(false);
+  const [boostForm, setBoostForm] = useState({
+    budget: "",
+    currency: "USD",
+    days: "7",
+  });
   const [editForm, setEditForm] = useState({
     title: "",
     summary: "",
     details: "",
     askAmount: "",
+    askCurrency: "USD",
+    expectedRoiPercent: "",
+    expectedRoiDurationMonths: "",
     benefits: "",
     tags: "",
     locationName: "",
@@ -121,6 +142,9 @@ export default function OpportunityDetailPage() {
   const state = opportunity?.action?.state ?? "NONE";
   const viewerId = data?.viewerId ?? null;
   const isOwner = Boolean(viewerId && opportunity?.createdByUser?.id && viewerId === opportunity.createdByUser.id);
+  const isSponsored = opportunity?.boostedUntil
+    ? new Date(opportunity.boostedUntil).getTime() > Date.now()
+    : false;
 
   const chips = useMemo(() => {
     if (!opportunity) return [] as { label: string; values: string[]; icon: ReactNode }[];
@@ -180,6 +204,11 @@ export default function OpportunityDetailPage() {
         summary: data.opportunity.summary ?? "",
         details: data.opportunity.details ?? "",
         askAmount: data.opportunity.askAmount != null ? String(data.opportunity.askAmount) : "",
+        askCurrency: data.opportunity.askCurrency ?? "USD",
+        expectedRoiPercent:
+          data.opportunity.expectedRoiPercent != null ? String(data.opportunity.expectedRoiPercent) : "",
+        expectedRoiDurationMonths:
+          data.opportunity.expectedRoiDurationMonths != null ? String(data.opportunity.expectedRoiDurationMonths) : "",
         benefits: data.opportunity.benefits ?? "",
         tags: (data.opportunity.tags ?? []).join(", "),
         locationName: data.opportunity.locationName ?? "",
@@ -188,6 +217,7 @@ export default function OpportunityDetailPage() {
         contactPhone: data.opportunity.contactPhone ?? "",
         contactUsername: data.opportunity.contactUsername ?? "",
       });
+      setBoostForm((prev) => ({ ...prev, currency: data.opportunity.askCurrency ?? prev.currency }));
     } catch (e) {
       console.error(e);
       toast.error("Failed to load opportunity");
@@ -299,6 +329,65 @@ export default function OpportunityDetailPage() {
     }
   }
 
+  async function repostOpportunity() {
+    if (!opportunity) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/user/opportunities/${opportunity.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repost: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? "Failed to repost");
+      toast.success("Opportunity reposted");
+      await load();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to repost opportunity");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function boostOpportunity() {
+    if (!opportunity) return;
+    const budget = Number(boostForm.budget);
+    const days = Number(boostForm.days);
+    if (!Number.isFinite(budget) || budget <= 0) {
+      toast.error("Enter a valid boost budget");
+      return;
+    }
+    if (!Number.isFinite(days) || days <= 0) {
+      toast.error("Enter a valid duration");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/user/opportunities/${opportunity.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          boost: {
+            budget,
+            currency: boostForm.currency,
+            days,
+          },
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? "Failed to boost");
+      toast.success("Boost activated");
+      setBoostOpen(false);
+      await load();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to boost opportunity");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function sendReply() {
     if (!opportunity) return;
     const identifier =
@@ -398,6 +487,7 @@ export default function OpportunityDetailPage() {
             {typeof opportunity.matchScore === "number" && (
               <Badge variant="secondary">Match {opportunity.matchScore}%</Badge>
             )}
+            {isSponsored && <Badge variant="secondary">Sponsored</Badge>}
             {opportunity.source && <Badge variant="secondary">{opportunity.source}</Badge>}
             <Badge variant="outline">{formatDate(opportunity.publishedAt ?? opportunity.fetchedAt)}</Badge>
             {state !== "NONE" && <Badge className="bg-primary text-primary-foreground">{state}</Badge>}
@@ -445,8 +535,42 @@ export default function OpportunityDetailPage() {
                       />
                     </div>
                     <div className="space-y-1">
+                      <span className="text-sm font-medium">Currency</span>
+                      <Select
+                        value={editForm.askCurrency}
+                        onValueChange={(value) => setEditForm({ ...editForm, askCurrency: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SUPPORTED_CURRENCIES.map((code) => (
+                            <SelectItem key={code} value={code}>
+                              {code}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
                       <span className="text-sm font-medium">Benefits</span>
                       <Input value={editForm.benefits} onChange={(e) => setEditForm({ ...editForm, benefits: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-sm font-medium">Expected ROI (%)</span>
+                      <Input
+                        value={editForm.expectedRoiPercent}
+                        onChange={(e) => setEditForm({ ...editForm, expectedRoiPercent: e.target.value })}
+                        type="number"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-sm font-medium">ROI duration (months)</span>
+                      <Input
+                        value={editForm.expectedRoiDurationMonths}
+                        onChange={(e) => setEditForm({ ...editForm, expectedRoiDurationMonths: e.target.value })}
+                        type="number"
+                      />
                     </div>
                     <div className="space-y-1 md:col-span-2">
                       <span className="text-sm font-medium">Tags (comma-separated)</span>
@@ -497,6 +621,63 @@ export default function OpportunityDetailPage() {
               <Button variant="outline" onClick={toggleArchive} disabled={busy}>
                 {opportunity.archivedAt ? "Restore" : "Archive"}
               </Button>
+              <Button variant="outline" onClick={repostOpportunity} disabled={busy}>
+                Repost
+              </Button>
+              <Dialog open={boostOpen} onOpenChange={setBoostOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" disabled={busy}>
+                    Boost
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Boost this opportunity</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3 text-sm">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input
+                        type="number"
+                        placeholder="Boost budget"
+                        value={boostForm.budget}
+                        onChange={(e) => setBoostForm({ ...boostForm, budget: e.target.value })}
+                      />
+                      <Select
+                        value={boostForm.currency}
+                        onValueChange={(value) => setBoostForm({ ...boostForm, currency: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SUPPORTED_CURRENCIES.map((code) => (
+                            <SelectItem key={code} value={code}>
+                              {code}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Input
+                      type="number"
+                      placeholder="Duration (days)"
+                      value={boostForm.days}
+                      onChange={(e) => setBoostForm({ ...boostForm, days: e.target.value })}
+                    />
+                    <div className="text-xs text-muted-foreground">
+                      Pricing is aligned to Instagram-style boosts. Sponsored posts prioritize matching audiences.
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setBoostOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={boostOpportunity} disabled={busy}>
+                      Activate boost
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <Button variant="destructive" onClick={deleteOpportunity} disabled={busy}>
                 Delete
               </Button>
@@ -544,7 +725,28 @@ export default function OpportunityDetailPage() {
               <StatRow label="Source" value={opportunity.source || "—"} />
               <StatRow label="Status" value={state} />
               {opportunity.askAmount != null && (
-                <StatRow label="Ask amount" value={`$${opportunity.askAmount.toLocaleString()}`} />
+                <StatRow
+                  label="Ask amount"
+                  value={format(opportunity.askAmount, { fromCurrency: opportunity.askCurrency ?? "USD" })}
+                />
+              )}
+              {opportunity.expectedRoiPercent != null && (
+                <StatRow
+                  label="Expected ROI"
+                  value={`${opportunity.expectedRoiPercent}%${opportunity.expectedRoiDurationMonths ? ` / ${opportunity.expectedRoiDurationMonths} months` : ""}`}
+                />
+              )}
+              {opportunity.boostedUntil && (
+                <StatRow
+                  label="Boosted until"
+                  value={new Date(opportunity.boostedUntil).toLocaleDateString()}
+                />
+              )}
+              {opportunity.boostedBudget != null && (
+                <StatRow
+                  label="Boost budget"
+                  value={format(opportunity.boostedBudget, { fromCurrency: opportunity.boostedCurrency ?? "USD" })}
+                />
               )}
               {posterName && <StatRow label="Posted by" value={posterName} />}
             </div>
