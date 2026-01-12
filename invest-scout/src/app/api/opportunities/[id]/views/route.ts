@@ -12,7 +12,9 @@ function bucketAge(age?: number | null) {
   return "55+";
 }
 
-export async function GET(_req: Request, { params }: { params: { id?: string } }) {
+type RouteParams = { id?: string };
+
+export async function GET(_req: Request, context: { params: Promise<RouteParams> | RouteParams }) {
   try {
     const prisma = getPrismaClient();
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
@@ -20,7 +22,7 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
     const userId = await requireUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const id = params.id;
+    const { id } = await context.params;
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
     const opportunity = await prisma.opportunity.findUnique({ where: { id } });

@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
 
-export async function GET(_req: Request, { params }: { params: { id?: string } }) {
+type RouteParams = { id?: string };
+
+export async function GET(_req: Request, context: { params: Promise<RouteParams> | RouteParams }) {
   try {
     const prisma = getPrismaClient();
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
@@ -10,7 +12,7 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
     const viewerId = await requireUserId();
     if (!viewerId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const id = params.id;
+    const { id } = await context.params;
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
     const user = await prisma.user.findUnique({
@@ -32,8 +34,9 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
       where: { followerId_followingId: { followerId: viewerId, followingId: id } },
     });
 
-    const profile = { ...user.profile };
+    const profile = { ...(user.profile ?? {}) } as any;
     let email = user.email;
+
     if (!isFollowing) {
       if (profile?.hideAgeFromNonFollowers) profile.age = null;
       if (profile?.hideContactFromNonFollowers) {
@@ -79,7 +82,9 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
     });
 
     const viewerSet = new Set(viewerFollowing.map((f) => f.followingId));
-    const mutualIds = targetFollowing.map((f) => f.followingId).filter((followId) => viewerSet.has(followId));
+    const mutualIds = targetFollowing
+      .map((f) => f.followingId)
+      .filter((followId) => viewerSet.has(followId));
 
     const mutualFollowers = mutualIds.length
       ? await prisma.user.findMany({
@@ -100,7 +105,7 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
       user: {
         id: user.id,
         email,
-        profile,
+        profile: user.profile, // keep returning the real profile object shape
         interests: user.interests,
       },
       isFollowing: Boolean(isFollowing),

@@ -60,36 +60,40 @@ enum ReportTargetType {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
   deactivatedAt DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  profile             Profile?
-  interests           Interest[]
-  actions             OpportunityAction[]
-  moneyManagement     MoneyManagement?
-  postedOpportunities Opportunity[]
-  messagesSent        Message[]           @relation("MessageFromUser")
-  messagesReceived    Message[]           @relation("MessageToUser")
-  forumPosts          ForumPost[]
-  forumComments       ForumComment[]
-  forumReactions      ForumReaction[]
-  forumSaves          ForumSave[]
-  forumReposts        ForumRepost[]
-  following           Follow[]          @relation("Follower")
-  followers           Follow[]          @relation("Following")
-  followRequestsSent  FollowRequest[] @relation("FollowRequestSender")
-  followRequestsReceived FollowRequest[] @relation("FollowRequestReceiver")
-  notifications       Notification[]
-  tagFollows          TagFollow[]
-  journalEntries      JournalEntry[]   @relation("JournalOwner")
-  journalCollaborations JournalCollaborator[]
-  journalInvitesSent  JournalInvite[]  @relation("JournalInviteSender")
-  journalInvitesReceived JournalInvite[] @relation("JournalInviteReceiver")
-  reportsSent         Report[]         @relation("ReportReporter")
+  profile                Profile?
+  interests              Interest[]
+  actions                OpportunityAction[]
+  moneyManagement        MoneyManagement?
+  postedOpportunities    Opportunity[]
+  messagesSent           Message[]             @relation("MessageFromUser")
+  messagesReceived       Message[]             @relation("MessageToUser")
+  forumPosts             ForumPost[]
+  forumComments          ForumComment[]
+  forumReactions         ForumReaction[]
+  forumSaves             ForumSave[]
+  forumReposts           ForumRepost[]
+  following              Follow[]              @relation("Follower")
+  followers              Follow[]              @relation("Following")
+  followRequestsSent     FollowRequest[]       @relation("FollowRequestSender")
+  followRequestsReceived FollowRequest[]       @relation("FollowRequestReceiver")
+  notifications          Notification[]
+  tagFollows             TagFollow[]
+  journalEntries         JournalEntry[]        @relation("JournalOwner")
+  journalCollaborations  JournalCollaborator[]
+  journalInvitesSent     JournalInvite[]       @relation("JournalInviteSender")
+  journalInvitesReceived JournalInvite[]       @relation("JournalInviteReceiver")
+  reportsSent            Report[]              @relation("ReportReporter")
+
+  // ✅ Added missing back-relations (named to match the view models)
+  opportunityViews OpportunityView[] @relation("OpportunityView_viewer")
+  forumViews       ForumView[]       @relation("ForumView_viewer")
 
   @@index([email])
 }
@@ -159,12 +163,12 @@ model Follow {
 }
 
 model FollowRequest {
-  id          String   @id @default(cuid())
+  id          String              @id @default(cuid())
   followerId  String
   followingId String
   status      FollowRequestStatus @default(PENDING)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   follower  User @relation("FollowRequestSender", fields: [followerId], references: [id], onDelete: Cascade)
   following User @relation("FollowRequestReceiver", fields: [followingId], references: [id], onDelete: Cascade)
@@ -175,35 +179,35 @@ model FollowRequest {
 }
 
 model Opportunity {
-  id              String    @id @default(cuid())
-  title           String
-  url             String?   @unique
-  source          String?
-  summary         String?
-  imageUrl        String?
-  imageUrls       String[]  @default([])
-  details         String?
-  askAmount       Float?
-  askCurrency     String?   @default("USD")
-  benefits        String?
+  id                        String    @id @default(cuid())
+  title                     String
+  url                       String?   @unique
+  source                    String?
+  summary                   String?
+  imageUrl                  String?
+  imageUrls                 String[]  @default([])
+  details                   String?
+  askAmount                 Float?
+  askCurrency               String?   @default("USD")
+  benefits                  String?
   expectedRoiPercent        Float?
   expectedRoiDurationMonths Int?
-  contactEmail    String?
-  contactPhone    String?
-  contactUsername String?
-  locationName    String?
-  locationMapUrl  String?
-  tags            String[]  @default([])
-  messages        Message[]
-  createdByUserId String?
-  createdByUser   User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
-  publishedAt     DateTime?
-  fetchedAt       DateTime  @default(now())
-  archivedAt      DateTime?
-  boostedAt       DateTime?
-  boostedUntil    DateTime?
-  boostedBudget   Float?
-  boostedCurrency String?
+  contactEmail              String?
+  contactPhone              String?
+  contactUsername           String?
+  locationName              String?
+  locationMapUrl            String?
+  tags                      String[]  @default([])
+  messages                  Message[]
+  createdByUserId           String?
+  createdByUser             User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  publishedAt               DateTime?
+  fetchedAt                 DateTime  @default(now())
+  archivedAt                DateTime?
+  boostedAt                 DateTime?
+  boostedUntil              DateTime?
+  boostedBudget             Float?
+  boostedCurrency           String?
 
   categories String[] @default([])
   keywords   String[] @default([])
@@ -221,7 +225,8 @@ model OpportunityView {
   createdAt     DateTime @default(now())
 
   opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-  viewer      User?       @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+  // ✅ Named relation + back relation on User
+  viewer      User?       @relation("OpportunityView_viewer", fields: [viewerId], references: [id], onDelete: SetNull)
 
   @@index([opportunityId, createdAt])
   @@index([viewerId])
@@ -255,7 +260,8 @@ model ForumView {
   createdAt DateTime @default(now())
 
   post   ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  viewer User?     @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+  // ✅ Named relation + back relation on User
+  viewer User?     @relation("ForumView_viewer", fields: [viewerId], references: [id], onDelete: SetNull)
 
   @@index([postId, createdAt])
   @@index([viewerId])
@@ -371,11 +377,11 @@ model Notification {
 }
 
 model TagFollow {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   tag       String
   source    TagSource
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -449,10 +455,10 @@ model JournalEntry {
 }
 
 model JournalCollaborator {
-  id       String @id @default(cuid())
-  entryId  String
-  userId   String
-  role     String?
+  id        String   @id @default(cuid())
+  entryId   String
+  userId    String
+  role      String?
   createdAt DateTime @default(now())
 
   entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
@@ -463,29 +469,29 @@ model JournalCollaborator {
 }
 
 model JournalInvite {
-  id        String   @id @default(cuid())
-  entryId   String
+  id         String              @id @default(cuid())
+  entryId    String
   fromUserId String
-  toUserId  String
-  status    FollowRequestStatus @default(PENDING)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  toUserId   String
+  status     FollowRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
 
-  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  fromUser User @relation("JournalInviteSender", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser   User @relation("JournalInviteReceiver", fields: [toUserId], references: [id], onDelete: Cascade)
+  entry    JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  fromUser User         @relation("JournalInviteSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User         @relation("JournalInviteReceiver", fields: [toUserId], references: [id], onDelete: Cascade)
 
   @@index([toUserId, status])
   @@index([entryId])
 }
 
 model Report {
-  id         String          @id @default(cuid())
+  id         String           @id @default(cuid())
   reporterId String
   targetType ReportTargetType
   targetId   String
   reason     String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime         @default(now())
   resolvedAt DateTime?
 
   reporter User @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
