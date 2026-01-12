@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NAV_BADGE_KEYS, markNavSeen } from "@/lib/nav-badges";
 
 type Opportunity = any;
 
@@ -59,6 +60,7 @@ export default function HeadlinesPage() {
   }
 
   useEffect(() => {
+    markNavSeen(NAV_BADGE_KEYS.headlines);
     load();
   }, []);
 
@@ -76,7 +78,6 @@ export default function HeadlinesPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">News</h1>
-          <p className="text-muted-foreground">News and investment headlines tailored to your interests.</p>
         </div>
         <Button variant="outline" onClick={load} disabled={loading}>
           <RefreshCcw className="h-4 w-4 mr-2" />

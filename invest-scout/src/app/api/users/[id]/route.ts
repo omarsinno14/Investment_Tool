@@ -24,6 +24,36 @@ export async function GET(_req: Request, context: { params: Promise<RouteParams>
     });
     if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    const block = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: viewerId, blockedId: id },
+          { blockerId: id, blockedId: viewerId },
+        ],
+      },
+    });
+
+    if (block && block.blockerId !== viewerId) {
+      return NextResponse.json({
+        user: {
+          id: user.id,
+          email: "",
+          profile: { name: user.profile?.name ?? null, username: user.profile?.username ?? null },
+          interests: [],
+        },
+        isFollowing: false,
+        isFollowedBy: false,
+        followRequestStatus: null,
+        followerCount: null,
+        followingCount: null,
+        mutualFollowers: [],
+        opportunities: [],
+        forumPosts: [],
+        isBlocked: false,
+        isBlockedBy: true,
+      });
+    }
+
     const isFollowing = await prisma.follow.findUnique({
       where: { followerId_followingId: { followerId: viewerId, followingId: id } },
     });
@@ -34,10 +64,12 @@ export async function GET(_req: Request, context: { params: Promise<RouteParams>
       where: { followerId_followingId: { followerId: viewerId, followingId: id } },
     });
 
+    const isBlocked = Boolean(block && block.blockerId === viewerId);
+
     const profile = { ...(user.profile ?? {}) } as any;
     let email = user.email;
 
-    if (!isFollowing) {
+    if (!isFollowing || isBlocked) {
       if (profile?.hideAgeFromNonFollowers) profile.age = null;
       if (profile?.hideContactFromNonFollowers) {
         profile.phone = null;
@@ -50,7 +82,7 @@ export async function GET(_req: Request, context: { params: Promise<RouteParams>
       }
     }
 
-    const showPosts = Boolean(isFollowing || !profile?.hidePostsFromNonFollowers);
+    const showPosts = Boolean(!isBlocked && (isFollowing || !profile?.hidePostsFromNonFollowers));
 
     const opportunities = showPosts
       ? await prisma.opportunity.findMany({
@@ -110,12 +142,14 @@ export async function GET(_req: Request, context: { params: Promise<RouteParams>
       },
       isFollowing: Boolean(isFollowing),
       isFollowedBy: Boolean(isFollowedBy),
-      followRequestStatus: followRequest?.status ?? null,
+      followRequestStatus: isBlocked ? null : followRequest?.status ?? null,
       followerCount: canViewCounts ? followerCountRaw : null,
       followingCount: canViewCounts ? followingCountRaw : null,
       mutualFollowers,
       opportunities,
       forumPosts,
+      isBlocked,
+      isBlockedBy: false,
     });
   } catch (e) {
     console.error("Failed to load user profile", e);

@@ -33,24 +33,33 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex h-screen flex-col overflow-hidden">
       {layoutPreference === "SIDEBAR" ? (
-        <div className="flex flex-1">
+        <div className="flex flex-1 min-h-0">
           <SidebarNav
             collapsed={sidebarCollapsed}
             onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
           />
-          <main className="flex-1 px-6 py-8">
-            <div className="mx-auto w-full max-w-6xl">{children}</div>
+          <main className="flex-1 overflow-y-auto px-6 py-8">
+            <div className="mx-auto w-full max-w-6xl space-y-10">
+              {children}
+              <SiteFooter />
+            </div>
           </main>
         </div>
       ) : (
-        <>
-          <Navbar />
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
-        </>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="shrink-0 overflow-y-auto">
+            <Navbar />
+          </div>
+          <main className="flex-1 overflow-y-auto px-4 py-8">
+            <div className="mx-auto w-full max-w-6xl space-y-10">
+              {children}
+              <SiteFooter />
+            </div>
+          </main>
+        </div>
       )}
-      <SiteFooter />
     </div>
   );
 }
