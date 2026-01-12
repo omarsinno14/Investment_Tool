@@ -23,6 +23,7 @@ export function Navbar() {
           <Link href="/opportunities" className="hover:underline">Opportunities</Link>
           <Link href="/headlines" className="hover:underline">News</Link>
           <Link href="/forums" className="hover:underline">Forums</Link>
+          <Link href="/users" className="hover:underline">People</Link>
           <Link href="/messages" className="hover:underline">Messages</Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
