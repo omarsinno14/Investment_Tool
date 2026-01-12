@@ -26,6 +26,17 @@ async function resolveRecipient(prisma: ReturnType<typeof getPrismaClient>, iden
   });
 }
 
+async function getBlockedIds(prisma: ReturnType<typeof getPrismaClient>, userId: string) {
+  const [blocked, blockedBy] = await Promise.all([
+    prisma.block.findMany({ where: { blockerId: userId }, select: { blockedId: true } }),
+    prisma.block.findMany({ where: { blockedId: userId }, select: { blockerId: true } }),
+  ]);
+  return {
+    blockedIds: blocked.map((item) => item.blockedId),
+    blockedByIds: blockedBy.map((item) => item.blockerId),
+  };
+}
+
 export async function GET(req: Request) {
   try {
     const prisma = getPrismaClient();
@@ -36,10 +47,15 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const partner = searchParams.get("partner");
+    const { blockedIds, blockedByIds } = await getBlockedIds(prisma, userId);
+    const blockedSet = new Set([...blockedIds, ...blockedByIds]);
 
     if (partner) {
       const recipient = await resolveRecipient(prisma, partner);
       if (!recipient) return NextResponse.json({ messages: [] });
+      if (blockedSet.has(recipient.id)) {
+        return NextResponse.json({ error: "Conversation unavailable" }, { status: 403 });
+      }
 
       const messages = await prisma.message.findMany({
         where: {
@@ -51,8 +67,8 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "asc" },
         take: 200,
         include: {
-          fromUser: { select: { email: true } },
-          toUser: { select: { email: true } },
+          fromUser: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
+          toUser: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
           opportunity: { select: { id: true, title: true } },
         },
       });
@@ -63,12 +79,18 @@ export async function GET(req: Request) {
     const messages = await prisma.message.findMany({
       where: {
         OR: [{ fromUserId: userId }, { toUserId: userId }],
+        NOT: [
+          { fromUserId: { in: blockedIds.length ? blockedIds : [""] } },
+          { toUserId: { in: blockedIds.length ? blockedIds : [""] } },
+          { fromUserId: { in: blockedByIds.length ? blockedByIds : [""] } },
+          { toUserId: { in: blockedByIds.length ? blockedByIds : [""] } },
+        ],
       },
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
-        fromUser: { select: { email: true } },
-        toUser: { select: { email: true } },
+        fromUser: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
+        toUser: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
         opportunity: { select: { id: true, title: true } },
       },
     });
@@ -106,6 +128,17 @@ export async function POST(req: Request) {
     if (recipient.id === userId) {
       return NextResponse.json({ error: "Cannot message yourself" }, { status: 400 });
     }
+    const blocked = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: userId, blockedId: recipient.id },
+          { blockerId: recipient.id, blockedId: userId },
+        ],
+      },
+    });
+    if (blocked) {
+      return NextResponse.json({ error: "Unable to message this user" }, { status: 403 });
+    }
 
     const message = await prisma.message.create({
       data: {
@@ -115,8 +148,8 @@ export async function POST(req: Request) {
         opportunityId,
       },
       include: {
-        fromUser: { select: { email: true } },
-        toUser: { select: { email: true } },
+        fromUser: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
+        toUser: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
         opportunity: { select: { id: true, title: true } },
       },
     });

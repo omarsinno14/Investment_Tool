@@ -54,6 +54,8 @@ export default function UserProfilePage() {
   const [followRequestStatus, setFollowRequestStatus] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [isBlockedBy, setIsBlockedBy] = useState(false);
   const [counts, setCounts] = useState<{ followers: number | null; following: number | null }>({
     followers: 0,
     following: 0,
@@ -82,6 +84,8 @@ export default function UserProfilePage() {
         following: data.followingCount ?? null,
       });
       setMutuals(data.mutualFollowers ?? []);
+      setIsBlocked(Boolean(data.isBlocked));
+      setIsBlockedBy(Boolean(data.isBlockedBy));
     } catch (e) {
       console.error(e);
       toast.error("Failed to load profile");
@@ -89,6 +93,7 @@ export default function UserProfilePage() {
   }
 
   async function toggleFollow() {
+    if (isBlocked || isBlockedBy) return;
     try {
       const res = await fetch("/api/user/follow", {
         method: "POST",
@@ -133,6 +138,29 @@ export default function UserProfilePage() {
     }
   }
 
+  async function toggleBlock() {
+    if (!user) return;
+    if (!window.confirm(isBlocked ? "Unblock this user?" : "Block this user?")) return;
+    try {
+      const res = await fetch("/api/user/block", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to update block");
+      setIsBlocked(Boolean(data.blocked));
+      setFollowing(false);
+      setFollowedBy(false);
+      setFollowRequestStatus(null);
+      await load();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update block");
+    }
+  }
+
   useEffect(() => {
     load();
   }, [params.id]);
@@ -150,6 +178,15 @@ export default function UserProfilePage() {
 
   return (
     <div className="space-y-6">
+      {(isBlocked || isBlockedBy) && (
+        <Card>
+          <CardContent className="py-4 text-sm text-muted-foreground">
+            {isBlockedBy
+              ? "You cannot view this profile because the user has blocked you."
+              : "You have blocked this profile. Unblock to interact again."}
+          </CardContent>
+        </Card>
+      )}
       <Card className="overflow-hidden">
         {user.profile?.coverPhotoUrl && (
           <div className="h-36 w-full overflow-hidden border-b bg-muted/30">
@@ -234,11 +271,18 @@ export default function UserProfilePage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={toggleFollow} variant={following ? "outline" : "default"}>
+            <Button
+              onClick={toggleFollow}
+              variant={following ? "outline" : "default"}
+              disabled={isBlocked || isBlockedBy}
+            >
               {following ? "Following" : followRequestStatus === "PENDING" ? "Requested" : "Follow"}
             </Button>
-            <Button asChild variant="outline" disabled={!identifier || !followedBy}>
+            <Button asChild variant="outline" disabled={!identifier || !followedBy || isBlocked || isBlockedBy}>
               <a href={`/messages?partner=${encodeURIComponent(identifier || "")}`}>Message</a>
+            </Button>
+            <Button variant="outline" onClick={toggleBlock}>
+              {isBlocked ? "Unblock" : "Block"}
             </Button>
             <Dialog open={reportOpen} onOpenChange={setReportOpen}>
               <DialogTrigger asChild>

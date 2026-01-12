@@ -18,6 +18,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 });
     }
 
+    const blocked = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: userId, blockedId: targetId },
+          { blockerId: targetId, blockedId: userId },
+        ],
+      },
+    });
+    if (blocked) {
+      return NextResponse.json({ error: "Unable to follow this user" }, { status: 403 });
+    }
+
     const existing = await prisma.follow.findUnique({
       where: { followerId_followingId: { followerId: userId, followingId: targetId } },
     });
@@ -40,44 +52,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ following: false, followRequestStatus: null });
     }
 
-    const targetProfile = await prisma.profile.findUnique({
-      where: { userId: targetId },
-      select: { requiresFollowApproval: true },
-    });
-
-    if (targetProfile?.requiresFollowApproval) {
-      const request = await prisma.followRequest.create({
-        data: {
-          followerId: userId,
-          followingId: targetId,
-        },
-      });
-      await prisma.notification.create({
-        data: {
-          userId: targetId,
-          type: "FOLLOW_REQUEST",
-          data: { requestId: request.id, fromUserId: userId },
-        },
-      });
-      return NextResponse.json({ following: false, followRequestStatus: request.status });
-    }
-
-    await prisma.follow.create({
+    const request = await prisma.followRequest.create({
       data: {
         followerId: userId,
         followingId: targetId,
       },
     });
-
     await prisma.notification.create({
       data: {
         userId: targetId,
-        type: "FOLLOW_ACCEPTED",
-        data: { fromUserId: userId },
+        type: "FOLLOW_REQUEST",
+        data: { requestId: request.id, fromUserId: userId },
       },
     });
-
-    return NextResponse.json({ following: true, followRequestStatus: null });
+    return NextResponse.json({ following: false, followRequestStatus: request.status });
   } catch (e) {
     console.error("Failed to update follow", e);
     return NextResponse.json({ error: "Failed to update follow" }, { status: 500 });

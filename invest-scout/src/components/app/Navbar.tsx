@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useNavBadgeCounts } from "@/components/app/useNavBadgeCounts";
 
 export function Navbar() {
   const { setTheme } = useTheme();
@@ -23,6 +24,17 @@ export function Navbar() {
   const [searchType, setSearchType] = useState<"users" | "opportunities">("users");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const badgeCounts = useNavBadgeCounts();
+
+  const renderBadge = (count: number) => {
+    if (!count) return null;
+    const label = count > 99 ? "99+" : String(count);
+    return (
+      <span className="ml-1 inline-flex min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+        {label}
+      </span>
+    );
+  };
 
   useEffect(() => {
     if (!searchOpen) {
@@ -71,11 +83,19 @@ export function Navbar() {
           Invesco
         </Link>
         <nav className="flex items-center gap-3 text-sm">
-          <Link href="/opportunities" className="hover:underline">Opportunities</Link>
-          <Link href="/headlines" className="hover:underline">News</Link>
+          <Link href="/opportunities" className="hover:underline">
+            Opportunities{renderBadge(badgeCounts.opportunities)}
+          </Link>
+          <Link href="/headlines" className="hover:underline">
+            News{renderBadge(badgeCounts.headlines)}
+          </Link>
           <Link href="/forums" className="hover:underline">Forums</Link>
-          <Link href="/messages" className="hover:underline">Messages</Link>
-          <Link href="/notifications" className="hover:underline">Notifications</Link>
+          <Link href="/messages" className="hover:underline">
+            Messages{renderBadge(badgeCounts.messages)}
+          </Link>
+          <Link href="/notifications" className="hover:underline">
+            Notifications{renderBadge(badgeCounts.notifications)}
+          </Link>
           <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="icon" aria-label="Search">
@@ -150,31 +170,6 @@ export function Navbar() {
               </div>
             </DialogContent>
           </Dialog>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className="hover:underline">Personal Finance</button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href="/cashflow">Cashflow</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/portfolio">Portfolio</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/goals">Goals & timelines</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/ratios">Ratios</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/journal">Journal</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/tools">Tools</Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" className="hover:underline">Theme</button>

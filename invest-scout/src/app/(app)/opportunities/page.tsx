@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { COUNTRIES_ALL } from "@/lib/countries";
 import { INDUSTRIES_BY_SECTOR, SECTORS } from "@/lib/interests";
+import { NAV_BADGE_KEYS, markNavSeen } from "@/lib/nav-badges";
 
 type Opportunity = any;
 
@@ -227,6 +228,7 @@ export default function OpportunitiesPage() {
   }
 
   useEffect(() => {
+    markNavSeen(NAV_BADGE_KEYS.opportunities);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -394,7 +396,6 @@ export default function OpportunitiesPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Opportunities</h1>
-          <p className="text-muted-foreground">A live feed matched to your interests. Save, track, and mark investments.</p>
         </div>
 
         <div className="flex flex-wrap gap-2">

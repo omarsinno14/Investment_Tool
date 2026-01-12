@@ -16,12 +16,15 @@ type UserResult = {
     username?: string | null;
     imageUrl?: string | null;
   } | null;
+  isFollowing?: boolean;
+  followRequestStatus?: string | null;
 };
 
 export default function UsersSearchPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -53,6 +56,37 @@ export default function UsersSearchPage() {
     return () => window.clearTimeout(timeout);
   }, [query]);
 
+  async function handleFollow(userId: string) {
+    setUpdatingId(userId);
+    try {
+      const res = await fetch("/api/user/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to update follow");
+      setResults((prev) =>
+        prev.map((user) =>
+          user.id === userId
+            ? {
+                ...user,
+                isFollowing: Boolean(data.following),
+                followRequestStatus: data.followRequestStatus ?? null,
+              }
+            : user
+        )
+      );
+      toast.success(data.followRequestStatus ? "Follow request sent" : "Follow updated");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update follow");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -80,6 +114,11 @@ export default function UsersSearchPage() {
           {results.map((user) => {
             const displayName =
               user.profile?.username || user.profile?.name || user.email || "User";
+            const statusLabel = user.isFollowing
+              ? "Following"
+              : user.followRequestStatus === "PENDING"
+                ? "Requested"
+                : "Follow";
             return (
               <Card key={user.id}>
                 <CardContent className="flex flex-col gap-3 py-4 md:flex-row md:items-center md:justify-between">
@@ -95,9 +134,18 @@ export default function UsersSearchPage() {
                       </div>
                     </div>
                   </div>
-                  <Button asChild variant="outline">
-                    <Link href={`/users/${user.id}`}>View profile</Link>
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild variant="outline">
+                      <Link href={`/users/${user.id}`}>View profile</Link>
+                    </Button>
+                    <Button
+                      variant={user.isFollowing ? "secondary" : "default"}
+                      disabled={updatingId === user.id || user.isFollowing || user.followRequestStatus === "PENDING"}
+                      onClick={() => handleFollow(user.id)}
+                    >
+                      {statusLabel}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );
