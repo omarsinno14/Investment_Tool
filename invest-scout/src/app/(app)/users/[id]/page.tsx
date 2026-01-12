@@ -18,6 +18,7 @@ type UserProfile = {
     name?: string | null;
     username?: string | null;
     imageUrl?: string | null;
+    coverPhotoUrl?: string | null;
     bio?: string | null;
     occupation?: string | null;
     age?: number | null;
@@ -47,7 +48,10 @@ export default function UserProfilePage() {
   const [opps, setOpps] = useState<any[]>([]);
   const [forums, setForums] = useState<any[]>([]);
   const [following, setFollowing] = useState(false);
-  const [counts, setCounts] = useState({ followers: 0, following: 0 });
+  const [counts, setCounts] = useState<{ followers: number | null; following: number | null }>({
+    followers: 0,
+    following: 0,
+  });
   const [mutuals, setMutuals] = useState<MutualFollower[]>([]);
 
   async function load() {
@@ -65,7 +69,10 @@ export default function UserProfilePage() {
       setOpps(data.opportunities ?? []);
       setForums(data.forumPosts ?? []);
       setFollowing(Boolean(data.isFollowing));
-      setCounts({ followers: data.followerCount ?? 0, following: data.followingCount ?? 0 });
+      setCounts({
+        followers: data.followerCount ?? null,
+        following: data.followingCount ?? null,
+      });
       setMutuals(data.mutualFollowers ?? []);
     } catch (e) {
       console.error(e);
@@ -108,7 +115,12 @@ export default function UserProfilePage() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="overflow-hidden">
+        {user.profile?.coverPhotoUrl && (
+          <div className="h-36 w-full overflow-hidden border-b bg-muted/30">
+            <img src={user.profile.coverPhotoUrl} alt="Cover" className="h-full w-full object-cover" />
+          </div>
+        )}
         <CardContent className="py-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <Avatar className="h-14 w-14">
@@ -135,9 +147,11 @@ export default function UserProfilePage() {
               {user.profile?.bio && (
                 <div className="text-sm text-muted-foreground">{user.profile.bio}</div>
               )}
-              <div className="text-xs text-muted-foreground mt-1">
-                {counts.followers} followers • {counts.following} following
-              </div>
+              {counts.followers != null && counts.following != null && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  {counts.followers} followers • {counts.following} following
+                </div>
+              )}
               {mutuals.length > 0 && (
                 <Dialog>
                   <DialogTrigger asChild>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrency } from "@/components/app/CurrencyProvider";
 import { usePersonalFinance, type SpendingItem } from "@/components/app/PersonalFinanceProvider";
@@ -173,6 +174,16 @@ export default function CashflowPage() {
                       )
                     }
                   />
+                  {item.id.startsWith("custom-") && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setBreakdown((prev) => prev.filter((row) => row.id !== item.id))}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>

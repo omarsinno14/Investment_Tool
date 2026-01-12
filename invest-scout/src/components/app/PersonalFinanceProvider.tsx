@@ -122,9 +122,9 @@ function createId() {
   return `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function readStorage(): PersonalFinanceData {
+function readStorage(storageKey: string): PersonalFinanceData {
   if (typeof window === "undefined") return defaultData;
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+  const raw = window.localStorage.getItem(storageKey);
   if (!raw) return defaultData;
   try {
     return { ...defaultData, ...(JSON.parse(raw) as PersonalFinanceData) };
@@ -136,15 +136,41 @@ function readStorage(): PersonalFinanceData {
 
 export function PersonalFinanceProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<PersonalFinanceData>(defaultData);
+  const [storageKey, setStorageKey] = useState<string | null>(null);
 
   useEffect(() => {
-    setData(readStorage());
+    let active = true;
+    async function loadKey() {
+      try {
+        const res = await fetch("/api/user/profile", { credentials: "include" });
+        if (!res.ok) throw new Error("Profile unavailable");
+        const data = await res.json();
+        const userId = data?.profile?.userId;
+        if (active) {
+          setStorageKey(userId ? `${STORAGE_KEY}:${userId}` : STORAGE_KEY);
+        }
+      } catch (e) {
+        console.error("Failed to load personal finance user scope", e);
+        if (active) {
+          setStorageKey(STORAGE_KEY);
+        }
+      }
+    }
+    loadKey();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [data]);
+    if (!storageKey) return;
+    setData(readStorage(storageKey));
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !storageKey) return;
+    window.localStorage.setItem(storageKey, JSON.stringify(data));
+  }, [data, storageKey]);
 
   const totals = useMemo<PersonalFinanceTotals>(() => {
     const totalAssets = data.assets.reduce((sum, asset) => sum + asset.currentValue, 0);
