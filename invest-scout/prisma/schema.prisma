@@ -63,6 +63,7 @@ model Profile {
   username                    String?       @unique
   phone                       String?       @unique
   imageUrl                    String?
+  coverPhotoUrl               String?
   cvUrl                       String?
   bio                         String?
   occupation                  String?
@@ -82,6 +83,7 @@ model Profile {
   hideContactFromNonFollowers Boolean       @default(false)
   hidePhotoFromNonFollowers   Boolean       @default(false)
   hidePostsFromNonFollowers   Boolean       @default(false)
+  hideFollowerCount           Boolean       @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

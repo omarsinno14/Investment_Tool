@@ -121,6 +121,7 @@ export default function OpportunityDetailPage() {
     currency: "USD",
     days: "7",
   });
+  const [imageIndex, setImageIndex] = useState(0);
   const [editForm, setEditForm] = useState({
     title: "",
     summary: "",
@@ -176,14 +177,20 @@ export default function OpportunityDetailPage() {
       ? [opportunity.imageUrl]
       : []) as string[];
 
+  useEffect(() => {
+    if (imageIndex >= images.length) {
+      setImageIndex(0);
+    }
+  }, [imageIndex, images.length]);
+
   async function load() {
     const id = params?.id;
     if (!id) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/opportunities/${id}`, { cache: "no-store" });
+      const res = await fetch(`/api/opportunities/${id}`, { cache: "no-store", credentials: "include" });
       if (res.status === 401) {
-        router.push("/login");
+        window.location.href = "/login";
         return;
       }
       if (res.status === 404) {
@@ -710,12 +717,47 @@ export default function OpportunityDetailPage() {
             </p>
 
             {images.length > 0 && (
-              <div className="grid gap-3 md:grid-cols-2">
-                {images.slice(0, 4).map((src) => (
-                  <div key={src} className="overflow-hidden rounded-lg border bg-muted/20">
-                    <img src={src} alt={opportunity.title} className="h-40 w-full object-cover" />
+              <div className="space-y-3">
+                <div className="relative overflow-hidden rounded-lg border bg-muted/20">
+                  <img src={images[imageIndex]} alt={opportunity.title} className="h-64 w-full object-cover" />
+                  {images.length > 1 && (
+                    <div className="absolute inset-x-0 bottom-3 flex items-center justify-between px-3">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          setImageIndex((prev) => (prev - 1 + images.length) % images.length)
+                        }
+                      >
+                        Prev
+                      </Button>
+                      <div className="rounded-full bg-background/80 px-3 py-1 text-xs text-muted-foreground">
+                        {imageIndex + 1} / {images.length}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setImageIndex((prev) => (prev + 1) % images.length)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {images.length > 1 && (
+                  <div className="flex flex-wrap gap-2">
+                    {images.map((src, idx) => (
+                      <button
+                        key={src}
+                        type="button"
+                        onClick={() => setImageIndex(idx)}
+                        className={`overflow-hidden rounded-md border ${idx === imageIndex ? "ring-2 ring-primary" : ""}`}
+                      >
+                        <img src={src} alt={`${opportunity.title} ${idx + 1}`} className="h-16 w-24 object-cover" />
+                      </button>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             )}
 

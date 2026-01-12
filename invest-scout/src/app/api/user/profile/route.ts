@@ -53,6 +53,7 @@ export async function POST(req: Request) {
       hideContactFromNonFollowers: Boolean(body.hideContactFromNonFollowers),
       hidePhotoFromNonFollowers: Boolean(body.hidePhotoFromNonFollowers),
       hidePostsFromNonFollowers: Boolean(body.hidePostsFromNonFollowers),
+      hideFollowerCount: Boolean(body.hideFollowerCount),
     };
 
     const profile = await prisma.profile.upsert({
@@ -60,12 +61,14 @@ export async function POST(req: Request) {
       create: {
         userId,
         imageUrl: body.imageUrl ?? null,
+        coverPhotoUrl: body.coverPhotoUrl ?? null,
         cvUrl: body.cvUrl ?? null,
         ...baseData,
       },
       update: {
         ...baseData,
         ...(body.imageUrl ? { imageUrl: body.imageUrl } : {}),
+        ...(body.coverPhotoUrl ? { coverPhotoUrl: body.coverPhotoUrl } : {}),
         ...(body.cvUrl ? { cvUrl: body.cvUrl } : {}),
       },
     });

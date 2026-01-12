@@ -14,6 +14,7 @@ type Profile = {
   name?: string | null;
   username?: string | null;
   imageUrl?: string | null;
+  coverPhotoUrl?: string | null;
   bio?: string | null;
   occupation?: string | null;
   phone?: string | null;
@@ -97,7 +98,12 @@ export default function MyProfilePage() {
         </Button>
       </div>
 
-      <Card>
+      <Card className="overflow-hidden">
+        {profile.coverPhotoUrl && (
+          <div className="h-36 w-full overflow-hidden border-b bg-muted/30">
+            <img src={profile.coverPhotoUrl} alt="Cover" className="h-full w-full object-cover" />
+          </div>
+        )}
         <CardHeader className="flex flex-row items-center gap-4">
           <Avatar className="h-16 w-16">
             <AvatarImage src={profile.imageUrl ?? undefined} alt={displayName} />

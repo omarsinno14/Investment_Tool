@@ -30,6 +30,7 @@ export async function GET(req: Request) {
       }
       if (profile?.hidePhotoFromNonFollowers) {
         profile.imageUrl = null;
+        profile.coverPhotoUrl = null;
       }
     }
 
