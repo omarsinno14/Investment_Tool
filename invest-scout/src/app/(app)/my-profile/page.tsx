@@ -15,6 +15,7 @@ type Profile = {
   username?: string | null;
   imageUrl?: string | null;
   coverPhotoUrl?: string | null;
+  websiteUrl?: string | null;
   bio?: string | null;
   occupation?: string | null;
   phone?: string | null;
@@ -132,6 +133,14 @@ export default function MyProfilePage() {
             {profile.phone && <div>Phone: {profile.phone}</div>}
             {data.user.email && <div>Email: {data.user.email}</div>}
             {profile.age != null && <div>Age: {profile.age}</div>}
+            {profile.websiteUrl && (
+              <div>
+                Website:{" "}
+                <a className="text-primary underline" href={profile.websiteUrl} target="_blank" rel="noreferrer">
+                  {profile.websiteUrl}
+                </a>
+              </div>
+            )}
           </div>
           {profile.cvUrl && (
             <Button variant="outline" asChild>
@@ -183,6 +192,11 @@ export default function MyProfilePage() {
                   </CardHeader>
                   <CardContent className="text-sm text-muted-foreground">
                     {opp.summary ?? opp.details ?? "—"}
+                    {opp._count?.views != null && (
+                      <div className="text-xs text-muted-foreground mt-2">
+                        Views: {opp._count.views}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -210,6 +224,11 @@ export default function MyProfilePage() {
                   </CardHeader>
                   <CardContent className="text-sm text-muted-foreground">
                     {post.body}
+                    {post._count?.views != null && (
+                      <div className="text-xs text-muted-foreground mt-2">
+                        Views: {post._count.views}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}

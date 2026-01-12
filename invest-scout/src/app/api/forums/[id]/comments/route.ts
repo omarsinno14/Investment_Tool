@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
+import { sanitizeProfanity } from "@/lib/profanity";
 
 export async function GET(_req: Request, { params }: { params: { id?: string } }) {
   try {
@@ -44,9 +45,20 @@ export async function POST(req: Request, { params }: { params: { id?: string } }
       data: {
         postId: id,
         userId,
-        body: String(body.body).trim(),
+        body: sanitizeProfanity(String(body.body).trim()),
       },
     });
+
+    const post = await prisma.forumPost.findUnique({ where: { id }, select: { userId: true } });
+    if (post?.userId && post.userId !== userId) {
+      await prisma.notification.create({
+        data: {
+          userId: post.userId,
+          type: "FORUM_COMMENT",
+          data: { postId: id, fromUserId: userId },
+        },
+      });
+    }
 
     return NextResponse.json({ comment });
   } catch (e) {

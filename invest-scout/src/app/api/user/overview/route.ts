@@ -27,6 +27,7 @@ export async function GET(req: Request) {
       if (profile?.hideContactFromNonFollowers) {
         profile.phone = null;
         user.email = "";
+        profile.websiteUrl = null;
       }
       if (profile?.hidePhotoFromNonFollowers) {
         profile.imageUrl = null;
@@ -41,6 +42,7 @@ export async function GET(req: Request) {
           where: { createdByUserId: userId, archivedAt: null },
           orderBy: { publishedAt: "desc" },
           take: 50,
+          include: { _count: { select: { views: true } } },
         })
       : [];
 
@@ -49,6 +51,7 @@ export async function GET(req: Request) {
           where: { userId, archivedAt: null },
           orderBy: { createdAt: "desc" },
           take: 50,
+          include: { _count: { select: { views: true } } },
         })
       : [];
 

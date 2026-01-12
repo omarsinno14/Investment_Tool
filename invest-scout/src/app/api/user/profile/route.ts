@@ -39,6 +39,7 @@ export async function POST(req: Request) {
       phone: cleanPhone || null,
       bio: body.bio ?? null,
       occupation: body.occupation ?? null,
+      websiteUrl: body.websiteUrl ?? null,
       currency: body.currency ?? null,
       age: typeof body.age === "number" ? body.age : null,
       familySituation: body.familySituation ?? null,
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
       hidePhotoFromNonFollowers: Boolean(body.hidePhotoFromNonFollowers),
       hidePostsFromNonFollowers: Boolean(body.hidePostsFromNonFollowers),
       hideFollowerCount: Boolean(body.hideFollowerCount),
+      requiresFollowApproval: Boolean(body.requiresFollowApproval),
     };
 
     const profile = await prisma.profile.upsert({

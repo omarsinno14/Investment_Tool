@@ -19,6 +19,9 @@ import {
   Sparkles,
   User,
   Users,
+  NotebookPen,
+  Bell,
+  ClipboardList,
 } from "lucide-react";
 
 type SidebarNavProps = {
@@ -62,13 +65,13 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
           <Users className="h-4 w-4" />
           {!collapsed && <span>Forums</span>}
         </Link>
-        <Link href="/users" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
-          <User className="h-4 w-4" />
-          {!collapsed && <span>People</span>}
-        </Link>
         <Link href="/messages" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
           <MessageSquareText className="h-4 w-4" />
           {!collapsed && <span>Messages</span>}
+        </Link>
+        <Link href="/notifications" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+          <Bell className="h-4 w-4" />
+          {!collapsed && <span>Notifications</span>}
         </Link>
         <div className="pt-2">
           {!collapsed && <div className="px-2 text-xs uppercase tracking-wide text-muted-foreground">Personal Finance</div>}
@@ -88,6 +91,10 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
             <Link href="/ratios" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
               <Scale className="h-4 w-4" />
               {!collapsed && <span>Ratios</span>}
+            </Link>
+            <Link href="/journal" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+              <NotebookPen className="h-4 w-4" />
+              {!collapsed && <span>Journal</span>}
             </Link>
             <Link href="/tools" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
               <Wrench className="h-4 w-4" />
@@ -109,6 +116,14 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
             <Link href="/interests" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
               <Lightbulb className="h-4 w-4" />
               {!collapsed && <span>Interests</span>}
+            </Link>
+            <Link href="/follow-requests" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+              <User className="h-4 w-4" />
+              {!collapsed && <span>Follow requests</span>}
+            </Link>
+            <Link href="/activity" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+              <ClipboardList className="h-4 w-4" />
+              {!collapsed && <span>My activity</span>}
             </Link>
           </div>
         </div>

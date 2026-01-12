@@ -24,6 +24,8 @@ export default function ForumsPage() {
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [myPostsOnly, setMyPostsOnly] = useState(false);
+  const [tagFollows, setTagFollows] = useState<string[]>([]);
+  const [followingTagsOnly, setFollowingTagsOnly] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -37,11 +39,43 @@ export default function ForumsPage() {
       if (!res.ok) throw new Error(data?.error ?? "Failed to load forums");
       setPosts(data.posts ?? []);
       setViewerId(data.viewerId ?? null);
+      await loadTagFollows();
     } catch (e) {
       console.error(e);
       toast.error("Failed to load forums");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadTagFollows() {
+    try {
+      const res = await fetch("/api/user/tag-follows?source=FORUM", { credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to load tags");
+      setTagFollows((data.follows ?? []).map((f: any) => f.tag));
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function toggleTagFollow(tag: string) {
+    const isFollowing = tagFollows.includes(tag);
+    try {
+      const res = await fetch("/api/user/tag-follows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ tag, source: "FORUM", action: isFollowing ? "remove" : "add" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to update tag");
+      setTagFollows((prev) =>
+        isFollowing ? prev.filter((t) => t !== tag) : [...prev, tag]
+      );
+    } catch (e) {
+      console.error(e);
+      toast.error("Unable to update tag follow");
     }
   }
 
@@ -99,6 +133,10 @@ export default function ForumsPage() {
 
   const filteredPosts = posts.filter((post) => {
     if (myPostsOnly && viewerId && post.userId !== viewerId) return false;
+    if (followingTagsOnly && tagFollows.length) {
+      const tags = post.tags ?? [];
+      if (!tags.some((tag: string) => tagFollows.includes(tag))) return false;
+    }
     const term = search.trim().toLowerCase();
     if (!term) return true;
     const hay = `${post.title ?? ""} ${post.body ?? ""} ${(post.tags ?? []).join(" ")}`.toLowerCase();
@@ -159,10 +197,16 @@ export default function ForumsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Checkbox checked={myPostsOnly} onCheckedChange={(val) => setMyPostsOnly(Boolean(val))} />
-          See my posts only
-        </label>
+        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+          <label className="flex items-center gap-2">
+            <Checkbox checked={myPostsOnly} onCheckedChange={(val) => setMyPostsOnly(Boolean(val))} />
+            See my posts only
+          </label>
+          <label className="flex items-center gap-2">
+            <Checkbox checked={followingTagsOnly} onCheckedChange={(val) => setFollowingTagsOnly(Boolean(val))} />
+            Following tags only
+          </label>
+        </div>
       </div>
 
       {loading && <div>Loading...</div>}
@@ -177,7 +221,8 @@ export default function ForumsPage() {
       {!loading && filteredPosts.length > 0 && (
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
           {filteredPosts.map((post) => {
-            const userLabel = post.user?.profile?.username || post.user?.profile?.name || post.user?.email;
+            const userLabel =
+              post.user?.profile?.username || post.user?.profile?.name || post.user?.email || "Private user";
             const isVerified = Boolean(post.user?.profile?.emailVerified && post.user?.profile?.phoneVerified);
             const isIdentityVerified = Boolean(post.user?.profile?.identityVerified);
             const reactions = post.reactions ?? [];
@@ -226,11 +271,22 @@ export default function ForumsPage() {
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {(post.tags ?? []).map((tag: string) => (
-                      <Badge key={tag} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
+                    {(post.tags ?? []).map((tag: string) => {
+                      const isFollowing = tagFollows.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleTagFollow(tag)}
+                          className="flex items-center gap-2"
+                        >
+                          <Badge variant={isFollowing ? "default" : "secondary"}>{tag}</Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {isFollowing ? "Following" : "Follow"}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                   <Button variant="ghost" size="sm" asChild>
                     <Link href={`/forums/${post.id}`}>View discussion</Link>

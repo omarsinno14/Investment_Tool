@@ -21,6 +21,9 @@ export default function ForumDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", body: "", tags: "" });
   const [loading, setLoading] = useState(true);
+  const [viewStats, setViewStats] = useState<any>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
 
   async function load() {
     const id = params?.id;
@@ -155,9 +158,46 @@ export default function ForumDetailPage() {
     }
   }
 
+  async function submitReport() {
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          targetType: "FORUM_POST",
+          targetId: post?.id,
+          reason: reportReason,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to report");
+      toast.success("Report submitted");
+      setReportOpen(false);
+      setReportReason("");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to submit report");
+    }
+  }
+
   useEffect(() => {
     load();
   }, [params?.id]);
+
+  useEffect(() => {
+    if (!post || !viewerId || post.userId !== viewerId) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/forums/${post.id}/views`, { credentials: "include" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error ?? "Failed to load views");
+        setViewStats(data);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, [post, viewerId]);
 
   if (loading) {
     return <div>Loading...</div>;
@@ -168,10 +208,59 @@ export default function ForumDetailPage() {
       <Card>
         <CardContent className="py-10 text-center text-muted-foreground">Post not found.</CardContent>
       </Card>
+
+      {isOwner && viewStats && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Post insights</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <div>Total views: <span className="font-medium text-foreground">{viewStats.totalViews}</span></div>
+            <div className="space-y-2">
+              <div className="font-medium text-foreground">Views over time</div>
+              <div className="space-y-1">
+                {(viewStats.timeline ?? []).slice(-10).map((row: any) => (
+                  <div key={row.date} className="flex items-center gap-2">
+                    <div className="w-24">{row.date}</div>
+                    <div className="h-2 flex-1 rounded bg-muted">
+                      <div className="h-2 rounded bg-primary" style={{ width: `${Math.min(100, row.count * 10)}%` }} />
+                    </div>
+                    <div className="w-6 text-right">{row.count}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="font-medium text-foreground">Viewer demographics</div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <div>
+                  <div className="text-xs uppercase">Age</div>
+                  {(viewStats.demographics?.age ?? []).map((row: any) => (
+                    <div key={row.label} className="flex justify-between">
+                      <span>{row.label}</span>
+                      <span>{row.count}</span>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div className="text-xs uppercase">Country</div>
+                  {(viewStats.demographics?.country ?? []).slice(0, 6).map((row: any) => (
+                    <div key={row.label} className="flex justify-between">
+                      <span>{row.label}</span>
+                      <span>{row.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     );
   }
 
-  const userLabel = post.user?.profile?.username || post.user?.profile?.name || post.user?.email;
+  const userLabel =
+    post.user?.profile?.username || post.user?.profile?.name || post.user?.email || "Private user";
   const isVerified = Boolean(post.user?.profile?.emailVerified && post.user?.profile?.phoneVerified);
   const isIdentityVerified = Boolean(post.user?.profile?.identityVerified);
   const isOwner = viewerId && post.userId === viewerId;
@@ -220,6 +309,30 @@ export default function ForumDetailPage() {
                 </Button>
                 <Button variant="destructive" size="sm" onClick={deletePost}>Delete</Button>
               </div>
+            )}
+            {!isOwner && (
+              <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">Report scam</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Report this post</DialogTitle>
+                  </DialogHeader>
+                  <Textarea
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    placeholder="Tell us why this looks like a scam..."
+                    rows={4}
+                  />
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setReportOpen(false)}>Cancel</Button>
+                    <Button onClick={submitReport} disabled={!reportReason.trim()}>
+                      Submit report
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             )}
           </div>
           <div className="text-xs text-muted-foreground">

@@ -29,10 +29,41 @@ enum ActionState {
   INVESTED
 }
 
+enum NotificationType {
+  MESSAGE
+  FOLLOW_REQUEST
+  FOLLOW_ACCEPTED
+  FORUM_REACTION
+  FORUM_COMMENT
+  OPPORTUNITY_MATCH
+  OPPORTUNITY_TRENDING
+  JOURNAL_INVITE
+  JOURNAL_INVITE_ACCEPTED
+  REPORT_RECEIVED
+}
+
+enum FollowRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum TagSource {
+  FORUM
+  OPPORTUNITY
+}
+
+enum ReportTargetType {
+  USER
+  FORUM_POST
+  OPPORTUNITY
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
+  deactivatedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -50,6 +81,15 @@ model User {
   forumReposts        ForumRepost[]
   following           Follow[]          @relation("Follower")
   followers           Follow[]          @relation("Following")
+  followRequestsSent  FollowRequest[] @relation("FollowRequestSender")
+  followRequestsReceived FollowRequest[] @relation("FollowRequestReceiver")
+  notifications       Notification[]
+  tagFollows          TagFollow[]
+  journalEntries      JournalEntry[]   @relation("JournalOwner")
+  journalCollaborations JournalCollaborator[]
+  journalInvitesSent  JournalInvite[]  @relation("JournalInviteSender")
+  journalInvitesReceived JournalInvite[] @relation("JournalInviteReceiver")
+  reportsSent         Report[]         @relation("ReportReporter")
 
   @@index([email])
 }
@@ -64,6 +104,7 @@ model Profile {
   phone                       String?       @unique
   imageUrl                    String?
   coverPhotoUrl               String?
+  websiteUrl                  String?
   cvUrl                       String?
   bio                         String?
   occupation                  String?
@@ -84,6 +125,7 @@ model Profile {
   hidePhotoFromNonFollowers   Boolean       @default(false)
   hidePostsFromNonFollowers   Boolean       @default(false)
   hideFollowerCount           Boolean       @default(false)
+  requiresFollowApproval      Boolean       @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -110,6 +152,22 @@ model Follow {
   follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
   following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model FollowRequest {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  status      FollowRequestStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  follower  User @relation("FollowRequestSender", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("FollowRequestReceiver", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
   @@index([followerId])
@@ -151,8 +209,22 @@ model Opportunity {
   keywords   String[] @default([])
 
   actions OpportunityAction[]
+  views   OpportunityView[]
 
   @@index([fetchedAt])
+}
+
+model OpportunityView {
+  id            String   @id @default(cuid())
+  opportunityId String
+  viewerId      String?
+  createdAt     DateTime @default(now())
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  viewer      User?       @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+
+  @@index([opportunityId, createdAt])
+  @@index([viewerId])
 }
 
 model ForumPost {
@@ -171,8 +243,22 @@ model ForumPost {
   reactions ForumReaction[]
   saves     ForumSave[]
   reposts   ForumRepost[]
+  views     ForumView[]
 
   @@index([userId])
+}
+
+model ForumView {
+  id        String   @id @default(cuid())
+  postId    String
+  viewerId  String?
+  createdAt DateTime @default(now())
+
+  post   ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  viewer User?     @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+
+  @@index([postId, createdAt])
+  @@index([viewerId])
 }
 
 model ForumComment {
@@ -271,6 +357,32 @@ model Message {
   @@index([opportunityId])
 }
 
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model TagFollow {
+  id        String   @id @default(cuid())
+  userId    String
+  tag       String
+  source    TagSource
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tag, source])
+  @@index([userId])
+}
+
 model MoneyManagement {
   id     String @id @default(cuid())
   userId String @unique
@@ -315,4 +427,69 @@ model MoneySnapshot {
   moneyManagement MoneyManagement @relation(fields: [moneyManagementId], references: [id], onDelete: Cascade)
 
   @@index([moneyManagementId, createdAt])
+}
+
+model JournalEntry {
+  id           String   @id @default(cuid())
+  ownerId      String
+  title        String?
+  body         String
+  entryDate    DateTime
+  imageUrls    String[] @default([])
+  chartData    Json?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner         User                  @relation("JournalOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  collaborators JournalCollaborator[]
+  invites       JournalInvite[]
+
+  @@index([ownerId, entryDate])
+}
+
+model JournalCollaborator {
+  id       String @id @default(cuid())
+  entryId  String
+  userId   String
+  role     String?
+  createdAt DateTime @default(now())
+
+  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, userId])
+  @@index([userId])
+}
+
+model JournalInvite {
+  id        String   @id @default(cuid())
+  entryId   String
+  fromUserId String
+  toUserId  String
+  status    FollowRequestStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  fromUser User @relation("JournalInviteSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("JournalInviteReceiver", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([toUserId, status])
+  @@index([entryId])
+}
+
+model Report {
+  id         String          @id @default(cuid())
+  reporterId String
+  targetType ReportTargetType
+  targetId   String
+  reason     String
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+
+  reporter User @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId])
+  @@index([reporterId])
 }

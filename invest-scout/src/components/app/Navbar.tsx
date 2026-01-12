@@ -75,6 +75,7 @@ export function Navbar() {
           <Link href="/headlines" className="hover:underline">News</Link>
           <Link href="/forums" className="hover:underline">Forums</Link>
           <Link href="/messages" className="hover:underline">Messages</Link>
+          <Link href="/notifications" className="hover:underline">Notifications</Link>
           <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="icon" aria-label="Search">
@@ -167,6 +168,9 @@ export function Navbar() {
                 <Link href="/ratios">Ratios</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
+                <Link href="/journal">Journal</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
                 <Link href="/tools">Tools</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -188,6 +192,12 @@ export function Navbar() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
                 <Link href="/my-profile">My profile</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/follow-requests">Follow requests</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/activity">My activity</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/settings">Settings</Link>

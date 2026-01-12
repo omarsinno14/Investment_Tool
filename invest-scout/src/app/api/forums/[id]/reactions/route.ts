@@ -31,13 +31,23 @@ export async function POST(req: Request, { params }: { params: { id?: string } }
       return NextResponse.json({ reacted: false });
     }
 
-    await prisma.forumReaction.create({
+    const reaction = await prisma.forumReaction.create({
       data: {
         postId: id,
         userId,
         type,
       },
     });
+    const post = await prisma.forumPost.findUnique({ where: { id }, select: { userId: true } });
+    if (post?.userId && post.userId !== userId) {
+      await prisma.notification.create({
+        data: {
+          userId: post.userId,
+          type: "FORUM_REACTION",
+          data: { postId: id, fromUserId: userId, reaction: reaction.type },
+        },
+      });
+    }
     return NextResponse.json({ reacted: true });
   } catch (e) {
     console.error("Failed to update forum reaction", e);

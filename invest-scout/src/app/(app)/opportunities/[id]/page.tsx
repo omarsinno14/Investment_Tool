@@ -122,6 +122,9 @@ export default function OpportunityDetailPage() {
     days: "7",
   });
   const [imageIndex, setImageIndex] = useState(0);
+  const [viewStats, setViewStats] = useState<any>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
   const [editForm, setEditForm] = useState({
     title: "",
     summary: "",
@@ -237,6 +240,20 @@ export default function OpportunityDetailPage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params?.id]);
+
+  useEffect(() => {
+    if (!opportunity || !isOwner) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/opportunities/${opportunity.id}/views`, { credentials: "include" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error ?? "Failed to load views");
+        setViewStats(data);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, [opportunity, isOwner]);
 
   async function updateAction(nextState: ActionState, amount?: number) {
     if (!opportunity) return;
@@ -392,6 +409,29 @@ export default function OpportunityDetailPage() {
       toast.error("Failed to boost opportunity");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function submitReport() {
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          targetType: "OPPORTUNITY",
+          targetId: opportunity?.id,
+          reason: reportReason,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to report");
+      toast.success("Report submitted");
+      setReportOpen(false);
+      setReportReason("");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to submit report");
     }
   }
 
@@ -697,6 +737,30 @@ export default function OpportunityDetailPage() {
               </a>
             </Button>
           )}
+          {!isOwner && (
+            <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">Report scam</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Report this opportunity</DialogTitle>
+                </DialogHeader>
+                <Textarea
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  placeholder="Tell us why this looks like a scam..."
+                  rows={4}
+                />
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setReportOpen(false)}>Cancel</Button>
+                  <Button onClick={submitReport} disabled={!reportReason.trim()}>
+                    Submit report
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
           <Button variant="secondary" onClick={() => updateAction("SAVED")} disabled={busy}>
             <Bookmark className="h-4 w-4 mr-2" /> Save
           </Button>
@@ -934,8 +998,59 @@ export default function OpportunityDetailPage() {
               ) : (
                 <p className="text-sm text-muted-foreground">No related items yet.</p>
               )}
+          </CardContent>
+        </Card>
+
+        {isOwner && viewStats && (
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Post insights</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-muted-foreground">
+              <div>Total views: <span className="font-medium text-foreground">{viewStats.totalViews}</span></div>
+              <div className="space-y-2">
+                <div className="font-medium text-foreground">Views over time</div>
+                <div className="space-y-1">
+                  {(viewStats.timeline ?? []).slice(-10).map((row: any) => (
+                    <div key={row.date} className="flex items-center gap-2">
+                      <div className="w-24">{row.date}</div>
+                      <div className="h-2 flex-1 rounded bg-muted">
+                        <div
+                          className="h-2 rounded bg-primary"
+                          style={{ width: `${Math.min(100, row.count * 10)}%` }}
+                        />
+                      </div>
+                      <div className="w-6 text-right">{row.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="font-medium text-foreground">Viewer demographics</div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  <div>
+                    <div className="text-xs uppercase">Age</div>
+                    {(viewStats.demographics?.age ?? []).map((row: any) => (
+                      <div key={row.label} className="flex justify-between">
+                        <span>{row.label}</span>
+                        <span>{row.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase">Country</div>
+                    {(viewStats.demographics?.country ?? []).slice(0, 6).map((row: any) => (
+                      <div key={row.label} className="flex justify-between">
+                        <span>{row.label}</span>
+                        <span>{row.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
+        )}
         </div>
       </div>
     </div>

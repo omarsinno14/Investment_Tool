@@ -44,6 +44,15 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    if (opportunity.createdByUserId !== userId) {
+      await prisma.opportunityView.create({
+        data: {
+          opportunityId: opportunity.id,
+          viewerId: userId,
+        },
+      });
+    }
+
     const action = await prisma.opportunityAction.findUnique({
       where: { userId_opportunityId: { userId, opportunityId: id } },
     });

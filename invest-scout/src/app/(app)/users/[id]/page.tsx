@@ -9,7 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 type UserProfile = {
   id: string;
@@ -19,6 +20,7 @@ type UserProfile = {
     username?: string | null;
     imageUrl?: string | null;
     coverPhotoUrl?: string | null;
+    websiteUrl?: string | null;
     bio?: string | null;
     occupation?: string | null;
     age?: number | null;
@@ -48,6 +50,10 @@ export default function UserProfilePage() {
   const [opps, setOpps] = useState<any[]>([]);
   const [forums, setForums] = useState<any[]>([]);
   const [following, setFollowing] = useState(false);
+  const [followedBy, setFollowedBy] = useState(false);
+  const [followRequestStatus, setFollowRequestStatus] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
   const [counts, setCounts] = useState<{ followers: number | null; following: number | null }>({
     followers: 0,
     following: 0,
@@ -69,6 +75,8 @@ export default function UserProfilePage() {
       setOpps(data.opportunities ?? []);
       setForums(data.forumPosts ?? []);
       setFollowing(Boolean(data.isFollowing));
+      setFollowedBy(Boolean(data.isFollowedBy));
+      setFollowRequestStatus(data.followRequestStatus ?? null);
       setCounts({
         followers: data.followerCount ?? null,
         following: data.followingCount ?? null,
@@ -91,10 +99,37 @@ export default function UserProfilePage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed");
       setFollowing(Boolean(data.following));
+      setFollowRequestStatus(data.followRequestStatus ?? null);
+      if (typeof data.isFollowedBy === "boolean") {
+        setFollowedBy(data.isFollowedBy);
+      }
       await load();
     } catch (e) {
       console.error(e);
       toast.error("Unable to update follow");
+    }
+  }
+
+  async function submitReport() {
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          targetType: "USER",
+          targetId: user?.id,
+          reason: reportReason,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to report");
+      toast.success("Report submitted");
+      setReportOpen(false);
+      setReportReason("");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to submit report");
     }
   }
 
@@ -200,11 +235,33 @@ export default function UserProfilePage() {
           </div>
           <div className="flex gap-2">
             <Button onClick={toggleFollow} variant={following ? "outline" : "default"}>
-              {following ? "Following" : "Follow"}
+              {following ? "Following" : followRequestStatus === "PENDING" ? "Requested" : "Follow"}
             </Button>
-            <Button asChild variant="outline" disabled={!identifier || !following}>
+            <Button asChild variant="outline" disabled={!identifier || !followedBy}>
               <a href={`/messages?partner=${encodeURIComponent(identifier || "")}`}>Message</a>
             </Button>
+            <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">Report scam</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Report this profile</DialogTitle>
+                </DialogHeader>
+                <Textarea
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  placeholder="Tell us why this profile seems suspicious..."
+                  rows={4}
+                />
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setReportOpen(false)}>Cancel</Button>
+                  <Button onClick={submitReport} disabled={!reportReason.trim()}>
+                    Submit report
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardContent>
       </Card>
@@ -233,6 +290,19 @@ export default function UserProfilePage() {
             {user.email && <div>Email: {user.email}</div>}
             {user.profile?.phone && <div>Phone: {user.profile.phone}</div>}
             {user.profile?.age != null && <div>Age: {user.profile.age}</div>}
+            {user.profile?.websiteUrl && (
+              <div>
+                Website:{" "}
+                <a
+                  className="text-primary underline"
+                  href={user.profile.websiteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {user.profile.websiteUrl}
+                </a>
+              </div>
+            )}
             {!user.email && !user.profile?.phone && user.profile?.age == null && (
               <div>Contact details are private.</div>
             )}

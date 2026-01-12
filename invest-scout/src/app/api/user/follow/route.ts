@@ -22,11 +22,44 @@ export async function POST(req: Request) {
       where: { followerId_followingId: { followerId: userId, followingId: targetId } },
     });
 
+    const existingRequest = await prisma.followRequest.findUnique({
+      where: { followerId_followingId: { followerId: userId, followingId: targetId } },
+    });
+
     if (existing) {
       await prisma.follow.delete({
         where: { followerId_followingId: { followerId: userId, followingId: targetId } },
       });
-      return NextResponse.json({ following: false });
+      return NextResponse.json({ following: false, followRequestStatus: null });
+    }
+
+    if (existingRequest) {
+      await prisma.followRequest.delete({
+        where: { followerId_followingId: { followerId: userId, followingId: targetId } },
+      });
+      return NextResponse.json({ following: false, followRequestStatus: null });
+    }
+
+    const targetProfile = await prisma.profile.findUnique({
+      where: { userId: targetId },
+      select: { requiresFollowApproval: true },
+    });
+
+    if (targetProfile?.requiresFollowApproval) {
+      const request = await prisma.followRequest.create({
+        data: {
+          followerId: userId,
+          followingId: targetId,
+        },
+      });
+      await prisma.notification.create({
+        data: {
+          userId: targetId,
+          type: "FOLLOW_REQUEST",
+          data: { requestId: request.id, fromUserId: userId },
+        },
+      });
+      return NextResponse.json({ following: false, followRequestStatus: request.status });
     }
 
     await prisma.follow.create({
@@ -36,7 +69,15 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ following: true });
+    await prisma.notification.create({
+      data: {
+        userId: targetId,
+        type: "FOLLOW_ACCEPTED",
+        data: { fromUserId: userId },
+      },
+    });
+
+    return NextResponse.json({ following: true, followRequestStatus: null });
   } catch (e) {
     console.error("Failed to update follow", e);
     return NextResponse.json({ error: "Failed to update follow" }, { status: 500 });
