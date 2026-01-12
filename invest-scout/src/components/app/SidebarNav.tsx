@@ -62,6 +62,10 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
           <Users className="h-4 w-4" />
           {!collapsed && <span>Forums</span>}
         </Link>
+        <Link href="/users" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+          <User className="h-4 w-4" />
+          {!collapsed && <span>People</span>}
+        </Link>
         <Link href="/messages" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
           <MessageSquareText className="h-4 w-4" />
           {!collapsed && <span>Messages</span>}

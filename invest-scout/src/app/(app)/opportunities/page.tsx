@@ -7,6 +7,7 @@ import { OpportunityCard } from "@/components/app/OpportunityCard";
 import { SUPPORTED_CURRENCIES, useCurrency } from "@/components/app/CurrencyProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,6 +71,8 @@ export default function OpportunitiesPage() {
   const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
   const [showStats, setShowStats] = useState(true);
   const [postOpen, setPostOpen] = useState(false);
+  const [viewerId, setViewerId] = useState<string | null>(null);
+  const [myPostsOnly, setMyPostsOnly] = useState(false);
   const { currency, convert, format } = useCurrency();
 
   const [posting, setPosting] = useState(false);
@@ -151,6 +154,7 @@ export default function OpportunitiesPage() {
       }
 
       setOpps(data.opportunities ?? []);
+      setViewerId(data.viewerId ?? null);
     } catch (e) {
       console.error(e);
       toast.error("Failed to load opportunities");
@@ -268,6 +272,10 @@ export default function OpportunitiesPage() {
       list = list.filter((o: any) => (o.action?.state ?? "NONE") === tab);
     }
 
+    if (myPostsOnly && viewerId) {
+      list = list.filter((o: any) => o.createdByUserId === viewerId);
+    }
+
     if (q) {
       list = list.filter((o: any) => {
         const hay = `${o.title ?? ""} ${o.summary ?? ""} ${o.details ?? ""}`.toLowerCase();
@@ -327,6 +335,8 @@ export default function OpportunitiesPage() {
     exclude,
     tab,
     sort,
+    myPostsOnly,
+    viewerId,
     tagFilter,
     customTagFilter,
     countryFilter,
@@ -698,6 +708,10 @@ export default function OpportunitiesPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox checked={myPostsOnly} onCheckedChange={(val) => setMyPostsOnly(Boolean(val))} />
+                See my posts only
+              </label>
               <Button variant={tab === "ALL" ? "default" : "outline"} size="sm" onClick={() => setTab("ALL")}>
                 All
               </Button>

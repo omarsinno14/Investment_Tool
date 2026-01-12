@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { BadgeCheck, ShieldCheck } from "lucide-react";
@@ -8,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 type UserProfile = {
   id: string;
@@ -29,6 +31,16 @@ type UserProfile = {
   interests?: { type: string; value: string }[];
 };
 
+type MutualFollower = {
+  id: string;
+  email: string;
+  profile?: {
+    name?: string | null;
+    username?: string | null;
+    imageUrl?: string | null;
+  } | null;
+};
+
 export default function UserProfilePage() {
   const params = useParams<{ id: string }>();
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -36,6 +48,7 @@ export default function UserProfilePage() {
   const [forums, setForums] = useState<any[]>([]);
   const [following, setFollowing] = useState(false);
   const [counts, setCounts] = useState({ followers: 0, following: 0 });
+  const [mutuals, setMutuals] = useState<MutualFollower[]>([]);
 
   async function load() {
     try {
@@ -53,6 +66,7 @@ export default function UserProfilePage() {
       setForums(data.forumPosts ?? []);
       setFollowing(Boolean(data.isFollowing));
       setCounts({ followers: data.followerCount ?? 0, following: data.followingCount ?? 0 });
+      setMutuals(data.mutualFollowers ?? []);
     } catch (e) {
       console.error(e);
       toast.error("Failed to load profile");
@@ -89,6 +103,8 @@ export default function UserProfilePage() {
   const identifier = user.profile?.username || user.email;
   const expertiseTags = user.profile?.expertiseTags ?? [];
   const verifiedExpertiseTags = new Set(user.profile?.verifiedExpertiseTags ?? []);
+  const mutualPreview = mutuals.slice(0, 3);
+  const mutualOverflow = mutuals.length - mutualPreview.length;
 
   return (
     <div className="space-y-6">
@@ -122,13 +138,57 @@ export default function UserProfilePage() {
               <div className="text-xs text-muted-foreground mt-1">
                 {counts.followers} followers • {counts.following} following
               </div>
+              {mutuals.length > 0 && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button type="button" className="mt-2 text-xs text-muted-foreground hover:underline">
+                      Mutual followers:{" "}
+                      {mutualPreview.map((mutual) => {
+                        const name =
+                          mutual.profile?.username || mutual.profile?.name || mutual.email || "User";
+                        return name;
+                      }).join(", ")}
+                      {mutualOverflow > 0 ? ` +${mutualOverflow} more` : ""}
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Mutual followers</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      {mutuals.map((mutual) => {
+                        const name =
+                          mutual.profile?.username || mutual.profile?.name || mutual.email || "User";
+                        return (
+                          <Link
+                            key={mutual.id}
+                            href={`/users/${mutual.id}`}
+                            className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted"
+                          >
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={mutual.profile?.imageUrl || undefined} alt={name} />
+                              <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {mutual.profile?.username ? `@${mutual.profile.username}` : mutual.email}
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           </div>
           <div className="flex gap-2">
             <Button onClick={toggleFollow} variant={following ? "outline" : "default"}>
               {following ? "Following" : "Follow"}
             </Button>
-            <Button asChild variant="outline" disabled={!identifier}>
+            <Button asChild variant="outline" disabled={!identifier || !following}>
               <a href={`/messages?partner=${encodeURIComponent(identifier || "")}`}>Message</a>
             </Button>
           </div>

@@ -101,7 +101,7 @@ export async function GET(req: Request) {
       return new Date(b.fetchedAt ?? 0).getTime() - new Date(a.fetchedAt ?? 0).getTime();
     });
 
-    return NextResponse.json({ opportunities: sorted });
+    return NextResponse.json({ opportunities: sorted, viewerId: userId });
   } catch (e) {
     console.error("Failed to fetch opportunities", e);
     return NextResponse.json({ error: "Failed to fetch opportunities" }, { status: 500 });

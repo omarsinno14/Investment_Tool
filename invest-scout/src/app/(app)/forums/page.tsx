@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +22,8 @@ export default function ForumsPage() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [viewerId, setViewerId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [myPostsOnly, setMyPostsOnly] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -94,6 +97,14 @@ export default function ForumsPage() {
     load();
   }, []);
 
+  const filteredPosts = posts.filter((post) => {
+    if (myPostsOnly && viewerId && post.userId !== viewerId) return false;
+    const term = search.trim().toLowerCase();
+    if (!term) return true;
+    const hay = `${post.title ?? ""} ${post.body ?? ""} ${(post.tags ?? []).join(" ")}`.toLowerCase();
+    return hay.includes(term);
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -142,8 +153,20 @@ export default function ForumsPage() {
         </Dialog>
       </div>
 
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <Input
+          placeholder="Search forums by keyword, question, or tag..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Checkbox checked={myPostsOnly} onCheckedChange={(val) => setMyPostsOnly(Boolean(val))} />
+          See my posts only
+        </label>
+      </div>
+
       {loading && <div>Loading...</div>}
-      {!loading && posts.length === 0 && (
+      {!loading && filteredPosts.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
             No forum posts yet.
@@ -151,9 +174,9 @@ export default function ForumsPage() {
         </Card>
       )}
 
-      {!loading && posts.length > 0 && (
+      {!loading && filteredPosts.length > 0 && (
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-          {posts.map((post) => {
+          {filteredPosts.map((post) => {
             const userLabel = post.user?.profile?.username || post.user?.profile?.name || post.user?.email;
             const isVerified = Boolean(post.user?.profile?.emailVerified && post.user?.profile?.phoneVerified);
             const isIdentityVerified = Boolean(post.user?.profile?.identityVerified);

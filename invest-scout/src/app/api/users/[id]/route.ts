@@ -60,6 +60,31 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
     const followerCount = await prisma.follow.count({ where: { followingId: id } });
     const followingCount = await prisma.follow.count({ where: { followerId: id } });
 
+    const viewerFollowing = await prisma.follow.findMany({
+      where: { followerId: viewerId },
+      select: { followingId: true },
+    });
+
+    const targetFollowing = await prisma.follow.findMany({
+      where: { followerId: id },
+      select: { followingId: true },
+    });
+
+    const viewerSet = new Set(viewerFollowing.map((f) => f.followingId));
+    const mutualIds = targetFollowing.map((f) => f.followingId).filter((followId) => viewerSet.has(followId));
+
+    const mutualFollowers = mutualIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: mutualIds } },
+          select: {
+            id: true,
+            email: true,
+            profile: { select: { name: true, username: true, imageUrl: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -70,6 +95,7 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
       isFollowing: Boolean(isFollowing),
       followerCount,
       followingCount,
+      mutualFollowers,
       opportunities,
       forumPosts,
     });
