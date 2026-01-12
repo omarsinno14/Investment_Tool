@@ -51,6 +51,8 @@ export default function SettingsPage() {
     username: "",
     phone: "",
     imageUrl: "",
+    coverPhotoUrl: "",
+    websiteUrl: "",
     cvUrl: "",
     age: "",
     bio: "",
@@ -70,12 +72,16 @@ export default function SettingsPage() {
     hideContactFromNonFollowers: false,
     hidePhotoFromNonFollowers: false,
     hidePostsFromNonFollowers: false,
+    hideFollowerCount: false,
+    requiresFollowApproval: false,
   });
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const coverRef = useRef<HTMLInputElement | null>(null);
   const cvRef = useRef<HTMLInputElement | null>(null);
 
   // Choose which risk scale to use based on what the backend returns
@@ -113,6 +119,8 @@ export default function SettingsPage() {
             username: p.username ?? "",
             phone: p.phone ?? "",
             imageUrl: p.imageUrl ?? "",
+            coverPhotoUrl: p.coverPhotoUrl ?? "",
+            websiteUrl: p.websiteUrl ?? "",
             cvUrl: p.cvUrl ?? "",
             age: p.age ?? "",
             bio: p.bio ?? "",
@@ -132,6 +140,8 @@ export default function SettingsPage() {
             hideContactFromNonFollowers: Boolean(p.hideContactFromNonFollowers),
             hidePhotoFromNonFollowers: Boolean(p.hidePhotoFromNonFollowers),
             hidePostsFromNonFollowers: Boolean(p.hidePostsFromNonFollowers),
+            hideFollowerCount: Boolean(p.hideFollowerCount),
+            requiresFollowApproval: Boolean(p.requiresFollowApproval),
           });
         } else {
           const message = isJson ? data?.error || "Failed to load profile" : "Failed to load profile";
@@ -171,10 +181,13 @@ export default function SettingsPage() {
           .split(",")
           .map((tag: string) => tag.trim())
           .filter(Boolean),
+        websiteUrl: form.websiteUrl || undefined,
         hideAgeFromNonFollowers: form.hideAgeFromNonFollowers,
         hideContactFromNonFollowers: form.hideContactFromNonFollowers,
         hidePhotoFromNonFollowers: form.hidePhotoFromNonFollowers,
         hidePostsFromNonFollowers: form.hidePostsFromNonFollowers,
+        hideFollowerCount: form.hideFollowerCount,
+        requiresFollowApproval: form.requiresFollowApproval,
       };
 
       const res = await fetch("/api/user/profile", {
@@ -266,6 +279,92 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleCoverPhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingCover(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/user/profile/cover-photo", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? `Upload failed (HTTP ${res.status})`);
+
+      setForm((prev: any) => ({ ...prev, coverPhotoUrl: data.coverPhotoUrl ?? "" }));
+      toast.success("Cover photo updated");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "Failed to upload cover photo");
+    } finally {
+      setUploadingCover(false);
+      if (coverRef.current) coverRef.current.value = "";
+    }
+  }
+
+  async function runDataAction(action: string) {
+    try {
+      const res = await fetch("/api/user/data-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to clear data");
+      toast.success("Action completed");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "Failed to clear data");
+    }
+  }
+
+  function clearCache() {
+    if (typeof window === "undefined") return;
+    window.localStorage.clear();
+    toast.success("Cache cleared");
+  }
+
+  async function deactivateAccount() {
+    if (!window.confirm("Deactivate your account? You can reactivate by logging in.")) return;
+    try {
+      const res = await fetch("/api/user/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "deactivate" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to deactivate");
+      window.location.href = "/login";
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "Failed to deactivate");
+    }
+  }
+
+  async function deleteAccount() {
+    if (!window.confirm("Delete your account? This cannot be undone.")) return;
+    try {
+      const res = await fetch("/api/user/account", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to delete account");
+      window.location.href = "/login";
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "Failed to delete account");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -306,6 +405,23 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2 md:col-span-2">
+            <Label>Cover photo</Label>
+            <div className="flex flex-col gap-3">
+              {form.coverPhotoUrl ? (
+                <div className="overflow-hidden rounded-lg border bg-muted/30">
+                  <img src={form.coverPhotoUrl} alt="Cover preview" className="h-32 w-full object-cover" />
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                  Add a cover photo to highlight your profile.
+                </div>
+              )}
+              <Input ref={coverRef} type="file" accept="image/*" onChange={handleCoverPhotoChange} />
+            </div>
+            {uploadingCover && <div className="text-xs text-muted-foreground">Uploading cover photo...</div>}
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
             <Label>Bio</Label>
             <Textarea
               value={form.bio}
@@ -341,6 +457,15 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label>Phone number</Label>
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>Website</Label>
+            <Input
+              value={form.websiteUrl}
+              onChange={(e) => setForm({ ...form, websiteUrl: e.target.value })}
+              placeholder="https://your-site.com"
+            />
           </div>
 
           <div className="space-y-2 md:col-span-2">
@@ -519,12 +644,64 @@ export default function SettingsPage() {
                 />
                 Hide your posts from non-followers
               </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.hideFollowerCount}
+                  onChange={(e) => setForm({ ...form, hideFollowerCount: e.target.checked })}
+                />
+                Hide follower count
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.requiresFollowApproval}
+                  onChange={(e) => setForm({ ...form, requiresFollowApproval: e.target.checked })}
+                />
+                Require approval for new followers
+              </label>
             </div>
           </div>
 
           <div className="md:col-span-2">
             <Button onClick={save} disabled={saving}>
               {saving ? "Saving..." : "Save settings"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Data controls</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => runDataAction("clear_history")}>
+              Clear history
+            </Button>
+            <Button variant="outline" onClick={() => runDataAction("clear_interests")}>
+              Clear interests
+            </Button>
+            <Button variant="outline" onClick={() => runDataAction("clear_saves")}>
+              Clear saves
+            </Button>
+            <Button variant="outline" onClick={clearCache}>
+              Clear cache
+            </Button>
+            <Button variant="outline" onClick={() => runDataAction("clear_data")}>
+              Clear data
+            </Button>
+            <Button variant="outline" onClick={() => runDataAction("clear_financial")}>
+              Clear financial data
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={deactivateAccount}>
+              Deactivate account
+            </Button>
+            <Button variant="destructive" onClick={deleteAccount}>
+              Delete account
             </Button>
           </div>
         </CardContent>

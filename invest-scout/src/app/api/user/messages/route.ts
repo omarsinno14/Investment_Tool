@@ -121,6 +121,14 @@ export async function POST(req: Request) {
       },
     });
 
+    await prisma.notification.create({
+      data: {
+        userId: recipient.id,
+        type: "MESSAGE",
+        data: { fromUserId: userId, opportunityId: opportunityId ?? undefined },
+      },
+    });
+
     return NextResponse.json({ message });
   } catch (e) {
     console.error("Failed to send message", e);

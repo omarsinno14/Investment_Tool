@@ -25,6 +25,12 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
     const isFollowing = await prisma.follow.findUnique({
       where: { followerId_followingId: { followerId: viewerId, followingId: id } },
     });
+    const isFollowedBy = await prisma.follow.findUnique({
+      where: { followerId_followingId: { followerId: id, followingId: viewerId } },
+    });
+    const followRequest = await prisma.followRequest.findUnique({
+      where: { followerId_followingId: { followerId: viewerId, followingId: id } },
+    });
 
     const profile = { ...user.profile };
     let email = user.email;
@@ -33,9 +39,11 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
       if (profile?.hideContactFromNonFollowers) {
         profile.phone = null;
         email = "";
+        profile.websiteUrl = null;
       }
       if (profile?.hidePhotoFromNonFollowers) {
         profile.imageUrl = null;
+        profile.coverPhotoUrl = null;
       }
     }
 
@@ -57,8 +65,8 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
         })
       : [];
 
-    const followerCount = await prisma.follow.count({ where: { followingId: id } });
-    const followingCount = await prisma.follow.count({ where: { followerId: id } });
+    const followerCountRaw = await prisma.follow.count({ where: { followingId: id } });
+    const followingCountRaw = await prisma.follow.count({ where: { followerId: id } });
 
     const viewerFollowing = await prisma.follow.findMany({
       where: { followerId: viewerId },
@@ -85,6 +93,9 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
         })
       : [];
 
+    const hideFollowerCount = Boolean(profile?.hideFollowerCount);
+    const canViewCounts = !hideFollowerCount || viewerId === id;
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -93,8 +104,10 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
         interests: user.interests,
       },
       isFollowing: Boolean(isFollowing),
-      followerCount,
-      followingCount,
+      isFollowedBy: Boolean(isFollowedBy),
+      followRequestStatus: followRequest?.status ?? null,
+      followerCount: canViewCounts ? followerCountRaw : null,
+      followingCount: canViewCounts ? followingCountRaw : null,
       mutualFollowers,
       opportunities,
       forumPosts,

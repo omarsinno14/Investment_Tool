@@ -3,6 +3,7 @@ import path from "path";
 import { promises as fs } from "fs";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
+import { sanitizeProfanity } from "@/lib/profanity";
 
 export async function GET() {
   try {
@@ -40,7 +41,33 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ posts, viewerId: userId });
+    const viewerFollowing = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+    const followingSet = new Set(viewerFollowing.map((f) => f.followingId));
+
+    const sanitized = posts.map((post) => {
+      if (post.userId === userId) return post;
+      if (!followingSet.has(post.userId)) {
+        return {
+          ...post,
+          user: {
+            ...post.user,
+            email: "",
+            profile: {
+              ...post.user.profile,
+              name: null,
+              username: null,
+              imageUrl: null,
+            },
+          },
+        };
+      }
+      return post;
+    });
+
+    return NextResponse.json({ posts: sanitized, viewerId: userId });
   } catch (e) {
     console.error("Failed to load forum posts", e);
     return NextResponse.json({ error: "Failed to load forum posts" }, { status: 500 });
@@ -56,8 +83,8 @@ export async function POST(req: Request) {
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const formData = await req.formData();
-    const title = String(formData.get("title") ?? "").trim();
-    const body = String(formData.get("body") ?? "").trim();
+    const title = sanitizeProfanity(String(formData.get("title") ?? "").trim());
+    const body = sanitizeProfanity(String(formData.get("body") ?? "").trim());
     const tagString = String(formData.get("tags") ?? "").trim();
 
     if (!title || !body) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
+import { sanitizeProfanity } from "@/lib/profanity";
 
 function toNumber(value: any) {
   if (value === null || value === undefined || value === "") return null;
@@ -33,7 +34,7 @@ export async function PATCH(req: Request, { params }: { params: { id?: string } 
     const body = await req.json().catch(() => null);
     if (!body) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
 
-    const title = toString(body.title);
+    const title = sanitizeProfanity(toString(body.title));
     if (body.title !== undefined && !title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
@@ -63,9 +64,15 @@ export async function PATCH(req: Request, { params }: { params: { id?: string } 
       where: { id },
       data: {
         ...(body.title !== undefined ? { title } : {}),
-        ...(body.summary !== undefined ? { summary: toString(body.summary) || null } : {}),
-        ...(body.details !== undefined ? { details: toString(body.details) || null } : {}),
-        ...(body.benefits !== undefined ? { benefits: toString(body.benefits) || null } : {}),
+        ...(body.summary !== undefined
+          ? { summary: sanitizeProfanity(toString(body.summary)) || null }
+          : {}),
+        ...(body.details !== undefined
+          ? { details: sanitizeProfanity(toString(body.details)) || null }
+          : {}),
+        ...(body.benefits !== undefined
+          ? { benefits: sanitizeProfanity(toString(body.benefits)) || null }
+          : {}),
         ...(body.askAmount !== undefined ? { askAmount: toNumber(body.askAmount) } : {}),
         ...(body.askCurrency !== undefined
           ? { askCurrency: toString(body.askCurrency) || "USD" }
@@ -78,11 +85,19 @@ export async function PATCH(req: Request, { params }: { params: { id?: string } 
                 : null,
             }
           : {}),
-        ...(body.locationName !== undefined ? { locationName: toString(body.locationName) || null } : {}),
+        ...(body.locationName !== undefined
+          ? { locationName: sanitizeProfanity(toString(body.locationName)) || null }
+          : {}),
         ...(body.locationMapUrl !== undefined ? { locationMapUrl: toString(body.locationMapUrl) || null } : {}),
-        ...(body.contactEmail !== undefined ? { contactEmail: toString(body.contactEmail) || null } : {}),
-        ...(body.contactPhone !== undefined ? { contactPhone: toString(body.contactPhone) || null } : {}),
-        ...(body.contactUsername !== undefined ? { contactUsername: toString(body.contactUsername) || null } : {}),
+        ...(body.contactEmail !== undefined
+          ? { contactEmail: sanitizeProfanity(toString(body.contactEmail)) || null }
+          : {}),
+        ...(body.contactPhone !== undefined
+          ? { contactPhone: sanitizeProfanity(toString(body.contactPhone)) || null }
+          : {}),
+        ...(body.contactUsername !== undefined
+          ? { contactUsername: sanitizeProfanity(toString(body.contactUsername)) || null }
+          : {}),
         ...(body.tags !== undefined ? { tags } : {}),
         ...(archived !== undefined ? { archivedAt: archived ? new Date() : null } : {}),
         ...(repost ? { publishedAt: new Date(), archivedAt: null } : {}),

@@ -3,6 +3,7 @@ import path from "path";
 import { promises as fs } from "fs";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
+import { sanitizeProfanity } from "@/lib/profanity";
 
 function toNumber(value: FormDataEntryValue | null) {
   if (typeof value !== "string") return null;
@@ -25,19 +26,19 @@ export async function POST(req: Request) {
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const formData = await req.formData();
-    const title = toString(formData.get("title"));
-    const summary = toString(formData.get("summary"));
-    const details = toString(formData.get("details"));
-    const benefits = toString(formData.get("benefits"));
+    const title = sanitizeProfanity(toString(formData.get("title")));
+    const summary = sanitizeProfanity(toString(formData.get("summary")));
+    const details = sanitizeProfanity(toString(formData.get("details")));
+    const benefits = sanitizeProfanity(toString(formData.get("benefits")));
     const askAmount = toNumber(formData.get("askAmount"));
     const askCurrency = toString(formData.get("askCurrency")) || "USD";
     const expectedRoiPercent = toNumber(formData.get("expectedRoiPercent"));
     const expectedRoiDurationMonths = toNumber(formData.get("expectedRoiDurationMonths"));
     const locationName = toString(formData.get("locationName"));
     const locationMapUrl = toString(formData.get("locationMapUrl"));
-    const contactEmail = toString(formData.get("contactEmail"));
-    const contactPhone = toString(formData.get("contactPhone"));
-    const contactUsername = toString(formData.get("contactUsername"));
+    const contactEmail = sanitizeProfanity(toString(formData.get("contactEmail")));
+    const contactPhone = sanitizeProfanity(toString(formData.get("contactPhone")));
+    const contactUsername = sanitizeProfanity(toString(formData.get("contactUsername")));
     const tagString = toString(formData.get("tags"));
 
     if (!title) {

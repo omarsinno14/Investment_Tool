@@ -26,6 +26,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type");
+    const search = (searchParams.get("q") ?? "").trim().toLowerCase();
     const where =
       type === "headlines"
         ? { createdByUserId: null }
@@ -75,7 +76,14 @@ export async function GET(req: Request) {
         ? recent.filter((o) => shouldIncludeOpportunity(o, context)).slice(0, 200)
         : recent.filter((o) => shouldIncludeOpportunity(o, context)).slice(0, 200);
 
-    const ids: string[] = matched.map((m: Opportunity) => m.id);
+    const filtered = search
+      ? matched.filter((o) => {
+          const hay = `${o.title ?? ""} ${o.summary ?? ""} ${o.details ?? ""} ${(o.tags ?? []).join(" ")}`.toLowerCase();
+          return hay.includes(search);
+        })
+      : matched;
+
+    const ids: string[] = filtered.map((m: Opportunity) => m.id);
 
     const actions: OpportunityAction[] = await prisma.opportunityAction.findMany({
       where: { userId, opportunityId: { in: ids } },
@@ -85,7 +93,7 @@ export async function GET(req: Request) {
       actions.map((a: OpportunityAction) => [a.opportunityId, a])
     );
 
-    const opportunities = matched.map((o: OpportunityWithUser) => ({
+    const opportunities = filtered.map((o: OpportunityWithUser) => ({
       ...o,
       action: map.get(o.id) ?? null,
       matchScore: getMatchScore(o, context),

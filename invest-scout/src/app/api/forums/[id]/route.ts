@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
+import { sanitizeProfanity } from "@/lib/profanity";
 
 function toString(value: any) {
   if (value === null || value === undefined) return "";
@@ -47,6 +48,27 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    if (post.userId !== userId) {
+      const isFollowing = await prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: userId, followingId: post.userId } },
+      });
+      if (!isFollowing) {
+        post.user.email = "";
+        post.user.profile.name = null;
+        post.user.profile.username = null;
+        post.user.profile.imageUrl = null;
+      }
+    }
+
+    if (post.userId !== userId) {
+      await prisma.forumView.create({
+        data: {
+          postId: post.id,
+          viewerId: userId,
+        },
+      });
+    }
+
     return NextResponse.json({ post, viewerId: userId });
   } catch (e) {
     console.error("Failed to load forum post", e);
@@ -72,8 +94,8 @@ export async function PATCH(req: Request, { params }: { params: { id?: string } 
     const body = await req.json().catch(() => null);
     if (!body) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
 
-    const title = body.title !== undefined ? toString(body.title) : undefined;
-    const description = body.body !== undefined ? toString(body.body) : undefined;
+    const title = body.title !== undefined ? sanitizeProfanity(toString(body.title)) : undefined;
+    const description = body.body !== undefined ? sanitizeProfanity(toString(body.body)) : undefined;
     if (title !== undefined && !title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 });
     }
