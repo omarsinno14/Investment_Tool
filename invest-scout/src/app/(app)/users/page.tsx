@@ -58,6 +58,18 @@ export default function UsersSearchPage() {
 
   async function handleFollow(userId: string) {
     setUpdatingId(userId);
+    const previous = results;
+    setResults((prev) =>
+      prev.map((user) =>
+        user.id === userId
+          ? {
+              ...user,
+              isFollowing: false,
+              followRequestStatus: "PENDING",
+            }
+          : user
+      )
+    );
     try {
       const res = await fetch("/api/user/follow", {
         method: "POST",
@@ -82,6 +94,7 @@ export default function UsersSearchPage() {
     } catch (e) {
       console.error(e);
       toast.error("Failed to update follow");
+      setResults(previous);
     } finally {
       setUpdatingId(null);
     }

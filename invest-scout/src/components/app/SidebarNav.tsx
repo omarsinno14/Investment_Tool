@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Gauge,
+  Home,
   Lightbulb,
   MessageSquareText,
   Newspaper,
@@ -50,6 +51,10 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
         <Link href="/dashboard" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
           <Gauge className="h-4 w-4" />
           {!collapsed && <span>Dashboard</span>}
+        </Link>
+        <Link href="/feed" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
+          <Home className="h-4 w-4" />
+          {!collapsed && <span>Home feed</span>}
         </Link>
         <Link href="/opportunities" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
           <Sparkles className="h-4 w-4" />
