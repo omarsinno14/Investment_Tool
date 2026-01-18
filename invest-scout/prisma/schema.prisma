@@ -132,6 +132,11 @@ model Profile {
   hidePostsFromNonFollowers   Boolean       @default(false)
   hideFollowerCount           Boolean       @default(false)
   requiresFollowApproval      Boolean       @default(false)
+  notifyMessages              Boolean       @default(true)
+  notifyFollows               Boolean       @default(true)
+  notifyOpportunities         Boolean       @default(true)
+  notifyForums                Boolean       @default(true)
+  notifyJournal               Boolean       @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

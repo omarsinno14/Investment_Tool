@@ -79,10 +79,13 @@ export function Navbar() {
   return (
     <header className="border-b">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link href="/dashboard" className="font-semibold tracking-tight">
+        <Link href="/feed" className="font-semibold tracking-tight">
           Invesco
         </Link>
         <nav className="flex items-center gap-3 text-sm">
+          <Link href="/feed" className="hover:underline">
+            Home
+          </Link>
           <Link href="/opportunities" className="hover:underline">
             Opportunities{renderBadge(badgeCounts.opportunities)}
           </Link>

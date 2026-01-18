@@ -229,6 +229,21 @@ export default function MessagesPage() {
       toast.error("Add a recipient and message");
       return;
     }
+    const optimisticId = `temp-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: optimisticId,
+      body: message,
+      createdAt: new Date().toISOString(),
+      fromUserId: currentUserId ?? "me",
+      toUserId: selectedPartnerId ?? "unknown",
+      opportunity: opportunityId
+        ? opportunities.find((opp) => opp.id === opportunityId) ?? null
+        : null,
+    };
+    const previousMessage = message;
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setMessage("");
+    setOpportunityId(null);
     setSending(true);
     try {
       const res = await fetch("/api/user/messages", {
@@ -244,16 +259,18 @@ export default function MessagesPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(data?.error ?? "Failed to send message");
+        setMessages((prev) => prev.filter((msg) => msg.id !== optimisticId));
+        setMessage(previousMessage);
         return;
       }
-      setMessage("");
-      setOpportunityId(null);
       await loadMessages(identifier);
       await loadThreads();
       toast.success("Message sent");
     } catch (e) {
       console.error(e);
       toast.error("Failed to send message");
+      setMessages((prev) => prev.filter((msg) => msg.id !== optimisticId));
+      setMessage(previousMessage);
     } finally {
       setSending(false);
     }

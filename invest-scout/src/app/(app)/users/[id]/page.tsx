@@ -30,6 +30,7 @@ type UserProfile = {
     identityVerified?: boolean;
     expertiseTags?: string[];
     verifiedExpertiseTags?: string[];
+    requiresFollowApproval?: boolean | null;
   } | null;
   interests?: { type: string; value: string }[];
 };
@@ -94,6 +95,18 @@ export default function UserProfilePage() {
 
   async function toggleFollow() {
     if (isBlocked || isBlockedBy) return;
+    const previous = {
+      following,
+      followedBy,
+      followRequestStatus,
+    };
+    if (following || followRequestStatus === "PENDING") {
+      setFollowing(false);
+      setFollowRequestStatus(null);
+    } else {
+      setFollowing(false);
+      setFollowRequestStatus("PENDING");
+    }
     try {
       const res = await fetch("/api/user/follow", {
         method: "POST",
@@ -112,6 +125,9 @@ export default function UserProfilePage() {
     } catch (e) {
       console.error(e);
       toast.error("Unable to update follow");
+      setFollowing(previous.following);
+      setFollowedBy(previous.followedBy);
+      setFollowRequestStatus(previous.followRequestStatus);
     }
   }
 
@@ -141,6 +157,19 @@ export default function UserProfilePage() {
   async function toggleBlock() {
     if (!user) return;
     if (!window.confirm(isBlocked ? "Unblock this user?" : "Block this user?")) return;
+    const previous = {
+      isBlocked,
+      following,
+      followedBy,
+      followRequestStatus,
+    };
+    const nextBlocked = !isBlocked;
+    setIsBlocked(nextBlocked);
+    if (nextBlocked) {
+      setFollowing(false);
+      setFollowedBy(false);
+      setFollowRequestStatus(null);
+    }
     try {
       const res = await fetch("/api/user/block", {
         method: "POST",
@@ -158,6 +187,10 @@ export default function UserProfilePage() {
     } catch (e) {
       console.error(e);
       toast.error("Failed to update block");
+      setIsBlocked(previous.isBlocked);
+      setFollowing(previous.following);
+      setFollowedBy(previous.followedBy);
+      setFollowRequestStatus(previous.followRequestStatus);
     }
   }
 

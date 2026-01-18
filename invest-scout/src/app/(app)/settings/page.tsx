@@ -7,6 +7,7 @@ import { SUPPORTED_CURRENCIES, useCurrency } from "@/components/app/CurrencyProv
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -74,12 +75,19 @@ export default function SettingsPage() {
     hidePostsFromNonFollowers: false,
     hideFollowerCount: false,
     requiresFollowApproval: false,
+    notifyMessages: true,
+    notifyFollows: true,
+    notifyOpportunities: true,
+    notifyForums: true,
+    notifyJournal: true,
   });
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
+  const [loadingBlocks, setLoadingBlocks] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const coverRef = useRef<HTMLInputElement | null>(null);
   const cvRef = useRef<HTMLInputElement | null>(null);
@@ -142,6 +150,11 @@ export default function SettingsPage() {
             hidePostsFromNonFollowers: Boolean(p.hidePostsFromNonFollowers),
             hideFollowerCount: Boolean(p.hideFollowerCount),
             requiresFollowApproval: Boolean(p.requiresFollowApproval),
+            notifyMessages: p.notifyMessages !== undefined ? Boolean(p.notifyMessages) : true,
+            notifyFollows: p.notifyFollows !== undefined ? Boolean(p.notifyFollows) : true,
+            notifyOpportunities: p.notifyOpportunities !== undefined ? Boolean(p.notifyOpportunities) : true,
+            notifyForums: p.notifyForums !== undefined ? Boolean(p.notifyForums) : true,
+            notifyJournal: p.notifyJournal !== undefined ? Boolean(p.notifyJournal) : true,
           });
         } else {
           const message = isJson ? data?.error || "Failed to load profile" : "Failed to load profile";
@@ -150,6 +163,27 @@ export default function SettingsPage() {
       } catch (e) {
         console.error(e);
         toast.error("Unable to load settings");
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      setLoadingBlocks(true);
+      try {
+        const res = await fetch("/api/user/blocks", { credentials: "include" });
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error ?? "Failed to load blocked users");
+        setBlockedUsers(data.blocks ?? []);
+      } catch (e) {
+        console.error(e);
+        toast.error("Unable to load blocked users");
+      } finally {
+        setLoadingBlocks(false);
       }
     })();
   }, []);
@@ -188,6 +222,11 @@ export default function SettingsPage() {
         hidePostsFromNonFollowers: form.hidePostsFromNonFollowers,
         hideFollowerCount: form.hideFollowerCount,
         requiresFollowApproval: form.requiresFollowApproval,
+        notifyMessages: form.notifyMessages,
+        notifyFollows: form.notifyFollows,
+        notifyOpportunities: form.notifyOpportunities,
+        notifyForums: form.notifyForums,
+        notifyJournal: form.notifyJournal,
       };
 
       const res = await fetch("/api/user/profile", {
@@ -218,6 +257,26 @@ export default function SettingsPage() {
       toast.error(e?.message ?? "Unable to save settings");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function unblockUser(userId: string) {
+    const previous = blockedUsers;
+    setBlockedUsers((prev) => prev.filter((item) => item.blocked?.id !== userId && item.id !== userId));
+    try {
+      const res = await fetch("/api/user/block", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to unblock");
+      toast.success("User unblocked");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "Unable to unblock");
+      setBlockedUsers(previous);
     }
   }
 
@@ -663,11 +722,89 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <div className="space-y-2 md:col-span-2">
+            <Label>Notifications</Label>
+            <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+              <label className="flex items-center gap-2">
+                <Checkbox
+                  checked={form.notifyMessages}
+                  onCheckedChange={(checked) => setForm({ ...form, notifyMessages: Boolean(checked) })}
+                />
+                Messages & direct chats
+              </label>
+              <label className="flex items-center gap-2">
+                <Checkbox
+                  checked={form.notifyFollows}
+                  onCheckedChange={(checked) => setForm({ ...form, notifyFollows: Boolean(checked) })}
+                />
+                Follows & follow requests
+              </label>
+              <label className="flex items-center gap-2">
+                <Checkbox
+                  checked={form.notifyOpportunities}
+                  onCheckedChange={(checked) => setForm({ ...form, notifyOpportunities: Boolean(checked) })}
+                />
+                Opportunity matches & boosts
+              </label>
+              <label className="flex items-center gap-2">
+                <Checkbox
+                  checked={form.notifyForums}
+                  onCheckedChange={(checked) => setForm({ ...form, notifyForums: Boolean(checked) })}
+                />
+                Forum reactions & comments
+              </label>
+              <label className="flex items-center gap-2">
+                <Checkbox
+                  checked={form.notifyJournal}
+                  onCheckedChange={(checked) => setForm({ ...form, notifyJournal: Boolean(checked) })}
+                />
+                Journal invites & updates
+              </label>
+            </div>
+          </div>
+
           <div className="md:col-span-2">
             <Button onClick={save} disabled={saving}>
               {saving ? "Saving..." : "Save settings"}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Blocked users</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadingBlocks && <div className="text-sm text-muted-foreground">Loading blocked users...</div>}
+          {!loadingBlocks && blockedUsers.length === 0 && (
+            <div className="text-sm text-muted-foreground">You have not blocked anyone.</div>
+          )}
+          {blockedUsers.map((block) => {
+            const user = block.blocked ?? block;
+            const name = user?.profile?.username || user?.profile?.name || user?.email || "User";
+            return (
+              <div key={block.id ?? user?.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user?.profile?.imageUrl || undefined} alt={name} />
+                    <AvatarFallback>{String(name).slice(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="text-sm font-medium">{name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {user?.profile?.username ? `@${user.profile.username}` : user?.email}
+                    </div>
+                  </div>
+                </div>
+                {user?.id && (
+                  <Button variant="outline" size="sm" onClick={() => unblockUser(user.id)}>
+                    Unblock
+                  </Button>
+                )}
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
 

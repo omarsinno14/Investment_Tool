@@ -56,6 +56,11 @@ export async function POST(req: Request) {
       hidePostsFromNonFollowers: Boolean(body.hidePostsFromNonFollowers),
       hideFollowerCount: Boolean(body.hideFollowerCount),
       requiresFollowApproval: Boolean(body.requiresFollowApproval),
+      notifyMessages: body.notifyMessages !== undefined ? Boolean(body.notifyMessages) : true,
+      notifyFollows: body.notifyFollows !== undefined ? Boolean(body.notifyFollows) : true,
+      notifyOpportunities: body.notifyOpportunities !== undefined ? Boolean(body.notifyOpportunities) : true,
+      notifyForums: body.notifyForums !== undefined ? Boolean(body.notifyForums) : true,
+      notifyJournal: body.notifyJournal !== undefined ? Boolean(body.notifyJournal) : true,
     };
 
     const profile = await prisma.profile.upsert({

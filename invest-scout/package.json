@@ -9,7 +9,8 @@
     "db:down": "docker compose down",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test:smoke": "tsx scripts/smoke-tests.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

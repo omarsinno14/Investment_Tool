@@ -142,6 +142,21 @@ export default function ForumDetailPage() {
   async function toggleReaction(type: string) {
     const id = params?.id;
     if (!id) return;
+    const previous = post;
+    if (viewerId) {
+      setPost((prev: any) => {
+        if (!prev) return prev;
+        const reactions = prev.reactions ?? [];
+        const hasReacted = reactions.some((r: any) => r.type === type && r.userId === viewerId);
+        const nextReactions = hasReacted
+          ? reactions.filter((r: any) => !(r.type === type && r.userId === viewerId))
+          : [
+              ...reactions,
+              { id: `temp-${Date.now()}`, type, userId: viewerId },
+            ];
+        return { ...prev, reactions: nextReactions };
+      });
+    }
     try {
       const res = await fetch(`/api/forums/${id}/reactions`, {
         method: "POST",
@@ -155,6 +170,7 @@ export default function ForumDetailPage() {
     } catch (e) {
       console.error(e);
       toast.error("Failed to update reaction");
+      setPost(previous);
     }
   }
 

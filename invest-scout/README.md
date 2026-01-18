@@ -5,6 +5,9 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 First, run the development server:
 
 ```bash
+npm install
+npm run db:up
+npm run prisma:migrate
 npm run dev
 # or
 yarn dev
@@ -17,6 +20,13 @@ bun dev
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+### Local development notes
+
+- The database is expected to be Postgres (see `docker-compose.yml`).
+- `npm run prisma:migrate` will apply new migrations and generate the Prisma client.
+- If you only need Prisma types, `npm run prisma:generate` is sufficient.
+- Run `npm run test:smoke` to validate core API auth guards without a running server.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
