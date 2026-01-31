@@ -112,6 +112,7 @@ export default function MessagesPage() {
   const [threadSearch, setThreadSearch] = useState("");
   const [newRecipient, setNewRecipient] = useState("");
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+  const [showThreadList, setShowThreadList] = useState(true);
 
   async function loadMessages(currentIdentifier = identifier) {
     if (!currentIdentifier.trim()) {
@@ -200,6 +201,7 @@ export default function MessagesPage() {
       setIdentifier(partner);
       setSelectedPartnerId(null);
       loadMessages(partner);
+      setShowThreadList(false);
     }
   }, [searchParams]);
 
@@ -419,7 +421,11 @@ export default function MessagesPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <div className="flex max-h-[75vh] flex-col overflow-hidden rounded-2xl border bg-card lg:max-h-[70vh]">
+        <div
+          className={`flex max-h-[75vh] flex-col overflow-hidden rounded-2xl border bg-card lg:max-h-[70vh] ${
+            showThreadList ? "flex" : "hidden"
+          } md:flex`}
+        >
           <div className="border-b px-4 py-3">
             <div className="flex items-center justify-between">
               <div>
@@ -494,6 +500,7 @@ export default function MessagesPage() {
                   setIdentifier(newRecipient.trim());
                   setSelectedPartnerId(null);
                   loadMessages(newRecipient.trim());
+                  setShowThreadList(false);
                 }}
               >
                 Start chat
@@ -513,6 +520,7 @@ export default function MessagesPage() {
                   setSelectedPartnerId(thread.partnerId);
                   setIdentifier(thread.partnerIdentifier);
                   loadMessages(thread.partnerIdentifier);
+                  setShowThreadList(false);
                 }}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-muted ${
                   selectedPartnerId === thread.partnerId ? "bg-muted" : ""
@@ -536,10 +544,23 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        <div className="flex min-h-[520px] flex-col overflow-hidden rounded-2xl border bg-card">
+        <div
+          className={`flex min-h-[520px] flex-col overflow-hidden rounded-2xl border bg-card ${
+            showThreadList ? "hidden" : "flex"
+          } md:flex`}
+        >
           <div className="border-b px-4 py-3">
             {activeThread ? (
               <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden"
+                  onClick={() => setShowThreadList(true)}
+                  aria-label="Back to inbox"
+                >
+                  ←
+                </Button>
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={activeThread.imageUrl} alt={activeThread.partnerName} />
                   <AvatarFallback>{activeThread.partnerName.slice(0, 2).toUpperCase()}</AvatarFallback>
@@ -648,7 +669,7 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      <details className="rounded-2xl border bg-card p-5">
+      <details className="hidden rounded-2xl border bg-card p-5 md:block">
         <summary className="cursor-pointer text-sm font-semibold">Group messaging</summary>
         <div className="mt-4 space-y-4">
           <div className="space-y-3">
