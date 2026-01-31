@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Navbar } from "@/components/app/Navbar";
 import { SidebarNav } from "@/components/app/SidebarNav";
+import { MobileNav } from "@/components/app/MobileNav";
 import { SiteFooter } from "@/components/app/SiteFooter";
 
 type LayoutPreference = "TOP" | "SIDEBAR";
@@ -36,16 +37,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-screen flex-col overflow-hidden">
       {layoutPreference === "SIDEBAR" ? (
         <div className="flex flex-1 min-h-0">
-          <SidebarNav
-            collapsed={sidebarCollapsed}
-            onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
-          />
-          <main className="flex-1 overflow-y-auto px-6 py-8">
+          <div className="hidden md:flex">
+            <SidebarNav
+              collapsed={sidebarCollapsed}
+              onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+            />
+          </div>
+          <main className="flex min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pt-6 pb-24 md:px-6 md:py-8">
             <div className="mx-auto w-full max-w-6xl space-y-10">
               {children}
               <SiteFooter />
             </div>
           </main>
+          <MobileNav />
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
