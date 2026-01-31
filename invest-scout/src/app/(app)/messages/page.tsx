@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { NAV_BADGE_KEYS, markNavSeen } from "@/lib/nav-badges";
+import { PenSquare, Search } from "lucide-react";
 
 type UserSummary = {
   id: string;
@@ -402,311 +402,324 @@ export default function MessagesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Messages</h1>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Messages</h1>
+          <p className="text-sm text-muted-foreground">Private conversations, designed like an IG inbox.</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="hidden sm:inline-flex"
+          onClick={() => setGroupOpen(true)}
+        >
+          <PenSquare className="mr-2 h-4 w-4" />
+          New group
+        </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle className="text-base">Conversations</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Find a chat</Label>
+      <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="flex max-h-[75vh] flex-col overflow-hidden rounded-2xl border bg-card lg:max-h-[70vh]">
+          <div className="border-b px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">Inbox</div>
+                <div className="text-xs text-muted-foreground">
+                  {filteredThreads.length} conversation{filteredThreads.length === 1 ? "" : "s"}
+                </div>
+              </div>
+              <Dialog open={groupOpen} onOpenChange={setGroupOpen}>
+                <DialogTrigger asChild>
+                  <Button size="icon" variant="ghost" aria-label="Create group">
+                    <PenSquare className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create a group</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <Input
+                      placeholder="Group name"
+                      value={groupForm.name}
+                      onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Group image URL (optional)"
+                      value={groupForm.imageUrl}
+                      onChange={(e) => setGroupForm({ ...groupForm, imageUrl: e.target.value })}
+                    />
+                    <Textarea
+                      placeholder="Members (comma-separated usernames or emails)"
+                      value={groupForm.members}
+                      onChange={(e) => setGroupForm({ ...groupForm, members: e.target.value })}
+                      rows={3}
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setGroupOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={createGroup}>Create group</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="relative mt-3">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={threadSearch}
                 onChange={(e) => setThreadSearch(e.target.value)}
-                placeholder="Search name or username"
+                placeholder="Search"
+                className="pl-9"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Start a new chat</Label>
-              <div className="flex flex-col gap-2">
-                <Input
-                  value={newRecipient}
-                  onChange={(e) => setNewRecipient(e.target.value)}
-                  placeholder="email or username"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (!newRecipient.trim()) {
-                      toast.error("Enter a recipient");
-                      return;
-                    }
-                    setIdentifier(newRecipient.trim());
-                    setSelectedPartnerId(null);
-                    loadMessages(newRecipient.trim());
-                  }}
-                >
-                  Start chat
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {filteredThreads.length === 0 && (
-                <div className="text-sm text-muted-foreground">No conversations yet.</div>
-              )}
-              {filteredThreads.map((thread) => (
-                <button
-                  key={thread.partnerId}
-                  type="button"
-                  onClick={() => {
-                    setSelectedPartnerId(thread.partnerId);
-                    setIdentifier(thread.partnerIdentifier);
-                    loadMessages(thread.partnerIdentifier);
-                  }}
-                  className={`flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left transition hover:bg-muted ${
-                    selectedPartnerId === thread.partnerId ? "border-primary bg-muted" : "border-transparent"
-                  }`}
-                >
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={thread.imageUrl} alt={thread.partnerName} />
-                    <AvatarFallback>{thread.partnerName.slice(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{thread.partnerName}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-1">
-                      {thread.lastMessage.body}
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {new Date(thread.lastAt).toLocaleDateString()}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-col gap-1">
-              <CardTitle className="text-base">Conversation</CardTitle>
-              <div className="text-sm text-muted-foreground">
-                {activeThread ? (
-                  <span className="flex items-center gap-2">
-                    {activeThread.partnerName}
-                    {activeThread.partnerSubtitle && <span>• {activeThread.partnerSubtitle}</span>}
-                  </span>
-                ) : identifier ? (
-                  <span>{identifier}</span>
-                ) : (
-                  <span>Select or start a chat.</span>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="max-h-[380px] space-y-3 overflow-y-auto pr-2">
-                {identifier.trim() === "" && (
-                  <div className="text-sm text-muted-foreground">Choose a conversation to view messages.</div>
-                )}
-                {identifier.trim() !== "" && sortedMessages.length === 0 && (
-                  <div className="text-sm text-muted-foreground">No messages yet.</div>
-                )}
-                {sortedMessages.map((msg) => {
-                  const isMine = currentUserId && msg.fromUserId === currentUserId;
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex ${isMine ? "justify-end" : "justify-start"}`}
-                    >
-                      <div className={`max-w-[80%] space-y-2 rounded-2xl border px-3 py-2 ${
-                        isMine ? "bg-primary text-primary-foreground" : "bg-muted/40"
-                      }`}>
-                        <div className="text-xs opacity-70">
-                          {new Date(msg.createdAt).toLocaleString()}
-                        </div>
-                        <div className="text-sm">{msg.body}</div>
-                        {msg.opportunity && (
-                          <Link
-                            href={`/opportunities/${msg.opportunity.id}`}
-                            className={`text-xs underline ${isMine ? "text-primary-foreground" : "text-primary"}`}
-                          >
-                            Shared: {msg.opportunity.title}
-                          </Link>
-                        )}
-                        {currentUserId && isMine && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-xs"
-                            onClick={async () => {
-                              if (!window.confirm("Unsend this message?")) return;
-                              const res = await fetch(`/api/user/messages/${msg.id}`, { method: "DELETE" });
-                              if (!res.ok) {
-                                const data = await res.json().catch(() => ({}));
-                                toast.error(data?.error ?? "Failed to unsend");
-                                return;
-                              }
-                              await loadMessages(identifier);
-                              await loadThreads();
-                            }}
-                          >
-                            Unsend
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+          <div className="space-y-3 border-b px-4 py-3">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Start a chat</Label>
+            <div className="flex flex-col gap-2">
+              <Input
+                value={newRecipient}
+                onChange={(e) => setNewRecipient(e.target.value)}
+                placeholder="username or email"
+              />
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (!newRecipient.trim()) {
+                    toast.error("Enter a recipient");
+                    return;
+                  }
+                  setIdentifier(newRecipient.trim());
+                  setSelectedPartnerId(null);
+                  loadMessages(newRecipient.trim());
+                }}
+              >
+                Start chat
+              </Button>
+            </div>
+          </div>
 
-              <div className="grid gap-3">
-                <div className="space-y-2">
-                  <Label>Attach opportunity (optional)</Label>
-                  <Select
-                    value={opportunityId ?? "__none__"}
-                    onValueChange={(v) => setOpportunityId(v === "__none__" ? null : v)}
+          <div className="flex-1 space-y-2 overflow-y-auto px-2 py-3">
+            {filteredThreads.length === 0 && (
+              <div className="px-3 text-sm text-muted-foreground">No conversations yet.</div>
+            )}
+            {filteredThreads.map((thread) => (
+              <button
+                key={thread.partnerId}
+                type="button"
+                onClick={() => {
+                  setSelectedPartnerId(thread.partnerId);
+                  setIdentifier(thread.partnerIdentifier);
+                  loadMessages(thread.partnerIdentifier);
+                }}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-muted ${
+                  selectedPartnerId === thread.partnerId ? "bg-muted" : ""
+                }`}
+              >
+                <Avatar className="h-11 w-11">
+                  <AvatarImage src={thread.imageUrl} alt={thread.partnerName} />
+                  <AvatarFallback>{thread.partnerName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium">{thread.partnerName}</div>
+                  <div className="text-xs text-muted-foreground line-clamp-1">
+                    {thread.lastMessage.body}
+                  </div>
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {new Date(thread.lastAt).toLocaleDateString()}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex min-h-[520px] flex-col overflow-hidden rounded-2xl border bg-card">
+          <div className="border-b px-4 py-3">
+            {activeThread ? (
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={activeThread.imageUrl} alt={activeThread.partnerName} />
+                  <AvatarFallback>{activeThread.partnerName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="text-sm font-semibold">{activeThread.partnerName}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {activeThread.partnerSubtitle || "Active now"}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Select or start a chat.</div>
+            )}
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto bg-muted/30 px-4 py-4">
+            {identifier.trim() === "" && (
+              <div className="text-sm text-muted-foreground">Choose a conversation to view messages.</div>
+            )}
+            {identifier.trim() !== "" && sortedMessages.length === 0 && (
+              <div className="text-sm text-muted-foreground">No messages yet.</div>
+            )}
+            {sortedMessages.map((msg) => {
+              const isMine = currentUserId && msg.fromUserId === currentUserId;
+              return (
+                <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[75%] space-y-2 rounded-2xl px-4 py-2 text-sm shadow-sm ${
+                      isMine
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border/60 bg-background"
+                    }`}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder={loading ? "Loading..." : "Select opportunity"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">No attachment</SelectItem>
-                      {opportunities.map((opp) => (
-                        <SelectItem key={opp.id} value={opp.id}>
-                          {opp.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <div className="text-[10px] opacity-70">
+                      {new Date(msg.createdAt).toLocaleString()}
+                    </div>
+                    <div>{msg.body}</div>
+                    {msg.opportunity && (
+                      <Link
+                        href={`/opportunities/${msg.opportunity.id}`}
+                        className={`text-xs underline ${isMine ? "text-primary-foreground" : "text-primary"}`}
+                      >
+                        Shared: {msg.opportunity.title}
+                      </Link>
+                    )}
+                    {currentUserId && isMine && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={async () => {
+                          if (!window.confirm("Unsend this message?")) return;
+                          const res = await fetch(`/api/user/messages/${msg.id}`, { method: "DELETE" });
+                          if (!res.ok) {
+                            const data = await res.json().catch(() => ({}));
+                            toast.error(data?.error ?? "Failed to unsend");
+                            return;
+                          }
+                          await loadMessages(identifier);
+                          await loadThreads();
+                        }}
+                      >
+                        Unsend
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Message</Label>
-                  <Textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Write your message..."
-                    rows={4}
+              );
+            })}
+          </div>
+
+          <div className="space-y-4 border-t bg-card px-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Share an opportunity (optional)</Label>
+              <Select
+                value={opportunityId ?? "__none__"}
+                onValueChange={(v) => setOpportunityId(v === "__none__" ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loading ? "Loading..." : "Select opportunity"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No attachment</SelectItem>
+                  {opportunities.map((opp) => (
+                    <SelectItem key={opp.id} value={opp.id}>
+                      {opp.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <Textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Message..."
+                rows={2}
+                className="min-h-[44px] flex-1 resize-none rounded-2xl"
+              />
+              <Button onClick={send} disabled={sending || !identifier.trim()} className="sm:min-w-[120px]">
+                {sending ? "Sending..." : "Send"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <details className="rounded-2xl border bg-card p-5">
+        <summary className="cursor-pointer text-sm font-semibold">Group messaging</summary>
+        <div className="mt-4 space-y-4">
+          <div className="space-y-3">
+            {groups.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No groups yet.</div>
+            ) : (
+              groups.map((group) => (
+                <div key={group.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3">
+                  <div>
+                    <div className="text-sm font-medium">{group.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {group.members.length} members
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setSelectedGroupId(group.id)}>
+                      Open
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => removeGroup(group.id)}>
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {selectedGroupId && (
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                Messaging group: {selectedGroup()?.name}
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground">Members</div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedGroup()?.members.map((member) => (
+                    <span key={member} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
+                      {member}
+                      <button type="button" onClick={() => removeGroupMember(member)} className="text-muted-foreground">
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    placeholder="Add member by username/email"
+                    value={newMember}
+                    onChange={(e) => setNewMember(e.target.value)}
+                    className="max-w-xs"
                   />
-                </div>
-                <div className="flex items-center justify-end">
-                  <Button onClick={send} disabled={sending || !identifier.trim()}>
-                    {sending ? "Sending..." : "Send message"}
+                  <Button size="sm" variant="outline" onClick={addGroupMember}>
+                    Add member
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          <details className="rounded-lg border p-4">
-            <summary className="cursor-pointer text-sm font-medium">Group messaging</summary>
-            <div className="mt-4 space-y-4">
-              <Card className="border-none shadow-none">
-                <CardHeader className="flex flex-row items-center justify-between gap-3 px-0">
-                  <CardTitle className="text-base">Groups</CardTitle>
-                  <Dialog open={groupOpen} onOpenChange={setGroupOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" variant="outline">Create group</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Create a group</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-3">
-                        <Input
-                          placeholder="Group name"
-                          value={groupForm.name}
-                          onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
-                        />
-                        <Input
-                          placeholder="Group image URL (optional)"
-                          value={groupForm.imageUrl}
-                          onChange={(e) => setGroupForm({ ...groupForm, imageUrl: e.target.value })}
-                        />
-                        <Textarea
-                          placeholder="Members (comma-separated usernames or emails)"
-                          value={groupForm.members}
-                          onChange={(e) => setGroupForm({ ...groupForm, members: e.target.value })}
-                          rows={3}
-                        />
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setGroupOpen(false)}>Cancel</Button>
-                        <Button onClick={createGroup}>Create group</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </CardHeader>
-                <CardContent className="space-y-3 px-0">
-                  {groups.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">No groups yet.</div>
-                  ) : (
-                    groups.map((group) => (
-                      <div key={group.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
-                        <div>
-                          <div className="text-sm font-medium">{group.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {group.members.length} members
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setSelectedGroupId(group.id)}>
-                            Open
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => removeGroup(group.id)}>
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-
-              {selectedGroupId && (
-                <Card className="border-none shadow-none">
-                  <CardHeader className="px-0">
-                    <CardTitle className="text-base">Group composer</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 px-0">
-                    <div className="text-sm text-muted-foreground">
-                      Messaging group: {selectedGroup()?.name}
-                    </div>
-                    <div className="space-y-2">
-                      <div className="text-xs text-muted-foreground">Members</div>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedGroup()?.members.map((member) => (
-                          <span key={member} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
-                            {member}
-                            <button type="button" onClick={() => removeGroupMember(member)} className="text-muted-foreground">
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Input
-                          placeholder="Add member by username/email"
-                          value={newMember}
-                          onChange={(e) => setNewMember(e.target.value)}
-                          className="max-w-xs"
-                        />
-                        <Button size="sm" variant="outline" onClick={addGroupMember}>
-                          Add member
-                        </Button>
-                      </div>
-                    </div>
-                    <Textarea
-                      value={groupMessage}
-                      onChange={(e) => setGroupMessage(e.target.value)}
-                      placeholder="Share updates with the group..."
-                      rows={4}
-                    />
-                    <div className="flex items-center justify-end">
-                      <Button onClick={sendGroupMessage} disabled={sending}>
-                        {sending ? "Sending..." : "Send group message"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              <Textarea
+                value={groupMessage}
+                onChange={(e) => setGroupMessage(e.target.value)}
+                placeholder="Share updates with the group..."
+                rows={4}
+              />
+              <div className="flex items-center justify-end">
+                <Button onClick={sendGroupMessage} disabled={sending}>
+                  {sending ? "Sending..." : "Send group message"}
+                </Button>
+              </div>
             </div>
-          </details>
+          )}
         </div>
-      </div>
+      </details>
     </div>
   );
 }
