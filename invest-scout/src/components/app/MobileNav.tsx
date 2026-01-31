@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Gauge, Home, MessageSquareText, Sparkles } from "lucide-react";
+import { Bell, Gauge, Home, MessageSquareText, Sparkles, User } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Gauge },
@@ -10,6 +10,7 @@ const navItems = [
   { href: "/opportunities", label: "Opportunities", icon: Sparkles },
   { href: "/messages", label: "Messages", icon: MessageSquareText },
   { href: "/notifications", label: "Alerts", icon: Bell },
+  { href: "/my-profile", label: "Profile", icon: User },
 ];
 
 export function MobileNav() {

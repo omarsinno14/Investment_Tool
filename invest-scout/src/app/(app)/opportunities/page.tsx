@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { RefreshCcw, Search } from "lucide-react";
+import { MoreHorizontal, RefreshCcw, Search } from "lucide-react";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
 import { SUPPORTED_CURRENCIES, useCurrency } from "@/components/app/CurrencyProvider";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,7 @@ export default function OpportunitiesPage() {
   const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
   const [showStats, setShowStats] = useState(true);
   const [postOpen, setPostOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [myPostsOnly, setMyPostsOnly] = useState(false);
   const { currency, convert, format } = useCurrency();
@@ -398,7 +399,7 @@ export default function OpportunitiesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Opportunities</h1>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Dialog open={postOpen} onOpenChange={setPostOpen}>
             <DialogTrigger asChild>
               <Button>Post an opportunity</Button>
@@ -564,15 +565,159 @@ export default function OpportunitiesPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" onClick={load} disabled={loading}>
+          <Button variant="outline" onClick={load} disabled={loading} className="hidden md:inline-flex">
             <RefreshCcw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
+          <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="icon" className="md:hidden" aria-label="Open filters">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Filters</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  placeholder="Exclude keywords (comma-separated)"
+                  value={exclude}
+                  onChange={(e) => setExclude(e.target.value)}
+                />
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Select value={tagFilter} onValueChange={setTagFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tag" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tagOptions.map((tag) => (
+                        <SelectItem key={tag} value={tag}>
+                          {tag}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    placeholder="Custom tag"
+                    value={customTagFilter}
+                    onChange={(e) => setCustomTagFilter(e.target.value)}
+                  />
+
+                  <Select value={countryFilter} onValueChange={setCountryFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All</SelectItem>
+                      {COUNTRIES_ALL.map((country) => (
+                        <SelectItem key={country} value={country}>
+                          {country}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={sectorFilter} onValueChange={setSectorFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sector" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All</SelectItem>
+                      {SECTORS.map((sector) => (
+                        <SelectItem key={sector} value={sector}>
+                          {sector}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Industry" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {industryOptions.map((industry) => (
+                        <SelectItem key={industry} value={industry}>
+                          {industry}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    type="number"
+                    placeholder={`Max ask (${currency})`}
+                    value={maxAsk}
+                    onChange={(e) => setMaxAsk(e.target.value)}
+                  />
+                  <Input
+                    placeholder="Benefit keyword"
+                    value={benefitFilter}
+                    onChange={(e) => setBenefitFilter(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Checkbox checked={myPostsOnly} onCheckedChange={(val) => setMyPostsOnly(Boolean(val))} />
+                    See my posts only
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={tab === "ALL" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setTab("ALL")}
+                    >
+                      All
+                    </Button>
+                    <Button
+                      variant={tab === "SAVED" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setTab("SAVED")}
+                    >
+                      Saved
+                    </Button>
+                    <Button
+                      variant={tab === "VERY_INTERESTED" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setTab("VERY_INTERESTED")}
+                    >
+                      Interested
+                    </Button>
+                    <Button
+                      variant={tab === "INVESTED" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setTab("INVESTED")}
+                    >
+                      Invested
+                    </Button>
+                  </div>
+                  <Select value={sort} onValueChange={(v: any) => setSort(v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NEWEST">Newest</SelectItem>
+                      <SelectItem value="OLDEST">Oldest</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setFiltersOpen(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
       {/* KPI toggle */}
-      <div className="flex items-center justify-between">
+      <div className="hidden items-center justify-between md:flex">
         <div className="text-sm text-muted-foreground">Stats</div>
         <Button variant="ghost" size="sm" onClick={() => setShowStats((prev) => !prev)}>
           {showStats ? "Hide stats" : "Show stats"}
@@ -580,7 +725,7 @@ export default function OpportunitiesPage() {
       </div>
 
       {showStats && (
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="hidden gap-4 md:grid md:grid-cols-5">
           <Card>
             <CardHeader className="py-4">
               <CardTitle className="text-sm text-muted-foreground">Matched</CardTitle>
@@ -623,26 +768,38 @@ export default function OpportunitiesPage() {
         {/* Main column */}
         <div className="space-y-4">
           {/* Filters */}
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:w-[640px]">
-              <div className="relative md:w-[320px]">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  placeholder="Search titles & summaries..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-1 items-center gap-2 md:gap-3">
+                <div className="relative w-full md:w-[320px]">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search titles & summaries..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="md:hidden"
+                  onClick={() => setFiltersOpen(true)}
+                  aria-label="Open filters"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
               </div>
 
               <Input
+                className="hidden md:block"
                 placeholder="Exclude keywords (comma-separated)"
                 value={exclude}
                 onChange={(e) => setExclude(e.target.value)}
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="hidden flex-wrap gap-2 md:flex">
               <Select value={tagFilter} onValueChange={setTagFilter}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Tag" />
@@ -708,7 +865,7 @@ export default function OpportunitiesPage() {
               <Input className="w-[180px]" placeholder="Benefit keyword" value={benefitFilter} onChange={(e) => setBenefitFilter(e.target.value)} />
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="hidden flex-wrap gap-2 md:flex">
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Checkbox checked={myPostsOnly} onCheckedChange={(val) => setMyPostsOnly(Boolean(val))} />
                 See my posts only
@@ -797,7 +954,7 @@ export default function OpportunitiesPage() {
         </div>
 
         {/* Insights sidebar */}
-        <div className="space-y-4">
+        <div className="hidden space-y-4 lg:block">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Insights</CardTitle>
