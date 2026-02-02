@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,13 @@ export default function ForumDetailPage() {
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [commentDraft, setCommentDraft] = useState("");
+  const commentListRef = useRef<HTMLDivElement | null>(null);
+  const commentVirtualizer = useVirtualizer({
+    count: comments.length,
+    getScrollElement: () => commentListRef.current,
+    estimateSize: () => 88,
+    overscan: 6,
+  });
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", body: "", tags: "" });
   const [loading, setLoading] = useState(true);
@@ -393,14 +401,37 @@ export default function ForumDetailPage() {
           {comments.length === 0 && (
             <div className="text-sm text-muted-foreground">No comments yet.</div>
           )}
-          {comments.map((comment) => (
-            <div key={comment.id} className="border rounded-md p-3 text-sm">
-              <div className="text-xs text-muted-foreground">
-                {comment.user?.profile?.username || comment.user?.profile?.name || comment.user?.email}
+          {comments.length > 0 && (
+            <div ref={commentListRef} className="max-h-[360px] overflow-y-auto pr-1">
+              <div style={{ height: commentVirtualizer.getTotalSize(), position: "relative" }}>
+                {commentVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const comment = comments[virtualRow.index];
+                  if (!comment) return null;
+                  return (
+                    <div
+                      key={comment.id}
+                      ref={commentVirtualizer.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                      className="pb-3"
+                    >
+                      <div className="rounded-md border p-3 text-sm">
+                        <div className="text-xs text-muted-foreground">
+                          {comment.user?.profile?.username || comment.user?.profile?.name || comment.user?.email}
+                        </div>
+                        <div className="mt-1 break-words text-muted-foreground">{comment.body}</div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="mt-1 text-muted-foreground">{comment.body}</div>
             </div>
-          ))}
+          )}
           <div className="space-y-2">
             <Textarea
               placeholder="Write a comment"

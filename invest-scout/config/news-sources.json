@@ -1,0 +1,100 @@
+[
+  {
+    "name": "BBC World",
+    "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "countries": ["GLOBAL"],
+    "tags": ["world", "top"],
+    "reliability": 0.92
+  },
+  {
+    "name": "Reuters World",
+    "url": "https://feeds.reuters.com/reuters/worldNews",
+    "countries": ["GLOBAL"],
+    "tags": ["world", "markets"],
+    "reliability": 0.95
+  },
+  {
+    "name": "Associated Press",
+    "url": "https://apnews.com/apf-topnews?output=rss",
+    "countries": ["GLOBAL"],
+    "tags": ["top"],
+    "reliability": 0.9
+  },
+  {
+    "name": "The Guardian World",
+    "url": "https://www.theguardian.com/world/rss",
+    "countries": ["GLOBAL", "GB"],
+    "tags": ["world"],
+    "reliability": 0.86
+  },
+  {
+    "name": "NYTimes Home",
+    "url": "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+    "countries": ["US"],
+    "tags": ["top"],
+    "reliability": 0.9
+  },
+  {
+    "name": "WSJ World",
+    "url": "https://feeds.a.dj.com/rss/RSSWorldNews.xml",
+    "countries": ["US"],
+    "tags": ["markets", "world"],
+    "reliability": 0.88
+  },
+  {
+    "name": "CNN Top",
+    "url": "http://rss.cnn.com/rss/cnn_topstories.rss",
+    "countries": ["US"],
+    "tags": ["top"],
+    "reliability": 0.82
+  },
+  {
+    "name": "BBC UK",
+    "url": "https://feeds.bbci.co.uk/news/uk/rss.xml",
+    "countries": ["GB"],
+    "tags": ["top"],
+    "reliability": 0.9
+  },
+  {
+    "name": "France24",
+    "url": "https://www.france24.com/en/rss",
+    "countries": ["FR"],
+    "tags": ["world"],
+    "reliability": 0.84
+  },
+  {
+    "name": "Deutsche Welle",
+    "url": "https://rss.dw.com/rdf/rss-en-all",
+    "countries": ["DE"],
+    "tags": ["world"],
+    "reliability": 0.86
+  },
+  {
+    "name": "CBC Top Stories",
+    "url": "https://www.cbc.ca/cmlink/rss-topstories",
+    "countries": ["CA"],
+    "tags": ["top"],
+    "reliability": 0.82
+  },
+  {
+    "name": "ABC Australia",
+    "url": "https://www.abc.net.au/news/feed/51120/rss.xml",
+    "countries": ["AU"],
+    "tags": ["top"],
+    "reliability": 0.8
+  },
+  {
+    "name": "Times of India",
+    "url": "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
+    "countries": ["IN"],
+    "tags": ["top"],
+    "reliability": 0.78
+  },
+  {
+    "name": "NHK Japan",
+    "url": "https://www3.nhk.or.jp/rss/news/cat0.xml",
+    "countries": ["JP"],
+    "tags": ["top"],
+    "reliability": 0.8
+  }
+]

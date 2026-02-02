@@ -1,0 +1,15 @@
+{
+  "ai": ["artificial intelligence", "machine learning", "genai", "llm"],
+  "fintech": ["fintech", "payments", "digital banking", "neobank"],
+  "health": ["biotech", "healthcare", "medtech", "pharma"],
+  "energy": ["renewable", "solar", "wind", "hydrogen", "energy storage"],
+  "real estate": ["real estate", "property", "housing", "mortgage"],
+  "crypto": ["crypto", "blockchain", "web3", "token"],
+  "saas": ["saas", "cloud", "subscription"],
+  "agriculture": ["agritech", "farming", "agriculture"],
+  "manufacturing": ["manufacturing", "industrial", "supply chain"],
+  "retail": ["retail", "ecommerce", "consumer"],
+  "mobility": ["mobility", "ev", "electric vehicle", "autonomous"],
+  "climate": ["climate", "sustainability", "carbon"],
+  "venture": ["funding", "seed", "series a", "series b", "ipo", "acquisition", "merger"]
+}

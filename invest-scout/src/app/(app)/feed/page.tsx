@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
 import { Button } from "@/components/ui/button";
@@ -14,11 +15,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
+function chunk<T>(items: T[], size: number) {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    rows.push(items.slice(i, i + size));
+  }
+  return rows;
+}
+
 export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [forums, setForums] = useState<any[]>([]);
   const [viewerId, setViewerId] = useState<string | null>(null);
+  const [oppCursor, setOppCursor] = useState<string | null>(null);
+  const [forumCursor, setForumCursor] = useState<string | null>(null);
+  const [oppLoadingMore, setOppLoadingMore] = useState(false);
+  const [forumLoadingMore, setForumLoadingMore] = useState(false);
 
   const [oppQuery, setOppQuery] = useState("");
   const [forumQuery, setForumQuery] = useState("");
@@ -43,32 +56,77 @@ export default function FeedPage() {
   });
   const [forumForm, setForumForm] = useState({ title: "", body: "", tags: "" });
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const [oppRes, forumRes] = await Promise.all([
-          fetch("/api/opportunities?type=community", { credentials: "include" }),
-          fetch("/api/forums", { credentials: "include" }),
-        ]);
-        if ([oppRes, forumRes].some((res) => res.status === 401)) {
-          window.location.href = "/login";
-          return;
-        }
-        const oppData = await oppRes.json().catch(() => ({}));
-        const forumData = await forumRes.json().catch(() => ({}));
-        if (!oppRes.ok) throw new Error(oppData?.error ?? "Failed to load opportunities");
-        if (!forumRes.ok) throw new Error(forumData?.error ?? "Failed to load forums");
-        setOpportunities(oppData.opportunities ?? []);
-        setForums(forumData.posts ?? []);
-        setViewerId(oppData.viewerId ?? forumData.viewerId ?? null);
-      } catch (e) {
-        console.error(e);
-        toast.error("Failed to load feed");
-      } finally {
-        setLoading(false);
+  const oppListRef = useRef<HTMLDivElement | null>(null);
+  const forumListRef = useRef<HTMLDivElement | null>(null);
+
+  async function loadInitial() {
+    setLoading(true);
+    try {
+      const [oppRes, forumRes] = await Promise.all([
+        fetch("/api/opportunities?type=community&limit=30", { credentials: "include" }),
+        fetch("/api/forums?limit=30", { credentials: "include" }),
+      ]);
+      if ([oppRes, forumRes].some((res) => res.status === 401)) {
+        window.location.href = "/login";
+        return;
       }
-    })();
+      const oppData = await oppRes.json().catch(() => ({}));
+      const forumData = await forumRes.json().catch(() => ({}));
+      if (!oppRes.ok) throw new Error(oppData?.error ?? "Failed to load opportunities");
+      if (!forumRes.ok) throw new Error(forumData?.error ?? "Failed to load forums");
+      setOpportunities(oppData.opportunities ?? []);
+      setForums(forumData.posts ?? []);
+      setViewerId(oppData.viewerId ?? forumData.viewerId ?? null);
+      setOppCursor(oppData.nextCursor ?? null);
+      setForumCursor(forumData.nextCursor ?? null);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load feed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadMoreOpps() {
+    if (!oppCursor || oppLoadingMore) return;
+    setOppLoadingMore(true);
+    try {
+      const res = await fetch(`/api/opportunities?type=community&limit=30&cursor=${encodeURIComponent(oppCursor)}`, {
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to load more opportunities");
+      setOpportunities((prev) => [...prev, ...(data.opportunities ?? [])]);
+      setOppCursor(data.nextCursor ?? null);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load more opportunities");
+    } finally {
+      setOppLoadingMore(false);
+    }
+  }
+
+  async function loadMoreForums() {
+    if (!forumCursor || forumLoadingMore) return;
+    setForumLoadingMore(true);
+    try {
+      const res = await fetch(`/api/forums?limit=30&cursor=${encodeURIComponent(forumCursor)}`, {
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to load more forums");
+      setForums((prev) => [...prev, ...(data.posts ?? [])]);
+      setForumCursor(data.nextCursor ?? null);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load more forums");
+    } finally {
+      setForumLoadingMore(false);
+    }
+  }
+
+  useEffect(() => {
+    loadInitial();
   }, []);
 
   useEffect(() => {
@@ -113,8 +171,7 @@ export default function FeedPage() {
         const aBoosted = a.boostedUntil ? new Date(a.boostedUntil).getTime() > now : false;
         const bBoosted = b.boostedUntil ? new Date(b.boostedUntil).getTime() > now : false;
         if (aBoosted !== bBoosted) return aBoosted ? -1 : 1;
-        return new Date(b.publishedAt ?? b.fetchedAt ?? 0).getTime() -
-          new Date(a.publishedAt ?? a.fetchedAt ?? 0).getTime();
+        return new Date(b.publishedAt ?? b.fetchedAt ?? 0).getTime() - new Date(a.publishedAt ?? a.fetchedAt ?? 0).getTime();
       });
     }
     return list;
@@ -129,6 +186,48 @@ export default function FeedPage() {
       return hay.includes(term);
     });
   }, [forums, forumQuery, myForumsOnly, viewerId]);
+
+  const oppRows = useMemo(() => chunk(filteredOpps, 2), [filteredOpps]);
+
+  const oppVirtualizer = useVirtualizer({
+    count: oppRows.length,
+    getScrollElement: () => oppListRef.current,
+    estimateSize: () => 340,
+    overscan: 4,
+  });
+
+  const forumVirtualizer = useVirtualizer({
+    count: filteredForums.length,
+    getScrollElement: () => forumListRef.current,
+    estimateSize: () => 140,
+    overscan: 5,
+  });
+
+  useEffect(() => {
+    const el = oppListRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (!oppCursor || oppLoadingMore || oppQuery.trim()) return;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 400) {
+        loadMoreOpps();
+      }
+    };
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [oppCursor, oppLoadingMore, oppQuery]);
+
+  useEffect(() => {
+    const el = forumListRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (!forumCursor || forumLoadingMore || forumQuery.trim()) return;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) {
+        loadMoreForums();
+      }
+    };
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [forumCursor, forumLoadingMore, forumQuery]);
 
   async function submitOpportunity() {
     if (!oppForm.title.trim()) {
@@ -365,10 +464,34 @@ export default function FeedPage() {
             </Card>
           )}
           {!loading && filteredOpps.length > 0 && (
-            <div className="grid gap-4 md:grid-cols-2">
-              {filteredOpps.map((opp) => (
-                <OpportunityCard key={opp.id} opp={opp} onActionUpdated={() => {}} />
-              ))}
+            <div ref={oppListRef} className="max-h-[70vh] overflow-y-auto">
+              <div style={{ height: oppVirtualizer.getTotalSize(), position: "relative" }}>
+                {oppVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const row = oppRows[virtualRow.index];
+                  if (!row) return null;
+                  return (
+                    <div
+                      key={`row-${virtualRow.index}`}
+                      ref={oppVirtualizer.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                      className="grid gap-4 md:grid-cols-2"
+                    >
+                      {row.map((opp) => (
+                        <OpportunityCard key={opp.id} opp={opp} onActionUpdated={() => {}} />
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+              {oppLoadingMore && (
+                <div className="py-3 text-center text-sm text-muted-foreground">Loading more...</div>
+              )}
             </div>
           )}
         </TabsContent>
@@ -409,24 +532,46 @@ export default function FeedPage() {
             </Card>
           )}
           {!loading && filteredForums.length > 0 && (
-            <div className="space-y-3">
-              {filteredForums.map((post) => (
-                <Card key={post.id}>
-                  <CardContent className="space-y-2 py-4">
-                    <Link href={`/forums/${post.id}`} className="text-base font-semibold hover:underline">
-                      {post.title}
-                    </Link>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{post.body}</p>
-                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      {(post.tags ?? []).slice(0, 4).map((tag: string) => (
-                        <span key={tag} className="rounded-full border px-2 py-0.5">
-                          {tag}
-                        </span>
-                      ))}
+            <div ref={forumListRef} className="max-h-[70vh] overflow-y-auto">
+              <div style={{ height: forumVirtualizer.getTotalSize(), position: "relative" }}>
+                {forumVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const post = filteredForums[virtualRow.index];
+                  if (!post) return null;
+                  return (
+                    <div
+                      key={post.id}
+                      ref={forumVirtualizer.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                      className="pb-3"
+                    >
+                      <Card>
+                        <CardContent className="space-y-2 py-4">
+                          <Link href={`/forums/${post.id}`} className="text-base font-semibold hover:underline">
+                            {post.title}
+                          </Link>
+                          <p className="text-sm text-muted-foreground line-clamp-2">{post.body}</p>
+                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            {(post.tags ?? []).slice(0, 4).map((tag: string) => (
+                              <span key={tag} className="rounded-full border px-2 py-0.5">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  );
+                })}
+              </div>
+              {forumLoadingMore && (
+                <div className="py-3 text-center text-sm text-muted-foreground">Loading more...</div>
+              )}
             </div>
           )}
         </TabsContent>

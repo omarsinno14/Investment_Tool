@@ -29,7 +29,7 @@ type Opportunity = {
   publishedAt?: string | null;
   fetchedAt?: string | null;
   categories?: string[];
-  countries?: string[];
+  countryTags?: string[];
   keywords?: string[];
   action?: {
     state: "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
@@ -103,20 +103,21 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
   }
 
   return (
-    <Card className="hover:shadow-sm transition-shadow">
-      <CardHeader className="space-y-2">
+    <Card className="transition-shadow hover:shadow-lg">
+      <CardHeader className="space-y-3">
         {imageUrl && (
-          <div className="overflow-hidden rounded-md border bg-muted/20">
+          <div className="overflow-hidden rounded-xl border bg-muted/20">
             <img
               src={imageUrl}
               alt={opp.title}
-              className="h-40 w-full object-cover"
+              className="aspect-[16/9] w-full object-cover"
               loading="lazy"
+              decoding="async"
             />
           </div>
         )}
         <div className="flex items-start justify-between gap-3">
-          <CardTitle className="text-base leading-snug">
+          <CardTitle className="text-base leading-snug break-words">
             <Link href={`/opportunities/${opp.id}`} className="hover:underline">
               {opp.title}
             </Link>
@@ -146,7 +147,7 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
       </CardHeader>
 
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground line-clamp-2">{opp.summary ?? opp.details ?? "—"}</p>
+        <p className="text-sm text-muted-foreground line-clamp-2 break-words">{opp.summary ?? opp.details ?? "—"}</p>
 
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
           {opp.askAmount != null && (

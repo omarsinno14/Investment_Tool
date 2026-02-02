@@ -1,24 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { NAV_BADGE_KEYS, markNavSeen } from "@/lib/nav-badges";
-import { PenSquare, Search } from "lucide-react";
+import { encodeCursor } from "@/lib/pagination";
+import { Search } from "lucide-react";
 
 type UserSummary = {
   id: string;
@@ -37,148 +32,97 @@ type Message = {
   opportunity?: { id: string; title: string } | null;
 };
 
-type Opportunity = { id: string; title: string };
+type Conversation = {
+  id: string;
+  partner?: { user: UserSummary } | null;
+  lastMessage?: Message | null;
+  lastMessageAt?: string | null;
+  unreadCount?: number;
+};
 
 type Group = {
   id: string;
   name: string;
-  imageUrl?: string;
   members: string[];
   createdAt: string;
   updatedAt: string;
 };
 
-type Conversation = {
-  partnerId: string;
-  partnerIdentifier: string;
-  partnerName: string;
-  partnerSubtitle: string;
-  imageUrl?: string;
-  lastMessage: Message;
-  lastAt: string;
-};
+type ChatItem =
+  | { type: "day"; id: string; label: string }
+  | { type: "message"; id: string; message: Message; showTimestamp: boolean };
 
 const GROUPS_KEY = "invesco-message-groups";
 
 function formatPartnerLabel(user?: UserSummary | null) {
   const name = user?.profile?.username || user?.profile?.name || user?.email || "Unknown";
   const subtitle = user?.profile?.username ? `@${user.profile.username}` : user?.email || "";
-  const identifier = user?.profile?.username || user?.email || "";
-  return { name, subtitle, identifier, imageUrl: user?.profile?.imageUrl };
+  return { name, subtitle, imageUrl: user?.profile?.imageUrl };
 }
 
-function buildThreads(messages: Message[], currentUserId: string | null) {
-  if (!currentUserId) return [] as Conversation[];
-  const map = new Map<string, Conversation>();
-  for (const msg of messages) {
-    const partner = msg.fromUserId === currentUserId ? msg.toUser : msg.fromUser;
-    if (!partner) continue;
-    const { name, subtitle, identifier, imageUrl } = formatPartnerLabel(partner);
-    if (!identifier) continue;
-    if (!map.has(partner.id)) {
-      map.set(partner.id, {
-        partnerId: partner.id,
-        partnerIdentifier: identifier,
-        partnerName: name,
-        partnerSubtitle: subtitle,
-        imageUrl,
-        lastMessage: msg,
-        lastAt: msg.createdAt,
-      });
+function formatDayLabel(date: Date) {
+  return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+function buildChatItems(messages: Message[]) {
+  const items: ChatItem[] = [];
+  let lastDay = "";
+  let lastSender = "";
+  let lastTime = 0;
+  for (const message of messages) {
+    const created = new Date(message.createdAt);
+    const day = created.toDateString();
+    if (day !== lastDay) {
+      items.push({ type: "day", id: `day-${day}`, label: formatDayLabel(created) });
+      lastDay = day;
+      lastSender = "";
+      lastTime = 0;
     }
+    const showTimestamp = message.fromUserId !== lastSender || created.getTime() - lastTime > 5 * 60 * 1000;
+    items.push({ type: "message", id: message.id, message, showTimestamp });
+    lastSender = message.fromUserId;
+    lastTime = created.getTime();
   }
-  return Array.from(map.values()).sort(
-    (a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime()
-  );
+  return items;
 }
 
 export default function MessagesPage() {
-  const [identifier, setIdentifier] = useState("");
-  const [message, setMessage] = useState("");
-  const [opportunityId, setOpportunityId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [messageDraft, setMessageDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<UserSummary[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showThreadList, setShowThreadList] = useState(true);
+  const [newMessageIndicator, setNewMessageIndicator] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupOpen, setGroupOpen] = useState(false);
-  const [groupForm, setGroupForm] = useState({ name: "", imageUrl: "", members: "" });
+  const [groupForm, setGroupForm] = useState({ name: "", members: "" });
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [groupMessage, setGroupMessage] = useState("");
   const [newMember, setNewMember] = useState("");
-  const [threads, setThreads] = useState<Conversation[]>([]);
-  const [threadSearch, setThreadSearch] = useState("");
-  const [newRecipient, setNewRecipient] = useState("");
-  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
-  const [showThreadList, setShowThreadList] = useState(true);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
-  async function loadMessages(currentIdentifier = identifier) {
-    if (!currentIdentifier.trim()) {
-      setMessages([]);
-      return;
-    }
-    const res = await fetch(`/api/user/messages?partner=${encodeURIComponent(currentIdentifier)}`, {
-      credentials: "include",
-    });
-    if (res.status === 401) {
-      window.location.href = "/login";
-      return;
-    }
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toast.error(data?.error ?? "Failed to load messages");
-      return;
-    }
-    setMessages(data.messages ?? []);
-    setCurrentUserId(data.currentUserId ?? null);
-  }
+  const chatItems = useMemo(() => buildChatItems(messages), [messages]);
 
-  async function loadThreads() {
-    try {
-      const res = await fetch("/api/user/messages", { credentials: "include" });
-      if (res.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to load conversations");
-      const nextThreads = buildThreads(data.messages ?? [], data.currentUserId ?? null);
-      setThreads(nextThreads);
-      setCurrentUserId(data.currentUserId ?? null);
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to load conversations");
-    }
-  }
+  const virtualizer = useVirtualizer({
+    count: chatItems.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 72,
+    overscan: 8,
+  });
 
   useEffect(() => {
     markNavSeen(NAV_BADGE_KEYS.messages);
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/opportunities", { cache: "no-store", credentials: "include" });
-        if (res.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
-        const data = await res.json().catch(() => ({}));
-        setOpportunities((data.opportunities ?? []).slice(0, 50));
-      } catch (e) {
-        console.error(e);
-        toast.error("Failed to load opportunities");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    loadThreads();
   }, []);
 
   useEffect(() => {
@@ -187,7 +131,7 @@ export default function MessagesPage() {
     try {
       setGroups(JSON.parse(stored) as Group[]);
     } catch (e) {
-      console.error("Failed to load message groups", e);
+      console.error("Failed to load groups", e);
     }
   }, []);
 
@@ -195,87 +139,201 @@ export default function MessagesPage() {
     localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
   }, [groups]);
 
+  async function loadConversations() {
+    setConversationsLoading(true);
+    try {
+      const res = await fetch("/api/user/conversations", { credentials: "include" });
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to load conversations");
+      setConversations(data.conversations ?? []);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load conversations");
+    } finally {
+      setConversationsLoading(false);
+    }
+  }
+
+  async function loadMessages(conversationId: string, cursor?: string | null, direction: "backward" | "forward" = "backward") {
+    if (!conversationId) return;
+    if (direction === "backward") {
+      setLoadingOlder(true);
+    } else {
+      setMessagesLoading(true);
+    }
+    try {
+      const params = new URLSearchParams();
+      if (cursor) params.set("cursor", cursor);
+      params.set("direction", direction);
+      const res = await fetch(`/api/user/conversations/${conversationId}/messages?${params.toString()}`, {
+        credentials: "include",
+      });
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to load messages");
+
+      if (direction === "backward") {
+        setMessages((prev) => [...(data.messages ?? []), ...prev]);
+      } else {
+        setMessages(data.messages ?? []);
+      }
+      setNextCursor(data.nextCursor ?? null);
+      setCurrentUserId(data.currentUserId ?? currentUserId);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load messages");
+    } finally {
+      setMessagesLoading(false);
+      setLoadingOlder(false);
+    }
+  }
+
+  useEffect(() => {
+    loadConversations();
+  }, []);
+
   useEffect(() => {
     const partner = searchParams.get("partner");
-    if (partner) {
-      setIdentifier(partner);
-      setSelectedPartnerId(null);
-      loadMessages(partner);
-      setShowThreadList(false);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (!selectedPartnerId && threads.length > 0) {
-      const first = threads[0];
-      setSelectedPartnerId(first.partnerId);
-      setIdentifier(first.partnerIdentifier);
-      loadMessages(first.partnerIdentifier);
-    }
-  }, [threads, selectedPartnerId]);
-
-  const sortedMessages = useMemo(() => {
-    return [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [messages]);
-
-  const filteredThreads = useMemo(() => {
-    const q = threadSearch.trim().toLowerCase();
-    if (!q) return threads;
-    return threads.filter((thread) =>
-      `${thread.partnerName} ${thread.partnerSubtitle}`.toLowerCase().includes(q)
-    );
-  }, [threads, threadSearch]);
-
-  async function send() {
-    if (!identifier.trim() || !message.trim()) {
-      toast.error("Add a recipient and message");
-      return;
-    }
-    const optimisticId = `temp-${Date.now()}`;
-    const optimisticMessage: Message = {
-      id: optimisticId,
-      body: message,
-      createdAt: new Date().toISOString(),
-      fromUserId: currentUserId ?? "me",
-      toUserId: selectedPartnerId ?? "unknown",
-      opportunity: opportunityId
-        ? opportunities.find((opp) => opp.id === opportunityId) ?? null
-        : null,
-    };
-    const previousMessage = message;
-    setMessages((prev) => [...prev, optimisticMessage]);
-    setMessage("");
-    setOpportunityId(null);
-    setSending(true);
-    try {
-      const res = await fetch("/api/user/messages", {
+    if (!partner) return;
+    (async () => {
+      const res = await fetch("/api/user/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          identifier,
-          body: message,
-          opportunityId,
-        }),
+        body: JSON.stringify({ identifier: partner }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(data?.error ?? "Failed to send message");
-        setMessages((prev) => prev.filter((msg) => msg.id !== optimisticId));
-        setMessage(previousMessage);
+        toast.error(data?.error ?? "Unable to start chat");
         return;
       }
-      await loadMessages(identifier);
-      await loadThreads();
-      toast.success("Message sent");
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to send message");
-      setMessages((prev) => prev.filter((msg) => msg.id !== optimisticId));
-      setMessage(previousMessage);
-    } finally {
-      setSending(false);
+      setActiveConversationId(data.conversationId);
+      setShowThreadList(false);
+      await loadMessages(data.conversationId, null, "forward");
+    })();
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!activeConversationId && conversations.length > 0) {
+      setActiveConversationId(conversations[0].id);
     }
+  }, [conversations, activeConversationId]);
+
+  useEffect(() => {
+    if (!activeConversationId) return;
+    setMessages([]);
+    setNextCursor(null);
+    loadMessages(activeConversationId, null, "forward");
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    if (!activeConversationId) return;
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      if (document.visibilityState !== "visible") return;
+      const latest = messages[messages.length - 1];
+      if (!latest) return;
+      const cursor = encodeCursor({ id: latest.id, ts: latest.createdAt });
+      const res = await fetch(
+        `/api/user/conversations/${activeConversationId}/messages?direction=forward&cursor=${encodeURIComponent(cursor)}`,
+        { credentials: "include" }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.messages?.length) {
+        setMessages((prev) => [...prev, ...(data.messages ?? [])]);
+        loadConversations();
+      }
+    }, 8000);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [activeConversationId, messages]);
+
+  useEffect(() => {
+    const handler = window.setTimeout(async () => {
+      if (!searchTerm.trim()) {
+        setSearchResults([]);
+        return;
+      }
+      setSearching(true);
+      try {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(searchTerm.trim())}`, {
+          credentials: "include",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error ?? "Search failed");
+        setSearchResults(data.users ?? []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+    return () => window.clearTimeout(handler);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const nearTop = el.scrollTop < 120;
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+      if (nearTop && nextCursor && !loadingOlder) {
+        loadMessages(activeConversationId ?? "", nextCursor, "backward");
+      }
+      setNewMessageIndicator(!nearBottom);
+    };
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [nextCursor, loadingOlder, activeConversationId]);
+
+  useEffect(() => {
+    if (!listRef.current) return;
+    const el = listRef.current;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+    if (nearBottom) {
+      requestAnimationFrame(() => {
+        virtualizer.scrollToIndex(chatItems.length - 1, { align: "end" });
+      });
+      setNewMessageIndicator(false);
+    } else {
+      setNewMessageIndicator(true);
+    }
+  }, [chatItems.length, virtualizer]);
+
+  const filteredConversations = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return conversations;
+    return conversations.filter((conv) => {
+      const partner = conv.partner?.user;
+      const label = partner?.profile?.username || partner?.profile?.name || partner?.email || "";
+      return label.toLowerCase().includes(q);
+    });
+  }, [conversations, searchTerm]);
+
+  async function startChat(identifier: string) {
+    const res = await fetch("/api/user/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ identifier }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(data?.error ?? "Unable to start chat");
+      return;
+    }
+    setActiveConversationId(data.conversationId);
+    setShowThreadList(false);
+    await loadConversations();
   }
 
   async function ensureMutual(identifierValue: string) {
@@ -283,9 +341,7 @@ export default function MessagesPage() {
       credentials: "include",
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.mutual) {
-      return false;
-    }
+    if (!res.ok || !data.mutual) return false;
     return true;
   }
 
@@ -299,7 +355,7 @@ export default function MessagesPage() {
       .map((m) => m.trim())
       .filter(Boolean);
     if (members.length === 0) {
-      toast.error("Add at least one group member");
+      toast.error("Add at least one member");
       return;
     }
     const allowed: string[] = [];
@@ -317,13 +373,12 @@ export default function MessagesPage() {
     const next: Group = {
       id: `grp-${Date.now()}`,
       name: groupForm.name.trim(),
-      imageUrl: groupForm.imageUrl.trim() || undefined,
       members: allowed,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
     setGroups((prev) => [next, ...prev]);
-    setGroupForm({ name: "", imageUrl: "", members: "" });
+    setGroupForm({ name: "", members: "" });
     setGroupOpen(false);
     toast.success("Group created");
   }
@@ -381,7 +436,6 @@ export default function MessagesPage() {
           body: JSON.stringify({
             identifier: member,
             body: groupMessage,
-            opportunityId,
           }),
         });
       }
@@ -400,147 +454,160 @@ export default function MessagesPage() {
     if (selectedGroupId === id) setSelectedGroupId(null);
   }
 
-  const activeThread = threads.find((thread) => thread.partnerId === selectedPartnerId) ?? null;
+  async function sendMessage() {
+    if (!activeConversationId || !messageDraft.trim()) return;
+    const optimistic: Message = {
+      id: `temp-${Date.now()}`,
+      body: messageDraft,
+      createdAt: new Date().toISOString(),
+      fromUserId: currentUserId ?? "me",
+      toUserId: "",
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setMessageDraft("");
+    setSending(true);
+    try {
+      const res = await fetch(`/api/user/conversations/${activeConversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ body: optimistic.body }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Failed to send");
+      }
+      await loadConversations();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to send message");
+      setMessages((prev) => prev.filter((msg) => msg.id !== optimistic.id));
+      setMessageDraft(optimistic.body);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const activeConversation = conversations.find((conv) => conv.id === activeConversationId);
+  const partner = activeConversation?.partner?.user;
+  const partnerLabel = formatPartnerLabel(partner);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Messages</h1>
-          <p className="text-sm text-muted-foreground">Private conversations, designed like an IG inbox.</p>
+          <p className="text-sm text-muted-foreground">Private conversations with smooth, IG-style chat.</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="hidden sm:inline-flex"
-          onClick={() => setGroupOpen(true)}
-        >
-          <PenSquare className="mr-2 h-4 w-4" />
-          New group
-        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         <div
-          className={`flex max-h-[75vh] flex-col overflow-hidden rounded-2xl border bg-card lg:max-h-[70vh] ${
+          className={`flex max-h-[75vh] flex-col overflow-hidden rounded-2xl border bg-card ${
             showThreadList ? "flex" : "hidden"
           } md:flex`}
         >
           <div className="border-b px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold">Inbox</div>
-                <div className="text-xs text-muted-foreground">
-                  {filteredThreads.length} conversation{filteredThreads.length === 1 ? "" : "s"}
-                </div>
-              </div>
-              <Dialog open={groupOpen} onOpenChange={setGroupOpen}>
-                <DialogTrigger asChild>
-                  <Button size="icon" variant="ghost" aria-label="Create group">
-                    <PenSquare className="h-4 w-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create a group</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <Input
-                      placeholder="Group name"
-                      value={groupForm.name}
-                      onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
-                    />
-                    <Input
-                      placeholder="Group image URL (optional)"
-                      value={groupForm.imageUrl}
-                      onChange={(e) => setGroupForm({ ...groupForm, imageUrl: e.target.value })}
-                    />
-                    <Textarea
-                      placeholder="Members (comma-separated usernames or emails)"
-                      value={groupForm.members}
-                      onChange={(e) => setGroupForm({ ...groupForm, members: e.target.value })}
-                      rows={3}
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setGroupOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={createGroup}>Create group</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+            <div className="text-sm font-semibold">Inbox</div>
+            <div className="text-xs text-muted-foreground">
+              {conversations.length} conversation{conversations.length === 1 ? "" : "s"}
             </div>
             <div className="relative mt-3">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                value={threadSearch}
-                onChange={(e) => setThreadSearch(e.target.value)}
-                placeholder="Search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search or start a chat"
                 className="pl-9"
               />
             </div>
           </div>
 
-          <div className="space-y-3 border-b px-4 py-3">
+          <div className="border-b px-4 py-3">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">Start a chat</Label>
-            <div className="flex flex-col gap-2">
-              <Input
-                value={newRecipient}
-                onChange={(e) => setNewRecipient(e.target.value)}
-                placeholder="username or email"
-              />
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (!newRecipient.trim()) {
-                    toast.error("Enter a recipient");
-                    return;
-                  }
-                  setIdentifier(newRecipient.trim());
-                  setSelectedPartnerId(null);
-                  loadMessages(newRecipient.trim());
-                  setShowThreadList(false);
-                }}
-              >
-                Start chat
-              </Button>
-            </div>
+            {searching ? (
+              <div className="mt-3 space-y-2">
+                <Skeleton className="h-10" />
+                <Skeleton className="h-10" />
+              </div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {searchResults.length === 0 && searchTerm.trim() && (
+                  <div className="text-xs text-muted-foreground">No users found.</div>
+                )}
+                {searchResults.map((user) => {
+                  const label = formatPartnerLabel(user);
+                  return (
+                    <button
+                      key={user.id}
+                      type="button"
+                      onClick={() => startChat(user.profile?.username || user.email)}
+                      className="flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition hover:bg-muted"
+                    >
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={label.imageUrl} alt={label.name} />
+                        <AvatarFallback>{label.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium">{label.name}</div>
+                        <div className="text-xs text-muted-foreground line-clamp-1">{label.subtitle}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="flex-1 space-y-2 overflow-y-auto px-2 py-3">
-            {filteredThreads.length === 0 && (
+            {conversationsLoading ? (
+              <div className="space-y-3 px-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12" />
+                ))}
+              </div>
+            ) : filteredConversations.length === 0 ? (
               <div className="px-3 text-sm text-muted-foreground">No conversations yet.</div>
+            ) : (
+              filteredConversations.map((thread) => {
+                const threadPartner = thread.partner?.user;
+                const label = formatPartnerLabel(threadPartner);
+                return (
+                  <button
+                    key={thread.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveConversationId(thread.id);
+                      setShowThreadList(false);
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-muted ${
+                      activeConversationId === thread.id ? "bg-muted" : ""
+                    }`}
+                  >
+                    <Avatar className="h-11 w-11">
+                      <AvatarImage src={label.imageUrl} alt={label.name} />
+                      <AvatarFallback>{label.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium">{label.name}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-1">
+                        {thread.lastMessage?.body ?? "No messages yet"}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="text-[10px] text-muted-foreground">
+                        {thread.lastMessageAt ? new Date(thread.lastMessageAt).toLocaleDateString() : ""}
+                      </div>
+                      {thread.unreadCount ? (
+                        <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">
+                          {thread.unreadCount}
+                        </span>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })
             )}
-            {filteredThreads.map((thread) => (
-              <button
-                key={thread.partnerId}
-                type="button"
-                onClick={() => {
-                  setSelectedPartnerId(thread.partnerId);
-                  setIdentifier(thread.partnerIdentifier);
-                  loadMessages(thread.partnerIdentifier);
-                  setShowThreadList(false);
-                }}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-muted ${
-                  selectedPartnerId === thread.partnerId ? "bg-muted" : ""
-                }`}
-              >
-                <Avatar className="h-11 w-11">
-                  <AvatarImage src={thread.imageUrl} alt={thread.partnerName} />
-                  <AvatarFallback>{thread.partnerName.slice(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">{thread.partnerName}</div>
-                  <div className="text-xs text-muted-foreground line-clamp-1">
-                    {thread.lastMessage.body}
-                  </div>
-                </div>
-                <div className="text-[10px] text-muted-foreground">
-                  {new Date(thread.lastAt).toLocaleDateString()}
-                </div>
-              </button>
-            ))}
           </div>
         </div>
 
@@ -550,7 +617,7 @@ export default function MessagesPage() {
           } md:flex`}
         >
           <div className="border-b px-4 py-3">
-            {activeThread ? (
+            {partner ? (
               <div className="flex items-center gap-3">
                 <Button
                   variant="ghost"
@@ -562,13 +629,13 @@ export default function MessagesPage() {
                   ←
                 </Button>
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={activeThread.imageUrl} alt={activeThread.partnerName} />
-                  <AvatarFallback>{activeThread.partnerName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                  <AvatarImage src={partnerLabel.imageUrl} alt={partnerLabel.name} />
+                  <AvatarFallback>{partnerLabel.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <div className="text-sm font-semibold">{activeThread.partnerName}</div>
+                  <div className="text-sm font-semibold">{partnerLabel.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {activeThread.partnerSubtitle || "Active now"}
+                    {partnerLabel.subtitle || "Active now"}
                   </div>
                 </div>
               </div>
@@ -577,102 +644,97 @@ export default function MessagesPage() {
             )}
           </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto bg-muted/30 px-4 py-4">
-            {identifier.trim() === "" && (
-              <div className="text-sm text-muted-foreground">Choose a conversation to view messages.</div>
+          <div ref={listRef} className="relative flex-1 overflow-y-auto bg-muted/30 px-4 py-4">
+            {loadingOlder && (
+              <div className="mb-3 text-center text-xs text-muted-foreground">Loading older messages...</div>
             )}
-            {identifier.trim() !== "" && sortedMessages.length === 0 && (
+            {messagesLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10" />
+                ))}
+              </div>
+            ) : chatItems.length === 0 ? (
               <div className="text-sm text-muted-foreground">No messages yet.</div>
-            )}
-            {sortedMessages.map((msg) => {
-              const isMine = currentUserId && msg.fromUserId === currentUserId;
-              return (
-                <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[75%] space-y-2 rounded-2xl px-4 py-2 text-sm shadow-sm ${
-                      isMine
-                        ? "bg-primary text-primary-foreground"
-                        : "border border-border/60 bg-background"
-                    }`}
-                  >
-                    <div className="text-[10px] opacity-70">
-                      {new Date(msg.createdAt).toLocaleString()}
+            ) : (
+              <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const item = chatItems[virtualRow.index];
+                  if (!item) return null;
+                  return (
+                    <div
+                      key={item.id}
+                      ref={virtualizer.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      {item.type === "day" ? (
+                        <div className="my-4 flex items-center justify-center">
+                          <span className="rounded-full bg-muted px-3 py-1 text-[11px] text-muted-foreground">
+                            {item.label}
+                          </span>
+                        </div>
+                      ) : (
+                        <MessageBubble
+                          message={item.message}
+                          currentUserId={currentUserId}
+                          showTimestamp={item.showTimestamp}
+                        />
+                      )}
                     </div>
-                    <div>{msg.body}</div>
-                    {msg.opportunity && (
-                      <Link
-                        href={`/opportunities/${msg.opportunity.id}`}
-                        className={`text-xs underline ${isMine ? "text-primary-foreground" : "text-primary"}`}
-                      >
-                        Shared: {msg.opportunity.title}
-                      </Link>
-                    )}
-                    {currentUserId && isMine && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        onClick={async () => {
-                          if (!window.confirm("Unsend this message?")) return;
-                          const res = await fetch(`/api/user/messages/${msg.id}`, { method: "DELETE" });
-                          if (!res.ok) {
-                            const data = await res.json().catch(() => ({}));
-                            toast.error(data?.error ?? "Failed to unsend");
-                            return;
-                          }
-                          await loadMessages(identifier);
-                          await loadThreads();
-                        }}
-                      >
-                        Unsend
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
+
+            {newMessageIndicator && (
+              <div className="absolute bottom-4 right-4">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => virtualizer.scrollToIndex(chatItems.length - 1, { align: "end" })}
+                >
+                  New messages
+                </Button>
+              </div>
+            )}
           </div>
 
-          <div className="space-y-4 border-t bg-card px-4 py-4">
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Share an opportunity (optional)</Label>
-              <Select
-                value={opportunityId ?? "__none__"}
-                onValueChange={(v) => setOpportunityId(v === "__none__" ? null : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={loading ? "Loading..." : "Select opportunity"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No attachment</SelectItem>
-                  {opportunities.map((opp) => (
-                    <SelectItem key={opp.id} value={opp.id}>
-                      {opp.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-3 border-t bg-card px-4 py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <Textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                value={messageDraft}
+                onChange={(e) => setMessageDraft(e.target.value)}
                 placeholder="Message..."
                 rows={2}
                 className="min-h-[44px] flex-1 resize-none rounded-2xl"
               />
-              <Button onClick={send} disabled={sending || !identifier.trim()} className="sm:min-w-[120px]">
+              <Button onClick={sendMessage} disabled={sending || !activeConversationId || !messageDraft.trim()}>
                 {sending ? "Sending..." : "Send"}
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Need a quick intro? Share an opportunity from your <Link href="/opportunities" className="underline">portfolio</Link>.
+            </p>
           </div>
         </div>
       </div>
 
-      <details className="hidden rounded-2xl border bg-card p-5 md:block">
+      <details className="rounded-2xl border bg-card p-5">
         <summary className="cursor-pointer text-sm font-semibold">Group messaging</summary>
         <div className="mt-4 space-y-4">
           <div className="space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-muted-foreground">Broadcast a message to a saved group.</div>
+              <Button size="sm" variant="outline" onClick={() => setGroupOpen(true)}>
+                New group
+              </Button>
+            </div>
             {groups.length === 0 ? (
               <div className="text-sm text-muted-foreground">No groups yet.</div>
             ) : (
@@ -697,8 +759,32 @@ export default function MessagesPage() {
             )}
           </div>
 
+          {groupOpen && (
+            <div className="rounded-2xl border bg-background p-4">
+              <div className="space-y-3">
+                <Input
+                  placeholder="Group name"
+                  value={groupForm.name}
+                  onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                />
+                <Textarea
+                  placeholder="Members (comma-separated usernames or emails)"
+                  value={groupForm.members}
+                  onChange={(e) => setGroupForm({ ...groupForm, members: e.target.value })}
+                  rows={3}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" onClick={() => setGroupOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={createGroup}>Create</Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {selectedGroupId && (
-            <div className="space-y-3">
+            <div className="space-y-3 rounded-2xl border bg-background p-4">
               <div className="text-sm text-muted-foreground">
                 Messaging group: {selectedGroup()?.name}
               </div>
@@ -741,6 +827,42 @@ export default function MessagesPage() {
           )}
         </div>
       </details>
+    </div>
+  );
+}
+
+function MessageBubble({
+  message,
+  currentUserId,
+  showTimestamp,
+}: {
+  message: Message;
+  currentUserId: string | null;
+  showTimestamp: boolean;
+}) {
+  const isMine = currentUserId && message.fromUserId === currentUserId;
+  return (
+    <div className={`mb-3 flex ${isMine ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[75%] space-y-2 rounded-2xl px-4 py-2 text-sm shadow-sm break-words ${
+          isMine ? "bg-primary text-primary-foreground" : "border border-border/60 bg-background"
+        }`}
+      >
+        {showTimestamp && (
+          <div className="text-[10px] opacity-70">
+            {new Date(message.createdAt).toLocaleString()}
+          </div>
+        )}
+        <div>{message.body}</div>
+        {message.opportunity && (
+          <Link
+            href={`/opportunities/${message.opportunity.id}`}
+            className={`text-xs underline ${isMine ? "text-primary-foreground" : "text-primary"}`}
+          >
+            Shared: {message.opportunity.title}
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

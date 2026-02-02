@@ -75,14 +75,19 @@ export function matchesOpportunityInterest(
 }
 
 export function matchesOpportunityLocation(
-  opportunity: { locationName?: string | null },
+  opportunity: { locationName?: string | null; countryTags?: string[] | null },
   context: MatchContext
 ) {
+  const countryTags = (opportunity.countryTags ?? []).map((tag) => normalize(tag));
   const loc = safeText(opportunity.locationName ?? "");
-  if (!loc) return false;
+  if (!loc && countryTags.length === 0) return false;
   const countryMatch =
     (context.userCountry && loc.includes(context.userCountry)) ||
-    context.countryTerms.some((term) => loc.includes(term));
+    context.countryTerms.some((term) => loc.includes(term)) ||
+    countryTags.some((tag) =>
+      (context.userCountry && tag.includes(context.userCountry)) ||
+      context.countryTerms.some((term) => tag.includes(term))
+    );
   const regionMatch = context.userRegion ? loc.includes(context.userRegion) : false;
   return Boolean(countryMatch || regionMatch);
 }
@@ -95,15 +100,21 @@ export function getMatchScore(
     tags?: string[] | null;
     keywords?: string[] | null;
     locationName?: string | null;
+    countryTags?: string[] | null;
     askAmount?: number | null;
   },
   context: MatchContext
 ) {
   let score = 0;
   const loc = safeText(opportunity.locationName ?? "");
+  const countryTags = (opportunity.countryTags ?? []).map((tag) => normalize(tag));
   const countryMatch =
     (context.userCountry && loc.includes(context.userCountry)) ||
-    context.countryTerms.some((term) => loc.includes(term));
+    context.countryTerms.some((term) => loc.includes(term)) ||
+    countryTags.some((tag) =>
+      (context.userCountry && tag.includes(context.userCountry)) ||
+      context.countryTerms.some((term) => tag.includes(term))
+    );
   const regionMatch = context.userRegion ? loc.includes(context.userRegion) : false;
 
   if (countryMatch && regionMatch) score += 30;
@@ -131,7 +142,7 @@ export function getMatchScore(
 }
 
 export function shouldIncludeOpportunity(
-  opportunity: { locationName?: string | null; title?: string | null; summary?: string | null; details?: string | null; tags?: string[] | null; keywords?: string[] | null },
+  opportunity: { locationName?: string | null; countryTags?: string[] | null; title?: string | null; summary?: string | null; details?: string | null; tags?: string[] | null; keywords?: string[] | null },
   context: MatchContext
 ) {
   const hasInterestTerms = context.interestTerms.length > 0;
