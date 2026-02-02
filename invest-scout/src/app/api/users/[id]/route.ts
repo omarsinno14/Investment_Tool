@@ -1,58 +1,92 @@
-import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
+import { getCachedJson, setCachedJson } from "@/lib/cache";
+import { decodeCursor, encodeCursor, paginationSchema } from "@/lib/pagination";
+import { applyRateLimitHeaders, rateLimit } from "@/lib/rate-limit";
+import { getClientIp, getRequestId } from "@/lib/request-context";
+import { jsonResponse, withTiming } from "@/lib/api-response";
+import { logger } from "@/lib/logger";
 
 type RouteParams = { id?: string };
 
-export async function GET(_req: Request, context: { params: Promise<RouteParams> | RouteParams }) {
-  try {
-    const prisma = getPrismaClient();
-    if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
+export async function GET(req: Request, context: { params: Promise<RouteParams> | RouteParams }) {
+  return withTiming(async () => {
+    const requestId = getRequestId(req);
+    try {
+      const prisma = getPrismaClient();
+      if (!prisma) return jsonResponse(req, { error: "Database unavailable" }, 500, "user.profile", requestId);
 
-    const viewerId = await requireUserId();
-    if (!viewerId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const viewerId = await requireUserId();
+      if (!viewerId) return jsonResponse(req, { error: "Unauthorized" }, 401, "user.profile", requestId);
 
-    const { id } = await context.params;
-    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+      const ip = getClientIp(req);
+      const limitResult = await rateLimit(`profile:ip:${ip}`, 120, 60);
+      if (!limitResult.allowed) {
+        const response = jsonResponse(req, { error: "Rate limit exceeded" }, 429, "user.profile", requestId);
+        return applyRateLimitHeaders(response, 120, limitResult);
+      }
 
-    const user = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        profile: true,
-        interests: true,
-      },
-    });
-    if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      const { id } = await context.params;
+      if (!id) return jsonResponse(req, { error: "Missing id" }, 400, "user.profile", requestId);
 
-    const block = await prisma.block.findFirst({
-      where: {
-        OR: [
-          { blockerId: viewerId, blockedId: id },
-          { blockerId: id, blockedId: viewerId },
-        ],
-      },
-    });
+      const { searchParams } = new URL(req.url);
+      const parsed = paginationSchema.safeParse({ limit: searchParams.get("limit") ?? "50" });
+      if (!parsed.success) {
+        return jsonResponse(req, { error: "Invalid pagination" }, 400, "user.profile", requestId);
+      }
+      const oppCursor = decodeCursor(searchParams.get("opportunitiesCursor"));
+      const forumCursor = decodeCursor(searchParams.get("forumCursor"));
 
-    if (block && block.blockerId !== viewerId) {
-      return NextResponse.json({
-        user: {
-          id: user.id,
-          email: "",
-          profile: { name: user.profile?.name ?? null, username: user.profile?.username ?? null },
-          interests: [],
+      const cacheKey = `profile:${viewerId}:${id}:${parsed.data.limit}:${oppCursor?.id ?? "start"}:${forumCursor?.id ?? "start"}`;
+      const cached = await getCachedJson<any>(cacheKey);
+      if (cached) {
+        return jsonResponse(req, cached, 200, "user.profile", requestId);
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id },
+        include: {
+          profile: true,
+          interests: true,
         },
-        isFollowing: false,
-        isFollowedBy: false,
-        followRequestStatus: null,
-        followerCount: null,
-        followingCount: null,
-        mutualFollowers: [],
-        opportunities: [],
-        forumPosts: [],
-        isBlocked: false,
-        isBlockedBy: true,
       });
-    }
+      if (!user) return jsonResponse(req, { error: "Not found" }, 404, "user.profile", requestId);
+
+      const block = await prisma.block.findFirst({
+        where: {
+          OR: [
+            { blockerId: viewerId, blockedId: id },
+            { blockerId: id, blockedId: viewerId },
+          ],
+        },
+      });
+
+      if (block && block.blockerId !== viewerId) {
+        return jsonResponse(
+          req,
+          {
+            user: {
+              id: user.id,
+              email: "",
+              profile: { name: user.profile?.name ?? null, username: user.profile?.username ?? null },
+              interests: [],
+            },
+            isFollowing: false,
+            isFollowedBy: false,
+            followRequestStatus: null,
+            followerCount: null,
+            followingCount: null,
+            mutualFollowers: [],
+            opportunities: [],
+            forumPosts: [],
+            isBlocked: false,
+            isBlockedBy: true,
+          },
+          200,
+          "user.profile",
+          requestId
+        );
+      }
 
     const isFollowing = await prisma.follow.findUnique({
       where: { followerId_followingId: { followerId: viewerId, followingId: id } },
@@ -84,21 +118,39 @@ export async function GET(_req: Request, context: { params: Promise<RouteParams>
 
     const showPosts = Boolean(!isBlocked && (isFollowing || !profile?.hidePostsFromNonFollowers));
 
-    const opportunities = showPosts
-      ? await prisma.opportunity.findMany({
-          where: { createdByUserId: id, archivedAt: null },
-          orderBy: { publishedAt: "desc" },
-          take: 50,
-        })
-      : [];
+      const opportunityCursorFilter = oppCursor
+        ? {
+            OR: [
+              { publishedAt: { lt: new Date(oppCursor.ts) } },
+              { publishedAt: new Date(oppCursor.ts), id: { lt: oppCursor.id } },
+            ],
+          }
+        : {};
 
-    const forumPosts = showPosts
-      ? await prisma.forumPost.findMany({
-          where: { userId: id, archivedAt: null },
-          orderBy: { createdAt: "desc" },
-          take: 50,
-        })
-      : [];
+      const forumCursorFilter = forumCursor
+        ? {
+            OR: [
+              { createdAt: { lt: new Date(forumCursor.ts) } },
+              { createdAt: new Date(forumCursor.ts), id: { lt: forumCursor.id } },
+            ],
+          }
+        : {};
+
+      const opportunities = showPosts
+        ? await prisma.opportunity.findMany({
+            where: { createdByUserId: id, archivedAt: null, ...opportunityCursorFilter },
+            orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+            take: parsed.data.limit,
+          })
+        : [];
+
+      const forumPosts = showPosts
+        ? await prisma.forumPost.findMany({
+            where: { userId: id, archivedAt: null, ...forumCursorFilter },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: parsed.data.limit,
+          })
+        : [];
 
     const followerCountRaw = await prisma.follow.count({ where: { followingId: id } });
     const followingCountRaw = await prisma.follow.count({ where: { followerId: id } });
@@ -133,7 +185,10 @@ export async function GET(_req: Request, context: { params: Promise<RouteParams>
     const hideFollowerCount = Boolean(profile?.hideFollowerCount);
     const canViewCounts = !hideFollowerCount || viewerId === id;
 
-    return NextResponse.json({
+      const oppLast = opportunities[opportunities.length - 1];
+      const forumLast = forumPosts[forumPosts.length - 1];
+
+      const payload = {
       user: {
         id: user.id,
         email,
@@ -148,11 +203,21 @@ export async function GET(_req: Request, context: { params: Promise<RouteParams>
       mutualFollowers,
       opportunities,
       forumPosts,
+      opportunitiesNextCursor: oppLast
+        ? encodeCursor({ id: oppLast.id, ts: oppLast.publishedAt?.toISOString() ?? new Date().toISOString() })
+        : null,
+      forumNextCursor: forumLast
+        ? encodeCursor({ id: forumLast.id, ts: forumLast.createdAt.toISOString() })
+        : null,
       isBlocked,
       isBlockedBy: false,
-    });
-  } catch (e) {
-    console.error("Failed to load user profile", e);
-    return NextResponse.json({ error: "Failed to load user profile" }, { status: 500 });
-  }
+      };
+
+      await setCachedJson(cacheKey, payload, Number(process.env.PROFILE_CACHE_TTL_SECONDS || 30));
+      return jsonResponse(req, payload, 200, "user.profile", requestId);
+    } catch (e) {
+      logger.error({ err: e, requestId }, "Failed to load user profile");
+      return jsonResponse(req, { error: "Failed to load user profile" }, 500, "user.profile", requestId);
+    }
+  }, req, "user.profile");
 }

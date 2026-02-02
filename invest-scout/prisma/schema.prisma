@@ -237,6 +237,7 @@ model Opportunity {
   views   OpportunityView[]
 
   @@index([fetchedAt])
+  @@index([createdByUserId, fetchedAt])
 }
 
 model OpportunityView {
@@ -272,6 +273,8 @@ model ForumPost {
   views     ForumView[]
 
   @@index([userId])
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 model ForumView {
@@ -298,6 +301,7 @@ model ForumComment {
   createdAt DateTime  @default(now())
 
   @@index([postId])
+  @@index([postId, createdAt])
   @@index([userId])
 }
 
