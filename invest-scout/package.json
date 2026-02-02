@@ -11,7 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "postinstall": "prisma generate",
-    "test:smoke": "tsx scripts/smoke-tests.ts"
+    "test:smoke": "tsx scripts/smoke-tests.ts",
+    "test:news": "tsx scripts/tests/news-matcher.test.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -32,6 +33,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@aws-sdk/client-s3": "^3.891.0",
     "@aws-sdk/s3-request-presigner": "^3.891.0",
+    "@tanstack/react-virtual": "^3.13.12",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.66.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",

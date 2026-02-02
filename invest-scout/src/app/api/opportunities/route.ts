@@ -9,6 +9,7 @@ import { getClientIp, getRequestId } from "@/lib/request-context";
 import { jsonResponse, withTiming } from "@/lib/api-response";
 import { withTimeout } from "@/lib/timeouts";
 import { logger } from "@/lib/logger";
+import { getCutoffDate } from "@/lib/news-matcher";
 
 type OpportunityWithUser = Opportunity & {
   createdByUser?: {
@@ -49,6 +50,7 @@ export async function GET(req: Request) {
       }
 
       const type = searchParams.get("type");
+      const tab = searchParams.get("tab") ?? "for-you";
       const search = (searchParams.get("q") ?? "").trim().toLowerCase();
       const where =
         type === "headlines"
@@ -58,7 +60,7 @@ export async function GET(req: Request) {
             : undefined;
 
       const cursorPayload = decodeCursor(parsed.data.cursor);
-      const cacheKey = `feed:opportunities:${userId}:${type ?? "all"}:${search}:${parsed.data.limit}:${cursorPayload?.id ?? "start"}`;
+      const cacheKey = `feed:opportunities:${userId}:${type ?? "all"}:${tab}:${search}:${parsed.data.limit}:${cursorPayload?.id ?? "start"}`;
       const cached = await getCachedJson<{ opportunities: OpportunityWithUser[]; viewerId: string; nextCursor?: string }>(cacheKey);
       if (cached) {
         return jsonResponse(req, cached, 200, "opportunities", requestId);
@@ -86,7 +88,12 @@ export async function GET(req: Request) {
         investAmount: profile?.investAmount ?? null,
       });
 
-      const baseWhere = where ? { ...where, archivedAt: null } : { archivedAt: null };
+      const cutoff = getCutoffDate();
+      const newsFreshFilter =
+        type === "headlines"
+          ? { publishedAt: { gte: cutoff } }
+          : {};
+      const baseWhere = where ? { ...where, archivedAt: null, ...newsFreshFilter } : { archivedAt: null };
       const cursorFilter = cursorPayload
         ? {
             OR: [
@@ -115,7 +122,8 @@ export async function GET(req: Request) {
         "Opportunity query timeout"
       );
 
-      const matched: OpportunityWithUser[] = recent.filter((o) => shouldIncludeOpportunity(o, context));
+      const matched: OpportunityWithUser[] =
+        tab === "top" ? recent : recent.filter((o) => shouldIncludeOpportunity(o, context));
 
       const filtered = search
         ? matched.filter((o) => {

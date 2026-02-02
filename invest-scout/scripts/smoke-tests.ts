@@ -18,6 +18,8 @@ async function run() {
   const { POST: followPost } = await import("../src/app/api/user/follow/route");
   const { POST: blockPost } = await import("../src/app/api/user/block/route");
   const { GET: messagesGet } = await import("../src/app/api/user/messages/route");
+  const { GET: conversationsGet } = await import("../src/app/api/user/conversations/route");
+  const { GET: conversationMessagesGet } = await import("../src/app/api/user/conversations/[id]/messages/route");
   const { GET: notificationsGet } = await import("../src/app/api/user/notifications/route");
 
   await expectStatus(
@@ -46,6 +48,20 @@ async function run() {
     "Messages unauthenticated",
     messagesGet,
     new Request("http://localhost/api/user/messages"),
+    401
+  );
+
+  await expectStatus(
+    "Conversations unauthenticated",
+    conversationsGet,
+    new Request("http://localhost/api/user/conversations"),
+    401
+  );
+
+  await expectStatus(
+    "Conversation messages unauthenticated",
+    conversationMessagesGet,
+    new Request("http://localhost/api/user/conversations/conv-123/messages"),
     401
   );
 

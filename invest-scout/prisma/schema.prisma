@@ -74,6 +74,7 @@ model User {
   postedOpportunities    Opportunity[]
   messagesSent           Message[]             @relation("MessageFromUser")
   messagesReceived       Message[]             @relation("MessageToUser")
+  conversationParticipants ConversationParticipant[]
   forumPosts             ForumPost[]
   forumComments          ForumComment[]
   forumReactions         ForumReaction[]
@@ -219,6 +220,7 @@ model Opportunity {
   locationName              String?
   locationMapUrl            String?
   tags                      String[]  @default([])
+  countryTags               String[]  @default([])
   messages                  Message[]
   createdByUserId           String?
   createdByUser             User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
@@ -375,17 +377,48 @@ model Message {
   id            String   @id @default(cuid())
   fromUserId    String
   toUserId      String
+  conversationId String?
   body          String
   opportunityId String?
+  readAt        DateTime?
   createdAt     DateTime @default(now())
 
   fromUser    User         @relation("MessageFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
   toUser      User         @relation("MessageToUser", fields: [toUserId], references: [id], onDelete: Cascade)
   opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 
   @@index([fromUserId])
   @@index([toUserId])
   @@index([opportunityId])
+  @@index([conversationId, createdAt])
+}
+
+model Conversation {
+  id            String   @id @default(cuid())
+  lastMessageAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([lastMessageAt])
+}
+
+model ConversationParticipant {
+  id             String   @id @default(cuid())
+  conversationId String
+  userId         String
+  lastReadAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
 }
 
 model Notification {

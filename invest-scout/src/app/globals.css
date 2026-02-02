@@ -118,8 +118,32 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    min-width: 0;
+  }
+  html {
+    scroll-behavior: smooth;
   }
   body {
     @apply bg-background text-foreground overflow-x-hidden;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+  [data-scroll-container] {
+    scroll-behavior: smooth;
+    scrollbar-gutter: stable;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html,
+    [data-scroll-container] {
+      scroll-behavior: auto;
+    }
   }
 }

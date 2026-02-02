@@ -16,15 +16,13 @@ export type RssSource = {
   url: string;
 };
 
-export type RssSource = {
-  name: string;
-  url: string;
-};
-
 const parser = new Parser();
 
-export async function fetchRss(url: string) {
-  const feed = await parser.parseURL(url);
+export async function fetchRss(url: string, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const feed = await parser.parseURL(url, { signal: controller.signal } as any);
+  clearTimeout(timeout);
   const items = (feed.items ?? []) as RssItem[];
   return items;
 }

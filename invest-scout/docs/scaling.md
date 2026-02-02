@@ -34,6 +34,7 @@ Configure by editing the rate limit values in routes or add env overrides if str
 ## Background jobs
 - BullMQ queue `image-processing` in Redis.
 - Worker `worker/image-processor.ts` generates 320px thumbnails asynchronously.
+- News ingest runs via `worker/ingest.ts` and respects a 6-month cutoff with cleanup.
 
 ## Uploads
 - Server uploads to S3/local. For direct-to-storage: `/api/uploads/presign`.

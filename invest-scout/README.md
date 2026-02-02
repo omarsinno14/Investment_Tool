@@ -52,6 +52,25 @@ node --env-file .env worker/image-processor.ts
 
 See `docs/load-testing.md` for k6 scripts and how to run scenarios.
 
+## News ingestion & freshness
+
+- Sources are configured in `config/news-sources.json` (global + country-specific RSS feeds).
+- Interest keyword mappings live in `config/interest-keywords.json`.
+- Use env vars to override paths and defaults:
+  - `NEWS_SOURCES_PATH`
+  - `NEWS_INTEREST_KEYWORDS_PATH`
+  - `NEWS_DEFAULT_COUNTRIES`
+  - `NEWS_MAX_SOURCES`
+
+**Freshness rule**: articles older than 6 months are rejected during ingestion and filtered out of queries. This cutoff is enforced in `/api/admin/ingest` and `/api/opportunities?type=headlines`.
+
+To run ingestion locally:
+```bash
+ADMIN_INGEST_TOKEN=local-token npm run worker
+# or call the endpoint directly
+curl -H "Authorization: Bearer local-token" -X POST http://localhost:3000/api/admin/ingest
+```
+
 ## Deployment notes
 
 Recommended: Docker/Kubernetes with horizontal scaling for the Next.js API and separate worker replicas.
