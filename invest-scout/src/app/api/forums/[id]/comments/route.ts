@@ -100,7 +100,7 @@ export async function POST(req: Request, { params }: { params: { id?: string } }
           data: {
             userId: post.userId,
             type: "FORUM_COMMENT",
-            data: { postId: id, fromUserId: userId },
+            data: { postId: id, fromUserId: userId, snippet: content.slice(0, 80) },
           },
         });
       }

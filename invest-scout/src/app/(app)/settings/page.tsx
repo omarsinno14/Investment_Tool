@@ -44,6 +44,19 @@ function isRisk5(v: any): v is Risk5 {
   );
 }
 
+function suggestUsername(email?: string | null) {
+  if (!email) return "";
+  const local = email.split("@")[0] ?? "";
+  const cleaned = local.replace(/[^a-zA-Z0-9._]/g, "").toLowerCase();
+  if (cleaned.length >= 3) {
+    return cleaned.slice(0, 20);
+  }
+  if (cleaned.length > 0) {
+    return `${cleaned}${"invest".slice(0, 3 - cleaned.length)}`.slice(0, 20);
+  }
+  return "investor";
+}
+
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { setCurrency } = useCurrency();
@@ -88,6 +101,7 @@ export default function SettingsPage() {
   const [uploadingCv, setUploadingCv] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
   const [loadingBlocks, setLoadingBlocks] = useState(false);
+  const [usernameSuggestion, setUsernameSuggestion] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
   const coverRef = useRef<HTMLInputElement | null>(null);
   const cvRef = useRef<HTMLInputElement | null>(null);
@@ -122,9 +136,11 @@ export default function SettingsPage() {
 
         if (res.ok && isJson) {
           const p = data.profile ?? {};
+          const suggested = !p.username ? suggestUsername(data.email) : "";
+          setUsernameSuggestion(suggested);
           setForm({
             name: p.name ?? "",
-            username: p.username ?? "",
+            username: p.username ?? suggested ?? "",
             phone: p.phone ?? "",
             imageUrl: p.imageUrl ?? "",
             coverPhotoUrl: p.coverPhotoUrl ?? "",
@@ -511,6 +527,11 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label>Username</Label>
             <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+            <p className="text-xs text-muted-foreground">
+              Use 3-20 characters (letters, numbers, underscores, dots).{usernameSuggestion
+                ? ` Suggested: @${usernameSuggestion}`
+                : ""}
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -775,7 +796,7 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Blocked users</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="divide-y">
           {loadingBlocks && <div className="text-sm text-muted-foreground">Loading blocked users...</div>}
           {!loadingBlocks && blockedUsers.length === 0 && (
             <div className="text-sm text-muted-foreground">You have not blocked anyone.</div>
@@ -784,7 +805,7 @@ export default function SettingsPage() {
             const user = block.blocked ?? block;
             const name = user?.profile?.username || user?.profile?.name || user?.email || "User";
             return (
-              <div key={block.id ?? user?.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+              <div key={block.id ?? user?.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={user?.profile?.imageUrl || undefined} alt={name} />

@@ -10,8 +10,11 @@ export async function GET() {
     const userId = await requireUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const profile = await prisma.profile.findUnique({ where: { userId } });
-    return NextResponse.json({ profile });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, profile: true },
+    });
+    return NextResponse.json({ profile: user?.profile ?? null, email: user?.email ?? null });
   } catch (e) {
     console.error("Failed to load profile", e);
     return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
@@ -32,10 +35,30 @@ export async function POST(req: Request) {
     const cleanUsername = typeof body.username === "string" ? body.username.trim() : null;
     const cleanPhone =
       typeof body.phone === "string" ? body.phone.replace(/[^\d+]/g, "").trim() : null;
+    const usernameLower = cleanUsername ? cleanUsername.toLowerCase() : null;
+    const usernameRegex = /^[a-zA-Z0-9._]{3,20}$/;
+
+    if (cleanUsername && !usernameRegex.test(cleanUsername)) {
+      return NextResponse.json(
+        { error: "Username must be 3-20 characters with letters, numbers, underscores, or dots." },
+        { status: 400 }
+      );
+    }
+
+    if (usernameLower) {
+      const existing = await prisma.profile.findFirst({
+        where: { usernameLower, userId: { not: userId } },
+        select: { id: true },
+      });
+      if (existing) {
+        return NextResponse.json({ error: "Username is already taken." }, { status: 409 });
+      }
+    }
 
     const baseData = {
       name: body.name ?? null,
       username: cleanUsername || null,
+      usernameLower,
       phone: cleanPhone || null,
       bio: body.bio ?? null,
       occupation: body.occupation ?? null,

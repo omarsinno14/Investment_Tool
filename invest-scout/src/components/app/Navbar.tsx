@@ -192,9 +192,6 @@ export function Navbar() {
                 <Link href="/my-profile">My profile</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/follow-requests">Follow requests</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
                 <Link href="/activity">My activity</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>

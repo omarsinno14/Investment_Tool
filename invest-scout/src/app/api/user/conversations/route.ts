@@ -65,6 +65,8 @@ export async function GET(req: Request) {
             partner,
             lastMessage,
             lastMessageAt: conversation.lastMessageAt,
+            partnerLastReadAt: partner?.lastReadAt ?? null,
+            myLastReadAt: participant?.lastReadAt ?? null,
             unreadCount,
           };
         })

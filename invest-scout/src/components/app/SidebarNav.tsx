@@ -127,10 +127,6 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
               <Lightbulb className="h-4 w-4" />
               {!collapsed && <span>Interests</span>}
             </Link>
-            <Link href="/follow-requests" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
-              <User className="h-4 w-4" />
-              {!collapsed && <span>Follow requests</span>}
-            </Link>
             <Link href="/activity" className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted">
               <ClipboardList className="h-4 w-4" />
               {!collapsed && <span>My activity</span>}

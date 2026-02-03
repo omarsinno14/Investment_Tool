@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
+import { normalizeText } from "@/lib/news-matcher";
 
 export async function GET() {
   try {
@@ -9,6 +10,56 @@ export async function GET() {
 
     const userId = await requireUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const interests = await prisma.interest.findMany({
+      where: { userId },
+      select: { value: true },
+    });
+    const interestKeys = Array.from(
+      new Set(interests.map((item) => normalizeText(item.value)).filter(Boolean))
+    ).slice(0, 25);
+
+    if (interestKeys.length > 0) {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const [recentBreaking, existingBreaking] = await Promise.all([
+        prisma.opportunity.findMany({
+          where: {
+            createdByUserId: null,
+            publishedAt: { gte: cutoff },
+            keywords: { hasSome: interestKeys },
+          },
+          orderBy: { publishedAt: "desc" },
+          take: 6,
+          select: { id: true, title: true, source: true, url: true, publishedAt: true },
+        }),
+        prisma.notification.findMany({
+          where: { userId, type: "NEWS_BREAKING", createdAt: { gte: cutoff } },
+          select: { id: true, data: true },
+        }),
+      ]);
+
+      const existingIds = new Set(
+        existingBreaking
+          .map((note) => (note.data as any)?.opportunityId)
+          .filter((id) => typeof id === "string") as string[]
+      );
+
+      const toCreate = recentBreaking.filter((item) => !existingIds.has(item.id));
+      if (toCreate.length > 0) {
+        await prisma.notification.createMany({
+          data: toCreate.map((item) => ({
+            userId,
+            type: "NEWS_BREAKING",
+            data: {
+              opportunityId: item.id,
+              headline: item.title,
+              source: item.source,
+              url: item.url,
+            },
+          })),
+        });
+      }
+    }
 
     const notifications = await prisma.notification.findMany({
       where: { userId },
@@ -90,6 +141,13 @@ export async function POST(req: Request) {
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json().catch(() => null);
+    if (body?.markAll) {
+      await prisma.notification.updateMany({
+        where: { userId, readAt: null },
+        data: { readAt: new Date() },
+      });
+      return NextResponse.json({ status: "read_all" });
+    }
     if (!body?.notificationId) {
       return NextResponse.json({ error: "Missing notificationId" }, { status: 400 });
     }

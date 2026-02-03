@@ -19,7 +19,7 @@ async function resolveRecipient(prisma: ReturnType<typeof getPrismaClient>, iden
     return prisma?.user.findFirst({ where: { profile: { phone: digits } } });
   }
 
-  return prisma?.user.findFirst({ where: { profile: { username: cleaned } } });
+  return prisma?.user.findFirst({ where: { profile: { usernameLower: cleaned.toLowerCase() } } });
 }
 
 export async function GET(req: Request) {

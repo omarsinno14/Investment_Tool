@@ -40,6 +40,7 @@ enum NotificationType {
   JOURNAL_INVITE
   JOURNAL_INVITE_ACCEPTED
   REPORT_RECEIVED
+  NEWS_BREAKING
 }
 
 enum FollowRequestStatus {
@@ -108,6 +109,7 @@ model Profile {
 
   name                        String?
   username                    String?       @unique
+  usernameLower               String?       @unique
   phone                       String?       @unique
   imageUrl                    String?
   coverPhotoUrl               String?
@@ -381,6 +383,8 @@ model Message {
   body          String
   opportunityId String?
   readAt        DateTime?
+  editedAt      DateTime?
+  deletedAt     DateTime?
   createdAt     DateTime @default(now())
 
   fromUser    User         @relation("MessageFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
