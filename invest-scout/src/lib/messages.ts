@@ -20,7 +20,7 @@ export async function resolveRecipient(prisma: ReturnType<typeof getPrismaClient
   }
 
   return prisma?.user.findFirst({
-    where: { profile: { username: cleaned } },
+    where: { profile: { usernameLower: cleaned.toLowerCase() } },
   });
 }
 

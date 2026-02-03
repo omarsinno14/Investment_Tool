@@ -364,7 +364,7 @@ export default function UserProfilePage() {
             <CardTitle className="text-base">Contact</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-1">
-            {user.email && <div>Email: {user.email}</div>}
+            {!user.profile?.username && user.email && <div>Email: {user.email}</div>}
             {user.profile?.phone && <div>Phone: {user.profile.phone}</div>}
             {user.profile?.age != null && <div>Age: {user.profile.age}</div>}
             {user.profile?.websiteUrl && (

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { BadgeCheck, ShieldCheck } from "lucide-react";
+import { BadgeCheck, ShieldCheck, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,9 +94,16 @@ export default function MyProfilePage() {
             Preview what others see on your profile and review your public posts.
           </p>
         </div>
-        <Button variant="outline" onClick={() => setPreview((prev) => !prev)}>
-          {preview ? "Switch to full view" : "Preview as non-follower"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setPreview((prev) => !prev)}>
+            {preview ? "Switch to full view" : "Preview as non-follower"}
+          </Button>
+          <Button asChild variant="ghost" size="icon" className="md:hidden">
+            <Link href="/settings" aria-label="Open settings">
+              <Settings className="h-5 w-5" />
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card className="overflow-hidden">
@@ -131,7 +138,7 @@ export default function MyProfilePage() {
           {profile.bio && <p className="text-sm text-muted-foreground">{profile.bio}</p>}
           <div className="grid gap-2 text-sm">
             {profile.phone && <div>Phone: {profile.phone}</div>}
-            {data.user.email && <div>Email: {data.user.email}</div>}
+            {!profile.username && data.user.email && <div>Email: {data.user.email}</div>}
             {profile.age != null && <div>Age: {profile.age}</div>}
             {profile.websiteUrl && (
               <div>

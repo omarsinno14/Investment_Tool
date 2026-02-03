@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       where: {
         OR: [
           { email: identifier },
-          { profile: { username: identifier } },
+          { profile: { usernameLower: identifier } },
         ],
       },
       select: { id: true },

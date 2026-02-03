@@ -13,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { NAV_BADGE_KEYS, markNavSeen } from "@/lib/nav-badges";
 import { encodeCursor } from "@/lib/pagination";
-import { Search } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Search, MoreHorizontal } from "lucide-react";
 
 type UserSummary = {
   id: string;
@@ -25,6 +26,8 @@ type Message = {
   id: string;
   body: string;
   createdAt: string;
+  editedAt?: string | null;
+  deletedAt?: string | null;
   fromUserId: string;
   toUserId: string;
   fromUser?: UserSummary | null;
@@ -37,6 +40,8 @@ type Conversation = {
   partner?: { user: UserSummary } | null;
   lastMessage?: Message | null;
   lastMessageAt?: string | null;
+  partnerLastReadAt?: string | null;
+  myLastReadAt?: string | null;
   unreadCount?: number;
 };
 
@@ -50,38 +55,61 @@ type Group = {
 
 type ChatItem =
   | { type: "day"; id: string; label: string }
-  | { type: "message"; id: string; message: Message; showTimestamp: boolean };
+  | { type: "message"; id: string; message: Message };
 
 const GROUPS_KEY = "invesco-message-groups";
 
+const MONTREAL_TZ = "America/Montreal";
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  timeZone: MONTREAL_TZ,
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+const timeFormatter = new Intl.DateTimeFormat(undefined, {
+  timeZone: MONTREAL_TZ,
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 function formatPartnerLabel(user?: UserSummary | null) {
-  const name = user?.profile?.username || user?.profile?.name || user?.email || "Unknown";
-  const subtitle = user?.profile?.username ? `@${user.profile.username}` : user?.email || "";
+  const username = user?.profile?.username;
+  const name = username || user?.profile?.name || user?.email || "Unknown";
+  const subtitle = username ? user?.profile?.name || "" : user?.email || "";
   return { name, subtitle, imageUrl: user?.profile?.imageUrl };
 }
 
+function dayKey(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: MONTREAL_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 function formatDayLabel(date: Date) {
-  return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const todayKey = dayKey(new Date());
+  const yesterdayKey = dayKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  const target = dayKey(date);
+  if (target === todayKey) return "Today";
+  if (target === yesterdayKey) return "Yesterday";
+  return dateFormatter.format(date);
 }
 
 function buildChatItems(messages: Message[]) {
   const items: ChatItem[] = [];
   let lastDay = "";
-  let lastSender = "";
-  let lastTime = 0;
   for (const message of messages) {
     const created = new Date(message.createdAt);
-    const day = created.toDateString();
+    const day = dayKey(created);
     if (day !== lastDay) {
       items.push({ type: "day", id: `day-${day}`, label: formatDayLabel(created) });
       lastDay = day;
-      lastSender = "";
-      lastTime = 0;
     }
-    const showTimestamp = message.fromUserId !== lastSender || created.getTime() - lastTime > 5 * 60 * 1000;
-    items.push({ type: "message", id: message.id, message, showTimestamp });
-    lastSender = message.fromUserId;
-    lastTime = created.getTime();
+    items.push({ type: "message", id: message.id, message });
   }
   return items;
 }
@@ -101,6 +129,7 @@ export default function MessagesPage() {
   const [searchResults, setSearchResults] = useState<UserSummary[]>([]);
   const [searching, setSearching] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
   const [showThreadList, setShowThreadList] = useState(true);
   const [newMessageIndicator, setNewMessageIndicator] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -109,6 +138,8 @@ export default function MessagesPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [groupMessage, setGroupMessage] = useState("");
   const [newMember, setNewMember] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingBody, setEditingBody] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -123,6 +154,24 @@ export default function MessagesPage() {
 
   useEffect(() => {
     markNavSeen(NAV_BADGE_KEYS.messages);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/user/profile", { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        if (!active) return;
+        setCurrentUsername(data?.profile?.username ?? null);
+      } catch (e) {
+        console.error("Failed to load profile for messaging", e);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -425,6 +474,11 @@ export default function MessagesPage() {
       toast.error("Write a group message");
       return;
     }
+    if (!currentUsername) {
+      toast.error("Set a username in Settings before sending messages.");
+      window.location.href = "/settings";
+      return;
+    }
     setSending(true);
     try {
       for (const member of group.members) {
@@ -456,6 +510,11 @@ export default function MessagesPage() {
 
   async function sendMessage() {
     if (!activeConversationId || !messageDraft.trim()) return;
+    if (!currentUsername) {
+      toast.error("Set a username in Settings before sending messages.");
+      window.location.href = "/settings";
+      return;
+    }
     const optimistic: Message = {
       id: `temp-${Date.now()}`,
       body: messageDraft,
@@ -488,9 +547,63 @@ export default function MessagesPage() {
     }
   }
 
+  async function unsendMessage(messageId: string) {
+    try {
+      const res = await fetch(`/api/user/messages/${messageId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to remove message");
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === messageId ? { ...msg, body: "", deletedAt: new Date().toISOString() } : msg))
+      );
+      await loadConversations();
+    } catch (e) {
+      console.error(e);
+      toast.error("Unable to remove message");
+    }
+  }
+
+  async function saveEdit(messageId: string) {
+    if (!editingBody.trim()) {
+      toast.error("Message cannot be empty");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/user/messages/${messageId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ body: editingBody }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to edit message");
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, body: editingBody, editedAt: new Date().toISOString(), deletedAt: null }
+            : msg
+        )
+      );
+      setEditingId(null);
+      setEditingBody("");
+    } catch (e) {
+      console.error(e);
+      toast.error("Unable to edit message");
+    }
+  }
+
+  const latestOutgoing = useMemo(() => {
+    if (!currentUserId) return null;
+    const outgoing = messages.filter((msg) => msg.fromUserId === currentUserId);
+    return outgoing[outgoing.length - 1] ?? null;
+  }, [messages, currentUserId]);
+
   const activeConversation = conversations.find((conv) => conv.id === activeConversationId);
   const partner = activeConversation?.partner?.user;
   const partnerLabel = formatPartnerLabel(partner);
+  const partnerReadAt = activeConversation?.partnerLastReadAt ? new Date(activeConversation.partnerLastReadAt) : null;
 
   return (
     <div className="space-y-6">
@@ -531,9 +644,9 @@ export default function MessagesPage() {
                 <Skeleton className="h-10" />
               </div>
             ) : (
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 divide-y rounded-xl border">
                 {searchResults.length === 0 && searchTerm.trim() && (
-                  <div className="text-xs text-muted-foreground">No users found.</div>
+                  <div className="px-3 py-2 text-xs text-muted-foreground">No users found.</div>
                 )}
                 {searchResults.map((user) => {
                   const label = formatPartnerLabel(user);
@@ -542,7 +655,7 @@ export default function MessagesPage() {
                       key={user.id}
                       type="button"
                       onClick={() => startChat(user.profile?.username || user.email)}
-                      className="flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition hover:bg-muted"
+                      className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-muted"
                     >
                       <Avatar className="h-9 w-9">
                         <AvatarImage src={label.imageUrl} alt={label.name} />
@@ -591,7 +704,7 @@ export default function MessagesPage() {
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium">{label.name}</div>
                       <div className="text-xs text-muted-foreground line-clamp-1">
-                        {thread.lastMessage?.body ?? "No messages yet"}
+                        {thread.lastMessage?.deletedAt ? "Message removed" : thread.lastMessage?.body ?? "No messages yet"}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -683,7 +796,21 @@ export default function MessagesPage() {
                         <MessageBubble
                           message={item.message}
                           currentUserId={currentUserId}
-                          showTimestamp={item.showTimestamp}
+                          isLatestOutgoing={latestOutgoing?.id === item.message.id}
+                          partnerReadAt={partnerReadAt}
+                          editingId={editingId}
+                          editingBody={editingBody}
+                          onEditingBodyChange={setEditingBody}
+                          onStartEdit={() => {
+                            setEditingId(item.message.id);
+                            setEditingBody(item.message.body);
+                          }}
+                          onCancelEdit={() => {
+                            setEditingId(null);
+                            setEditingBody("");
+                          }}
+                          onSaveEdit={() => saveEdit(item.message.id)}
+                          onUnsend={() => unsendMessage(item.message.id)}
                         />
                       )}
                     </div>
@@ -834,34 +961,99 @@ export default function MessagesPage() {
 function MessageBubble({
   message,
   currentUserId,
-  showTimestamp,
+  isLatestOutgoing,
+  partnerReadAt,
+  editingId,
+  editingBody,
+  onEditingBodyChange,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onUnsend,
 }: {
   message: Message;
   currentUserId: string | null;
-  showTimestamp: boolean;
+  isLatestOutgoing: boolean;
+  partnerReadAt: Date | null;
+  editingId: string | null;
+  editingBody: string;
+  onEditingBodyChange: (value: string) => void;
+  onStartEdit: () => void;
+  onCancelEdit: () => void;
+  onSaveEdit: () => void;
+  onUnsend: () => void;
 }) {
   const isMine = currentUserId && message.fromUserId === currentUserId;
+  const isEditing = editingId === message.id;
+  const timestamp = timeFormatter.format(new Date(message.createdAt));
+  const showReceipt = isMine && isLatestOutgoing;
+  let receipt = "Sent";
+  if (showReceipt && partnerReadAt) {
+    receipt = partnerReadAt >= new Date(message.createdAt) ? "Seen" : "Delivered";
+  }
   return (
-    <div className={`mb-3 flex ${isMine ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[75%] space-y-2 rounded-2xl px-4 py-2 text-sm shadow-sm break-words ${
-          isMine ? "bg-primary text-primary-foreground" : "border border-border/60 bg-background"
-        }`}
-      >
-        {showTimestamp && (
-          <div className="text-[10px] opacity-70">
-            {new Date(message.createdAt).toLocaleString()}
-          </div>
-        )}
-        <div>{message.body}</div>
-        {message.opportunity && (
-          <Link
-            href={`/opportunities/${message.opportunity.id}`}
-            className={`text-xs underline ${isMine ? "text-primary-foreground" : "text-primary"}`}
-          >
-            Shared: {message.opportunity.title}
-          </Link>
-        )}
+    <div className={`group mb-3 flex ${isMine ? "justify-end" : "justify-start"}`}>
+      <div className={`flex max-w-[75%] flex-col items-${isMine ? "end" : "start"} gap-1`}>
+        <div
+          className={`relative space-y-2 rounded-2xl px-4 py-2 text-sm shadow-sm break-words ${
+            isMine ? "bg-primary text-primary-foreground" : "border border-border/60 bg-background"
+          }`}
+        >
+          {isMine && !message.deletedAt && (
+            <div className="absolute -right-8 top-1/2 flex -translate-y-1/2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground opacity-100 transition md:opacity-0 md:group-hover:opacity-100"
+                    aria-label="Message options"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onStartEdit}>Edit</DropdownMenuItem>
+                  <DropdownMenuItem onClick={onUnsend}>Unsend</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+          {message.deletedAt ? (
+            <div className="italic text-muted-foreground">Message removed</div>
+          ) : isEditing ? (
+            <div className="space-y-2">
+              <Textarea
+                value={editingBody}
+                onChange={(e) => onEditingBodyChange(e.target.value)}
+                rows={2}
+                className="min-h-[60px] resize-none rounded-xl"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <Button size="sm" variant="ghost" onClick={onCancelEdit}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={onSaveEdit}>
+                  Save
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div>{message.body}</div>
+          )}
+          {message.opportunity && !message.deletedAt && !isEditing && (
+            <Link
+              href={`/opportunities/${message.opportunity.id}`}
+              className={`text-xs underline ${isMine ? "text-primary-foreground" : "text-primary"}`}
+            >
+              Shared: {message.opportunity.title}
+            </Link>
+          )}
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          {timestamp}
+          {message.editedAt && !message.deletedAt ? " • Edited" : ""}
+          {showReceipt ? ` • ${receipt}` : ""}
+        </div>
       </div>
     </div>
   );
