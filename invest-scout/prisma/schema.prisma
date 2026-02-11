@@ -41,6 +41,14 @@ enum NotificationType {
   JOURNAL_INVITE_ACCEPTED
   REPORT_RECEIVED
   NEWS_BREAKING
+  FORUM_MENTION
+  HUB_MENTION
+}
+
+enum HubPostType {
+  DISCUSSION
+  OPPORTUNITY_IMPORT
+  NEWS_IMPORT
 }
 
 enum FollowRequestStatus {
@@ -94,6 +102,10 @@ model User {
   reportsSent            Report[]              @relation("ReportReporter")
   blocksInitiated        Block[]               @relation("Blocker")
   blocksReceived         Block[]               @relation("Blocked")
+  hubsOwned              Hub[]                 @relation("HubOwner")
+  hubMemberships         HubMembership[]
+  hubPosts               HubPost[]
+  contentMentions        ContentMention[]      @relation("MentionedUser")
 
   // ✅ Added missing back-relations (named to match the view models)
   opportunityViews OpportunityView[] @relation("OpportunityView_viewer")
@@ -275,10 +287,86 @@ model ForumPost {
   saves     ForumSave[]
   reposts   ForumRepost[]
   views     ForumView[]
+  mentions  ContentMention[]
 
   @@index([userId])
   @@index([createdAt])
   @@index([userId, createdAt])
+}
+
+model Hub {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  isPrivate   Boolean  @default(false)
+  ownerUserId String
+  inviteToken String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner       User            @relation("HubOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  memberships HubMembership[]
+  posts       HubPost[]
+
+  @@unique([name])
+  @@index([name])
+  @@index([ownerUserId])
+}
+
+model HubMembership {
+  id       String   @id @default(cuid())
+  hubId    String
+  userId   String
+  role     String   @default("member")
+  joinedAt DateTime @default(now())
+
+  hub  Hub  @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([hubId, userId])
+  @@index([userId, joinedAt])
+}
+
+model HubPost {
+  id               String      @id @default(cuid())
+  hubId            String
+  authorUserId     String
+  title            String
+  body             String
+  type             HubPostType @default(DISCUSSION)
+  opportunityId    String?
+  newsHeadline     String?
+  newsUrl          String?
+  newsSource       String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  editedAt         DateTime?
+  deletedAt        DateTime?
+
+  hub         Hub          @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  author      User         @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  mentions    ContentMention[]
+
+  @@index([hubId, createdAt])
+  @@index([authorUserId, createdAt])
+}
+
+model ContentMention {
+  id              String   @id @default(cuid())
+  forumPostId     String?
+  hubPostId       String?
+  mentionedUserId String
+  createdAt       DateTime @default(now())
+
+  forumPost      ForumPost? @relation(fields: [forumPostId], references: [id], onDelete: Cascade)
+  hubPost        HubPost?   @relation(fields: [hubPostId], references: [id], onDelete: Cascade)
+  mentionedUser  User       @relation("MentionedUser", fields: [mentionedUserId], references: [id], onDelete: Cascade)
+
+  @@index([mentionedUserId, createdAt])
+  @@index([forumPostId])
+  @@index([hubPostId])
 }
 
 model ForumView {

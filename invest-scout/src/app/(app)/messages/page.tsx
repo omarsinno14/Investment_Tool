@@ -57,7 +57,7 @@ type ChatItem =
   | { type: "day"; id: string; label: string }
   | { type: "message"; id: string; message: Message };
 
-const GROUPS_KEY = "invesco-message-groups";
+const GROUPS_KEY = "invescout-message-groups";
 
 const MONTREAL_TZ = "America/Montreal";
 const dateFormatter = new Intl.DateTimeFormat(undefined, {

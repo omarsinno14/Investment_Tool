@@ -12,6 +12,7 @@ import { MAX_IMAGE_SIZE_BYTES, MAX_POST_BODY_LENGTH } from "@/lib/uploads";
 import { uploadBuffer } from "@/lib/storage";
 import { enqueueImageResize } from "@/lib/queue";
 import { checkIdempotency } from "@/lib/idempotency";
+import { resolveMentionedUsers } from "@/lib/mentions";
 
 export async function GET(req: Request) {
   return withTiming(async () => {
@@ -194,6 +195,21 @@ export async function POST(req: Request) {
           imageUrl,
         },
       });
+
+      const mentions = await resolveMentionedUsers(prisma, `${title} ${body}`);
+      if (mentions.length) {
+        await prisma.contentMention.createMany({
+          data: mentions.map((mentionedUserId) => ({ forumPostId: post.id, mentionedUserId })),
+          skipDuplicates: true,
+        });
+        await prisma.notification.createMany({
+          data: mentions.filter((id) => id !== userId).map((id) => ({
+            userId: id,
+            type: "FORUM_MENTION",
+            data: { fromUserId: userId, forumPostId: post.id, title: post.title },
+          })),
+        });
+      }
 
       return jsonResponse(req, { post }, 200, "forums.create", requestId);
     } catch (e) {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
-import { BadgeCheck, ShieldCheck, Settings } from "lucide-react";
+import { BadgeCheck, PlusCircle, ShieldCheck, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,6 +95,8 @@ export default function MyProfilePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button asChild variant="outline"><Link href="/forums"><PlusCircle className="mr-2 h-4 w-4" />New forum discussion</Link></Button>
+          <Button asChild variant="outline"><Link href="/opportunities"><PlusCircle className="mr-2 h-4 w-4" />New opportunity</Link></Button>
           <Button variant="outline" onClick={() => setPreview((prev) => !prev)}>
             {preview ? "Switch to full view" : "Preview as non-follower"}
           </Button>
@@ -177,6 +179,7 @@ export default function MyProfilePage() {
         <TabsList>
           <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
           <TabsTrigger value="forums">Forum posts</TabsTrigger>
+          <TabsTrigger value="manage">Manage posts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="opportunities">
@@ -241,6 +244,17 @@ export default function MyProfilePage() {
               ))}
             </div>
           )}
+        </TabsContent>
+        <TabsContent value="manage">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Manage all your posts</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="text-muted-foreground">Edit/delete options are available in each item context page.</div>
+              <Link href="/forums" className="block rounded-md border p-2 hover:bg-muted">Manage forum discussions</Link>
+              <Link href="/opportunities" className="block rounded-md border p-2 hover:bg-muted">Manage opportunities</Link>
+              <Link href="/hubs" className="block rounded-md border p-2 hover:bg-muted">Manage hub threads</Link>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

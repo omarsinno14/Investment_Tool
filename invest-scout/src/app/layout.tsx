@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/app/Providers";
 
 export const metadata: Metadata = {
-  title: "Invesco",
+  title: "Invescout",
   description: "Personalized investment opportunity tracking",
 };
 

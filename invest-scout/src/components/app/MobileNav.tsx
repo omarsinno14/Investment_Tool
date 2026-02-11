@@ -22,12 +22,13 @@ export function MobileNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:hidden">
       <div className="mx-auto grid max-w-lg grid-cols-4 gap-2 px-3 py-2">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`) || (item.href === "/forums" && pathname.startsWith("/hubs"));
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={`flex flex-col items-center gap-1 text-[11px] transition ${
                 isActive ? "text-foreground" : "text-muted-foreground"
               }`}
