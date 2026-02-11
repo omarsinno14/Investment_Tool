@@ -46,7 +46,7 @@ export default function LoginPage() {
               I
             </div>
             <div>
-              <h1 className="text-2xl font-semibold">Invesco</h1>
+              <h1 className="text-2xl font-semibold">Invescout</h1>
               <p className="text-sm text-muted-foreground">Welcome back. Sign in to continue.</p>
             </div>
           </div>

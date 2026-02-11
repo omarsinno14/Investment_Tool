@@ -56,7 +56,7 @@ function tokenizeTitle(title: string) {
 }
 
 export default function OpportunitiesPage() {
-  const draftKey = "invesco-opportunity-draft";
+  const draftKey = "invescout-opportunity-draft";
   const [loading, setLoading] = useState(true);
   const [opps, setOpps] = useState<Opportunity[]>([]);
   const [query, setQuery] = useState("");

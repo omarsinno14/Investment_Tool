@@ -1,8 +1,8 @@
 export const NAV_BADGE_KEYS = {
-  messages: "invesco-last-seen-messages",
-  notifications: "invesco-last-seen-notifications",
-  opportunities: "invesco-last-seen-opportunities",
-  headlines: "invesco-last-seen-headlines",
+  messages: "invescout-last-seen-messages",
+  notifications: "invescout-last-seen-notifications",
+  opportunities: "invescout-last-seen-opportunities",
+  headlines: "invescout-last-seen-headlines",
 } as const;
 
 export function markNavSeen(key: string) {

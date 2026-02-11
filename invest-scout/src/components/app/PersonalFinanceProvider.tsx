@@ -103,7 +103,7 @@ export type PersonalFinanceContextValue = {
   addPortfolioSnapshot: () => void;
 };
 
-const STORAGE_KEY = "invesco-personal-finance";
+const STORAGE_KEY = "invescout-personal-finance";
 
 const defaultData: PersonalFinanceData = {
   cashflows: [],

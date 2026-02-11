@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { Search } from "lucide-react";
@@ -25,6 +26,12 @@ export function Navbar() {
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const badgeCounts = useNavBadgeCounts();
+  const pathname = usePathname();
+
+  const navClass = (href: string) => {
+    const active = pathname === href || pathname.startsWith(`${href}/`) || (href === "/forums" && pathname.startsWith("/hubs"));
+    return `rounded-full px-2 py-1 hover:underline ${active ? "bg-muted font-medium" : ""}`;
+  };
 
   const renderBadge = (count: number) => {
     if (!count) return null;
@@ -80,23 +87,23 @@ export function Navbar() {
     <header className="border-b">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/feed" className="font-semibold tracking-tight">
-          Invesco
+          Invescout
         </Link>
         <nav className="flex items-center gap-3 text-sm">
-          <Link href="/feed" className="hover:underline">
+          <Link href="/feed" className={navClass("/feed")} aria-current={pathname.startsWith("/feed") ? "page" : undefined}>
             Home
           </Link>
-          <Link href="/opportunities" className="hover:underline">
+          <Link href="/opportunities" className={navClass("/opportunities")} aria-current={pathname.startsWith("/opportunities") ? "page" : undefined}>
             Opportunities{renderBadge(badgeCounts.opportunities)}
           </Link>
-          <Link href="/headlines" className="hover:underline">
+          <Link href="/headlines" className={navClass("/headlines")} aria-current={pathname.startsWith("/headlines") ? "page" : undefined}>
             News{renderBadge(badgeCounts.headlines)}
           </Link>
-          <Link href="/forums" className="hover:underline">Forums</Link>
-          <Link href="/messages" className="hover:underline">
+          <Link href="/forums" className={navClass("/forums")} aria-current={pathname.startsWith("/forums") || pathname.startsWith("/hubs") ? "page" : undefined}>Forums</Link>
+          <Link href="/messages" className={navClass("/messages")} aria-current={pathname.startsWith("/messages") ? "page" : undefined}>
             Messages{renderBadge(badgeCounts.messages)}
           </Link>
-          <Link href="/notifications" className="hover:underline">
+          <Link href="/notifications" className={navClass("/notifications")} aria-current={pathname.startsWith("/notifications") ? "page" : undefined}>
             Notifications{renderBadge(badgeCounts.notifications)}
           </Link>
           <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
@@ -192,7 +199,7 @@ export function Navbar() {
                 <Link href="/my-profile">My profile</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/activity">My activity</Link>
+                <Link href="/settings">My activity</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/settings">Settings</Link>

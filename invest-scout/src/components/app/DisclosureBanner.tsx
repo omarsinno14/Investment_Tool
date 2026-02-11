@@ -7,7 +7,7 @@ export function DisclosureBanner() {
     <Card className="border-dashed">
       <CardContent className="py-3 text-xs text-muted-foreground">
         This platform provides information and advertisements only. It is not financial advice and
-        does not endorse or encourage any specific investment. Invesco is not liable for
+        does not endorse or encourage any specific investment. Invescout is not liable for
         investment decisions made based on content here. Always do your own research.
       </CardContent>
     </Card>
