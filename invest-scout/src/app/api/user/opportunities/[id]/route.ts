@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
 import { sanitizeProfanity } from "@/lib/profanity";
+type Ctx = { params: { id: string } };
 
 function toNumber(value: any) {
   if (value === null || value === undefined || value === "") return null;
@@ -14,7 +15,7 @@ function toString(value: any) {
   return String(value).trim();
 }
 
-export async function PATCH(req: Request, { params }: { params: { id?: string } }) {
+export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
     const prisma = getPrismaClient();
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
@@ -119,7 +120,7 @@ export async function PATCH(req: Request, { params }: { params: { id?: string } 
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id?: string } }) {
+export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
     const prisma = getPrismaClient();
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });

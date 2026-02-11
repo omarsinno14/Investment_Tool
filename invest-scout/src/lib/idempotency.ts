@@ -4,6 +4,6 @@ export async function checkIdempotency(key: string, ttlSeconds: number): Promise
   const redis = getRedisClient();
   if (!redis) return false;
   const idKey = `idem:${key}`;
-  const set = await redis.set(idKey, "1", "NX", "EX", ttlSeconds);
+  const set = await redis.set(idKey, "1", "EX", ttlSeconds, "NX");
   return set === "OK";
 }

@@ -663,7 +663,7 @@ export default function MessagesPage() {
                 return (
                   <button key={`suggest-${user.id}`} type="button" onClick={() => startChat(user.profile?.username || user.email)} className="inline-flex min-w-[120px] items-center gap-2 rounded-xl border px-2 py-2 text-left transition hover:bg-muted">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={label.imageUrl} alt={label.name} />
+                      <AvatarImage src={label.imageUrl ?? undefined} alt={label.name} />
                       <AvatarFallback>{label.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <span className="line-clamp-1 text-xs font-medium">{label.name}</span>
@@ -695,7 +695,7 @@ export default function MessagesPage() {
                       className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-muted"
                     >
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={label.imageUrl} alt={label.name} />
+                        <AvatarImage src={label.imageUrl ?? undefined} alt={label.name} />
                         <AvatarFallback>{label.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
@@ -735,7 +735,7 @@ export default function MessagesPage() {
                     }`}
                   >
                     <Avatar className="h-11 w-11">
-                      <AvatarImage src={label.imageUrl} alt={label.name} />
+                      <AvatarImage src={label.imageUrl ?? undefined} alt={label.name} />
                       <AvatarFallback>{label.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
@@ -779,7 +779,7 @@ export default function MessagesPage() {
                   ←
                 </Button>
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={partnerLabel.imageUrl} alt={partnerLabel.name} />
+                  <AvatarImage src={partnerLabel.imageUrl ?? undefined} alt={partnerLabel.name} />
                   <AvatarFallback>{partnerLabel.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div>

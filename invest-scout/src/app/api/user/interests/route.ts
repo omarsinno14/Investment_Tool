@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
+import { InterestType } from "@prisma/client";
 
 export async function GET() {
   try {
@@ -23,6 +24,10 @@ export async function GET() {
   }
 }
 
+function isInterestType(value: unknown): value is InterestType {
+  return typeof value === "string" && Object.values(InterestType).includes(value as InterestType);
+}
+
 export async function POST(req: Request) {
   try {
     const prisma = getPrismaClient();
@@ -35,13 +40,13 @@ export async function POST(req: Request) {
     const interests = Array.isArray(body?.interests) ? body.interests : null;
     if (!interests) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
 
-    const allowedTypes = new Set(["SECTOR", "INDUSTRY", "COUNTRY", "CUSTOM"]);
-    const deduped: { type: string; value: string; parent: string | null }[] = [];
+    const deduped: { type: InterestType; value: string; parent: string | null }[] = [];
     const seen = new Set<string>();
 
     for (const i of interests) {
-      const type = String(i?.type ?? "").toUpperCase();
-      if (!allowedTypes.has(type)) continue;
+      const typeRaw = String(i?.type ?? "").toUpperCase();
+      if (!isInterestType(typeRaw)) continue;
+      const type: InterestType = typeRaw;
 
       const rawValue = String(i?.value ?? "").trim();
       if (!rawValue) continue;

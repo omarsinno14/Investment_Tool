@@ -47,6 +47,8 @@ function formatDate(d?: string | null) {
   return dt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+type ActionStateType = NonNullable<Opportunity["action"]>["state"];
+
 export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; onActionUpdated?: () => void }) {
   const [busy, setBusy] = useState(false);
   const { format } = useCurrency();
@@ -60,7 +62,7 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
     opp.createdByUser?.profile?.username || opp.createdByUser?.profile?.name || undefined;
   const isSponsored = opp.boostedUntil ? new Date(opp.boostedUntil).getTime() > Date.now() : false;
 
-  async function setState(nextState: Opportunity["action"]["state"], investedAmt?: number) {
+  async function setState(nextState: ActionStateType, investedAmt?: number) {
     setBusy(true);
     try {
       const res = await fetch("/api/user/opportunity", {

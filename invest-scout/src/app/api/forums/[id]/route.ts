@@ -1,14 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
 import { sanitizeProfanity } from "@/lib/profanity";
+type Ctx = { params: { id: string } };
 
 function toString(value: any) {
   if (value === null || value === undefined) return "";
   return String(value).trim();
 }
 
-export async function GET(_req: Request, { params }: { params: { id?: string } }) {
+export async function GET(_req: NextRequest, { params }: Ctx) {
   try {
     const prisma = getPrismaClient();
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
@@ -54,9 +55,11 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
       });
       if (!isFollowing) {
         post.user.email = "";
-        post.user.profile.name = null;
-        post.user.profile.username = null;
-        post.user.profile.imageUrl = null;
+        if (post.user.profile) {
+          post.user.profile.name = null;
+          post.user.profile.username = null;
+          post.user.profile.imageUrl = null;
+        }
       }
     }
 
@@ -76,7 +79,7 @@ export async function GET(_req: Request, { params }: { params: { id?: string } }
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id?: string } }) {
+export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
     const prisma = getPrismaClient();
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
@@ -133,7 +136,7 @@ export async function PATCH(req: Request, { params }: { params: { id?: string } 
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id?: string } }) {
+export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
     const prisma = getPrismaClient();
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });

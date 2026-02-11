@@ -1,10 +1,12 @@
+import type { NextRequest } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
 import { jsonResponse, withTiming } from "@/lib/api-response";
 import { getRequestId } from "@/lib/request-context";
 import { logger } from "@/lib/logger";
+type Ctx = { params: { id: string } };
 
-export async function DELETE(_req: Request, { params }: { params: { id?: string } }) {
+export async function DELETE(_req: NextRequest, { params }: Ctx) {
   return withTiming(async () => {
     const requestId = getRequestId(_req);
     try {
@@ -36,7 +38,7 @@ export async function DELETE(_req: Request, { params }: { params: { id?: string 
   }, _req, "messages.delete");
 }
 
-export async function PATCH(_req: Request, { params }: { params: { id?: string } }) {
+export async function PATCH(_req: NextRequest, { params }: Ctx) {
   return withTiming(async () => {
     const requestId = getRequestId(_req);
     try {

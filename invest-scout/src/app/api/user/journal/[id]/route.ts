@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
 import { hashPassword, verifyPassword } from "@/lib/password";
+type Ctx = { params: { id: string } };
 
 async function loadEntry(prisma: any, entryId: string, userId: string) {
   return prisma.journalEntry.findFirst({
@@ -15,7 +16,7 @@ async function loadEntry(prisma: any, entryId: string, userId: string) {
   });
 }
 
-export async function GET(req: Request, { params }: { params: { id?: string } }) {
+export async function GET(req: NextRequest, { params }: Ctx) {
   try {
     const prisma = getPrismaClient();
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
@@ -60,7 +61,7 @@ export async function GET(req: Request, { params }: { params: { id?: string } })
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id?: string } }) {
+export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
     const prisma = getPrismaClient();
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
@@ -100,7 +101,7 @@ export async function PATCH(req: Request, { params }: { params: { id?: string } 
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id?: string } }) {
+export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
     const prisma = getPrismaClient();
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });

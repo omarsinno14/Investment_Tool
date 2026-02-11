@@ -60,7 +60,7 @@ async function run() {
 
   await expectStatus(
     "Conversation messages unauthenticated",
-    conversationMessagesGet,
+    (req) => conversationMessagesGet(req, { params: { id: "conv-123" } }),
     new Request("http://localhost/api/user/conversations/conv-123/messages"),
     401
   );

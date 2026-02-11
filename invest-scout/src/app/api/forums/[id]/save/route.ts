@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
+type Ctx = { params: { id: string } };
 
-export async function POST(_req: Request, { params }: { params: { id?: string } }) {
+export async function POST(_req: NextRequest, { params }: Ctx) {
   try {
     const prisma = getPrismaClient();
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });

@@ -151,7 +151,7 @@ export default function HubPage() {
               <div>
                 <h1 className="text-2xl font-semibold">{hub?.hub?.name ?? "Hub"}</h1>
                 <p className="text-sm text-muted-foreground">{hub?.hub?.description || "No description"}</p>
-                <div className="mt-1 text-xs text-muted-foreground">{presence.members || hub?.hub?._count?.memberships ?? 0} members • {presence.onlineNow} online now</div>
+                <div className="mt-1 text-xs text-muted-foreground">{(presence.members ?? hub?.hub?._count?.memberships ?? 0)} members • {presence.onlineNow} online now</div>
               </div>
             </div>
             <div className="flex items-center gap-2">
