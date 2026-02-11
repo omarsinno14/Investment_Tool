@@ -147,3 +147,18 @@
     }
   }
 }
+
+
+@layer utilities {
+  .surface-card {
+    @apply rounded-2xl border bg-card shadow-sm;
+  }
+
+  .interactive-base {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+}
