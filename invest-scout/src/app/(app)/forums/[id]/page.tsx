@@ -2,36 +2,62 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, Flag, MessageSquarePlus } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+
+type Comment = {
+  id: string;
+  body: string;
+  createdAt: string;
+  user?: { email?: string; profile?: { username?: string | null; name?: string | null } | null };
+};
+
+type Post = {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  archivedAt?: string | null;
+  imageUrl?: string | null;
+  tags?: string[];
+  userId: string;
+  reactions?: { type: "LIKE" | "INSIGHTFUL" | "CURIOUS"; userId: string }[];
+  user?: { email?: string; profile?: { username?: string | null; name?: string | null } | null };
+};
 
 export default function ForumDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const [post, setPost] = useState<any | null>(null);
+  const [post, setPost] = useState<Post | null>(null);
   const [viewerId, setViewerId] = useState<string | null>(null);
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [commentDraft, setCommentDraft] = useState("");
-  const commentListRef = useRef<HTMLDivElement | null>(null);
-  const commentVirtualizer = useVirtualizer({
-    count: comments.length,
-    getScrollElement: () => commentListRef.current,
-    estimateSize: () => 88,
-    overscan: 6,
-  });
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ title: "", body: "", tags: "" });
   const [loading, setLoading] = useState(true);
-  const [viewStats, setViewStats] = useState<any>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  async function loadComments(id: string) {
+    try {
+      const res = await fetch(`/api/forums/${id}/comments`, { credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to load comments");
+      setComments(data.comments ?? []);
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to load comments");
+    }
+  }
 
   async function load() {
     const id = params?.id;
@@ -47,11 +73,7 @@ export default function ForumDetailPage() {
       if (!res.ok) throw new Error(data?.error ?? "Failed to load post");
       setPost(data.post ?? null);
       setViewerId(data.viewerId ?? null);
-      setEditForm({
-        title: data.post?.title ?? "",
-        body: data.post?.body ?? "",
-        tags: (data.post?.tags ?? []).join(", "),
-      });
+      setEditForm({ title: data.post?.title ?? "", body: data.post?.body ?? "", tags: (data.post?.tags ?? []).join(", ") });
       await loadComments(id);
     } catch (e) {
       console.error(e);
@@ -61,17 +83,17 @@ export default function ForumDetailPage() {
     }
   }
 
-  async function loadComments(id: string) {
-    try {
-      const res = await fetch(`/api/forums/${id}/comments`, { credentials: "include" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to load comments");
-      setComments(data.comments ?? []);
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to load comments");
-    }
-  }
+  useEffect(() => { load(); }, [params?.id]);
+
+  const isOwner = Boolean(viewerId && post?.userId === viewerId);
+  const counts = useMemo(() => {
+    const reactions = post?.reactions ?? [];
+    return {
+      LIKE: reactions.filter((r) => r.type === "LIKE").length,
+      INSIGHTFUL: reactions.filter((r) => r.type === "INSIGHTFUL").length,
+      CURIOUS: reactions.filter((r) => r.type === "CURIOUS").length,
+    };
+  }, [post]);
 
   async function sendComment() {
     const id = params?.id;
@@ -90,6 +112,25 @@ export default function ForumDetailPage() {
     } catch (e) {
       console.error(e);
       toast.error("Failed to comment");
+    }
+  }
+
+  async function toggleReaction(type: "LIKE" | "INSIGHTFUL" | "CURIOUS") {
+    const id = params?.id;
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/forums/${id}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ type }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to react");
+      await load();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update reaction");
     }
   }
 
@@ -113,86 +154,13 @@ export default function ForumDetailPage() {
     }
   }
 
-  async function toggleArchive() {
-    const id = params?.id;
-    if (!id) return;
-    try {
-      const res = await fetch(`/api/forums/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ archived: !post?.archivedAt }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to update");
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to update post");
-    }
-  }
-
-  async function deletePost() {
-    const id = params?.id;
-    if (!id) return;
-    if (!window.confirm("Delete this post? This cannot be undone.")) return;
-    try {
-      const res = await fetch(`/api/forums/${id}`, { method: "DELETE", credentials: "include" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to delete");
-      router.push("/forums");
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to delete post");
-    }
-  }
-
-  async function toggleReaction(type: string) {
-    const id = params?.id;
-    if (!id) return;
-    const previous = post;
-    if (viewerId) {
-      setPost((prev: any) => {
-        if (!prev) return prev;
-        const reactions = prev.reactions ?? [];
-        const hasReacted = reactions.some((r: any) => r.type === type && r.userId === viewerId);
-        const nextReactions = hasReacted
-          ? reactions.filter((r: any) => !(r.type === type && r.userId === viewerId))
-          : [
-              ...reactions,
-              { id: `temp-${Date.now()}`, type, userId: viewerId },
-            ];
-        return { ...prev, reactions: nextReactions };
-      });
-    }
-    try {
-      const res = await fetch(`/api/forums/${id}/reactions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ type }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to react");
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to update reaction");
-      setPost(previous);
-    }
-  }
-
   async function submitReport() {
     try {
       const res = await fetch("/api/reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          targetType: "FORUM_POST",
-          targetId: post?.id,
-          reason: reportReason,
-        }),
+        body: JSON.stringify({ targetType: "FORUM_POST", targetId: post?.id, reason: reportReason }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to report");
@@ -205,241 +173,67 @@ export default function ForumDetailPage() {
     }
   }
 
-  useEffect(() => {
-    load();
-  }, [params?.id]);
+  if (loading) return <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>;
+  if (!post) return <Card><CardContent className="py-10 text-center text-muted-foreground">Post not found.</CardContent></Card>;
 
-  useEffect(() => {
-    if (!post || !viewerId || post.userId !== viewerId) return;
-    (async () => {
-      try {
-        const res = await fetch(`/api/forums/${post.id}/views`, { credentials: "include" });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data?.error ?? "Failed to load views");
-        setViewStats(data);
-      } catch (e) {
-        console.error(e);
-      }
-    })();
-  }, [post, viewerId]);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!post) {
-    return (
-      <Card>
-        <CardContent className="py-10 text-center text-muted-foreground">Post not found.</CardContent>
-      </Card>
-
-      {isOwner && viewStats && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Post insights</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground">
-            <div>Total views: <span className="font-medium text-foreground">{viewStats.totalViews}</span></div>
-            <div className="space-y-2">
-              <div className="font-medium text-foreground">Views over time</div>
-              <div className="space-y-1">
-                {(viewStats.timeline ?? []).slice(-10).map((row: any) => (
-                  <div key={row.date} className="flex items-center gap-2">
-                    <div className="w-24">{row.date}</div>
-                    <div className="h-2 flex-1 rounded bg-muted">
-                      <div className="h-2 rounded bg-primary" style={{ width: `${Math.min(100, row.count * 10)}%` }} />
-                    </div>
-                    <div className="w-6 text-right">{row.count}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="font-medium text-foreground">Viewer demographics</div>
-              <div className="grid gap-2 md:grid-cols-2">
-                <div>
-                  <div className="text-xs uppercase">Age</div>
-                  {(viewStats.demographics?.age ?? []).map((row: any) => (
-                    <div key={row.label} className="flex justify-between">
-                      <span>{row.label}</span>
-                      <span>{row.count}</span>
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <div className="text-xs uppercase">Country</div>
-                  {(viewStats.demographics?.country ?? []).slice(0, 6).map((row: any) => (
-                    <div key={row.label} className="flex justify-between">
-                      <span>{row.label}</span>
-                      <span>{row.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    );
-  }
-
-  const userLabel =
-    post.user?.profile?.username || post.user?.profile?.name || post.user?.email || "Private user";
-  const isVerified = Boolean(post.user?.profile?.emailVerified && post.user?.profile?.phoneVerified);
-  const isIdentityVerified = Boolean(post.user?.profile?.identityVerified);
-  const isOwner = viewerId && post.userId === viewerId;
-  const reactions = post.reactions ?? [];
-  const counts = {
-    LIKE: reactions.filter((r: any) => r.type === "LIKE").length,
-    INSIGHTFUL: reactions.filter((r: any) => r.type === "INSIGHTFUL").length,
-    CURIOUS: reactions.filter((r: any) => r.type === "CURIOUS").length,
-  };
+  const author = post.user?.profile?.username || post.user?.profile?.name || post.user?.email || "Private user";
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <Button variant="ghost" size="sm" className="px-0" asChild>
-          <Link href="/forums">Back to forums</Link>
-        </Button>
-      </div>
-
-      <Card>
-        <CardHeader className="space-y-2">
-          <div className="flex items-start justify-between gap-3">
+      <Button variant="ghost" size="sm" className="px-0" asChild><Link href="/forums">Back to forums</Link></Button>
+      <Card className="rounded-2xl">
+        <CardHeader className="space-y-3">
+          <div className="flex items-start justify-between gap-2">
             <CardTitle className="text-xl">{post.title}</CardTitle>
-            {isOwner && (
-              <div className="flex flex-wrap gap-2">
-                <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">Edit</Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Edit discussion</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                      <Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
-                      <Textarea value={editForm.body} onChange={(e) => setEditForm({ ...editForm, body: e.target.value })} rows={5} />
-                      <Input value={editForm.tags} onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })} />
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-                      <Button onClick={saveEdits}>Save</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                <Button variant="outline" size="sm" onClick={toggleArchive}>
-                  {post.archivedAt ? "Restore" : "Archive"}
-                </Button>
-                <Button variant="destructive" size="sm" onClick={deletePost}>Delete</Button>
-              </div>
-            )}
-            {!isOwner && (
-              <Dialog open={reportOpen} onOpenChange={setReportOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">Report scam</Button>
-                </DialogTrigger>
+            {isOwner ? (
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogTrigger asChild><Button variant="outline" size="sm">Edit post</Button></DialogTrigger>
                 <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Report this post</DialogTitle>
-                  </DialogHeader>
-                  <Textarea
-                    value={reportReason}
-                    onChange={(e) => setReportReason(e.target.value)}
-                    placeholder="Tell us why this looks like a scam..."
-                    rows={4}
-                  />
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setReportOpen(false)}>Cancel</Button>
-                    <Button onClick={submitReport} disabled={!reportReason.trim()}>
-                      Submit report
-                    </Button>
-                  </DialogFooter>
+                  <DialogHeader><DialogTitle>Edit post</DialogTitle></DialogHeader>
+                  <div className="space-y-3"><Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} /><Textarea rows={6} value={editForm.body} onChange={(e) => setEditForm({ ...editForm, body: e.target.value })} /><Input value={editForm.tags} onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })} /></div>
+                  <DialogFooter><Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button><Button onClick={saveEdits}>Save</Button></DialogFooter>
                 </DialogContent>
+              </Dialog>
+            ) : (
+              <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+                <DialogTrigger asChild><Button variant="outline" size="sm" className="gap-2"><Flag className="h-4 w-4" />Report</Button></DialogTrigger>
+                <DialogContent><DialogHeader><DialogTitle>Report this post</DialogTitle></DialogHeader><Textarea rows={4} value={reportReason} onChange={(e) => setReportReason(e.target.value)} /><DialogFooter><Button variant="outline" onClick={() => setReportOpen(false)}>Cancel</Button><Button onClick={submitReport} disabled={!reportReason.trim()}>Submit</Button></DialogFooter></DialogContent>
               </Dialog>
             )}
           </div>
-          <div className="text-xs text-muted-foreground">
-            {userLabel}
-            {isIdentityVerified ? " • Verified ID" : ""}
-            {isVerified ? " • Verified contact" : ""}
-            {" • "}
-            {new Date(post.createdAt).toLocaleString()}
+          <div className="text-xs text-muted-foreground">u/{author} • {new Date(post.createdAt).toLocaleString()}</div>
+          <p className="whitespace-pre-line text-sm text-muted-foreground">{post.body}</p>
+          {post.imageUrl && <img src={post.imageUrl} alt={post.title} className="max-h-[360px] w-full rounded-xl border object-cover" />}
+          <div className="flex flex-wrap gap-2">{(post.tags ?? []).map((tag) => <Badge key={tag} variant="secondary">#{tag}</Badge>)}</div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Button size="sm" variant="outline" onClick={() => toggleReaction("LIKE")}>👍 {counts.LIKE}</Button>
+            <Button size="sm" variant="outline" onClick={() => toggleReaction("INSIGHTFUL")}>💡 {counts.INSIGHTFUL}</Button>
+            <Button size="sm" variant="outline" onClick={() => toggleReaction("CURIOUS")}>❓ {counts.CURIOUS}</Button>
           </div>
-          {post.imageUrl && (
-            <div className="overflow-hidden rounded-md border bg-muted/20">
-              <img src={post.imageUrl} alt={post.title} className="h-56 w-full object-cover" />
-            </div>
-          )}
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="text-sm text-muted-foreground whitespace-pre-line">{post.body}</div>
-          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <Button size="sm" variant="outline" onClick={() => toggleReaction("LIKE")}>
-              👍 {counts.LIKE}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => toggleReaction("INSIGHTFUL")}>
-              💡 {counts.INSIGHTFUL}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => toggleReaction("CURIOUS")}>
-              ❓ {counts.CURIOUS}
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(post.tags ?? []).map((tag: string) => (
-              <Badge key={tag} variant="secondary">{tag}</Badge>
-            ))}
-          </div>
-        </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Comments</CardTitle>
-        </CardHeader>
+      <Card className="rounded-2xl">
+        <CardHeader><CardTitle className="text-base">Comments</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          {comments.length === 0 && (
-            <div className="text-sm text-muted-foreground">No comments yet.</div>
-          )}
-          {comments.length > 0 && (
-            <div ref={commentListRef} className="max-h-[360px] overflow-y-auto pr-1">
-              <div style={{ height: commentVirtualizer.getTotalSize(), position: "relative" }}>
-                {commentVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const comment = comments[virtualRow.index];
-                  if (!comment) return null;
-                  return (
-                    <div
-                      key={comment.id}
-                      ref={commentVirtualizer.measureElement}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        transform: `translateY(${virtualRow.start}px)`,
-                      }}
-                      className="pb-3"
-                    >
-                      <div className="rounded-md border p-3 text-sm">
-                        <div className="text-xs text-muted-foreground">
-                          {comment.user?.profile?.username || comment.user?.profile?.name || comment.user?.email}
-                        </div>
-                        <div className="mt-1 break-words text-muted-foreground">{comment.body}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
           <div className="space-y-2">
-            <Textarea
-              placeholder="Write a comment"
-              value={commentDraft}
-              onChange={(e) => setCommentDraft(e.target.value)}
-              rows={3}
-            />
-            <Button onClick={sendComment}>Reply</Button>
+            {comments.length === 0 ? <div className="text-sm text-muted-foreground">No comments yet.</div> : comments.map((comment) => {
+              const commentAuthor = comment.user?.profile?.username || comment.user?.profile?.name || comment.user?.email || "User";
+              const isCollapsed = collapsed[comment.id];
+              return (
+                <div key={comment.id} className="rounded-xl border p-3">
+                  <button type="button" onClick={() => setCollapsed((prev) => ({ ...prev, [comment.id]: !prev[comment.id] }))} className="flex w-full items-center justify-between text-left">
+                    <div className="text-xs text-muted-foreground">u/{commentAuthor} • {new Date(comment.createdAt).toLocaleString()}</div>
+                    {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
+                  {!isCollapsed && <div className="mt-2 text-sm text-muted-foreground">{comment.body}</div>}
+                </div>
+              );
+            })}
+          </div>
+          <div className="space-y-2">
+            <Textarea placeholder="Add a comment" rows={3} value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)} />
+            <Button onClick={sendComment} className="gap-2"><MessageSquarePlus className="h-4 w-4" />Comment</Button>
           </div>
         </CardContent>
       </Card>

@@ -969,9 +969,16 @@ export default function OpportunityDetailPage() {
                   placeholder="Write a message..."
                   rows={3}
                 />
-                <Button onClick={sendReply} disabled={replySending}>
-                  {replySending ? "Sending..." : "Send message"}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={sendReply} disabled={replySending}>
+                    {replySending ? "Sending..." : "Send message"}
+                  </Button>
+                  {opportunity.contactUsername && (
+                    <Button variant="outline" asChild>
+                      <Link href={`/messages?partner=${encodeURIComponent(opportunity.contactUsername)}`}>Open DM thread</Link>
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}

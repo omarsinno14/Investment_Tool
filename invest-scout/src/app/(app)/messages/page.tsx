@@ -358,6 +358,19 @@ export default function MessagesPage() {
     }
   }, [chatItems.length, virtualizer]);
 
+  const suggestedUsers = useMemo(() => {
+    const fromConversations = conversations
+      .map((conv) => conv.partner?.user)
+      .filter((u): u is UserSummary => Boolean(u))
+      .slice(0, 6);
+    const fromSearch = searchResults.slice(0, 4);
+    const dedup = new Map<string, UserSummary>();
+    [...fromConversations, ...fromSearch].forEach((user) => {
+      if (!dedup.has(user.id)) dedup.set(user.id, user);
+    });
+    return Array.from(dedup.values()).slice(0, 8);
+  }, [conversations, searchResults]);
+
   const filteredConversations = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     if (!q) return conversations;
@@ -633,6 +646,25 @@ export default function MessagesPage() {
                 placeholder="Search or start a chat"
                 className="pl-9"
               />
+            </div>
+          </div>
+
+          <div className="border-b px-4 py-3">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Suggested</Label>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {suggestedUsers.length === 0 && <div className="text-xs text-muted-foreground">No suggestions yet.</div>}
+              {suggestedUsers.map((user) => {
+                const label = formatPartnerLabel(user);
+                return (
+                  <button key={`suggest-${user.id}`} type="button" onClick={() => startChat(user.profile?.username || user.email)} className="inline-flex min-w-[120px] items-center gap-2 rounded-xl border px-2 py-2 text-left transition hover:bg-muted">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={label.imageUrl} alt={label.name} />
+                      <AvatarFallback>{label.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="line-clamp-1 text-xs font-medium">{label.name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

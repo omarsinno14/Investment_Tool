@@ -69,7 +69,7 @@ export default function OpportunitiesPage() {
   const [maxAsk, setMaxAsk] = useState("");
   const [benefitFilter, setBenefitFilter] = useState("");
   const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED" | "INVESTED">("ALL");
-  const [sort, setSort] = useState<"NEWEST" | "OLDEST">("NEWEST");
+  const [sort, setSort] = useState<"NEWEST" | "OLDEST" | "PRICE_LOW" | "PRICE_HIGH">("NEWEST");
   const [showStats, setShowStats] = useState(true);
   const [postOpen, setPostOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -327,9 +327,18 @@ export default function OpportunitiesPage() {
       });
     }
 
-    list = [...list].sort((a, b) =>
-      sort === "NEWEST" ? toDateValue(b) - toDateValue(a) : toDateValue(a) - toDateValue(b)
-    );
+    list = [...list].sort((a, b) => {
+      if (sort === "NEWEST") return toDateValue(b) - toDateValue(a);
+      if (sort === "OLDEST") return toDateValue(a) - toDateValue(b);
+      if (sort === "PRICE_LOW") {
+        const aAmount = Number(a.askAmount ?? Number.MAX_SAFE_INTEGER);
+        const bAmount = Number(b.askAmount ?? Number.MAX_SAFE_INTEGER);
+        return aAmount - bAmount;
+      }
+      const aAmount = Number(a.askAmount ?? 0);
+      const bAmount = Number(b.askAmount ?? 0);
+      return bAmount - aAmount;
+    });
 
     return list;
   }, [
@@ -396,7 +405,7 @@ export default function OpportunitiesPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Opportunities</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Opportunities Marketplace</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -408,7 +417,7 @@ export default function OpportunitiesPage() {
               <DialogHeader>
                 <DialogTitle>Post an opportunity</DialogTitle>
               </DialogHeader>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <div className="space-y-2 md:col-span-2">
                   <Input
                     placeholder="Title"
@@ -702,6 +711,8 @@ export default function OpportunitiesPage() {
                     <SelectContent>
                       <SelectItem value="NEWEST">Newest</SelectItem>
                       <SelectItem value="OLDEST">Oldest</SelectItem>
+                      <SelectItem value="PRICE_LOW">Price: Low to high</SelectItem>
+                      <SelectItem value="PRICE_HIGH">Price: High to low</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -898,6 +909,8 @@ export default function OpportunitiesPage() {
                 <SelectContent>
                   <SelectItem value="NEWEST">Newest</SelectItem>
                   <SelectItem value="OLDEST">Oldest</SelectItem>
+                      <SelectItem value="PRICE_LOW">Price: Low to high</SelectItem>
+                      <SelectItem value="PRICE_HIGH">Price: High to low</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -905,7 +918,7 @@ export default function OpportunitiesPage() {
 
           {/* List */}
           {loading ? (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <Card key={i}>
                   <CardHeader className="space-y-2">
@@ -930,7 +943,7 @@ export default function OpportunitiesPage() {
             </div>
           ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {filtered.map((opp: any) => (
                   <OpportunityCard key={opp.id} opp={opp} onActionUpdated={load} />
                 ))}
@@ -939,7 +952,7 @@ export default function OpportunitiesPage() {
               {filtered.length === 0 && (
                 <Card>
                   <CardContent className="space-y-2 py-10 text-center">
-                    <div className="text-lg font-semibold">Nothing here yet</div>
+                    <div className="text-lg font-semibold">No listings yet</div>
                     <div className="text-muted-foreground">Pick more interests, then run ingestion to pull fresh opportunities.</div>
                     <div className="pt-2">
                       <Button asChild>

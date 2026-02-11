@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ExternalLink, Bookmark, Star, Banknote, RotateCcw } from "lucide-react";
+import { ExternalLink, Bookmark, Star, Banknote, RotateCcw, MapPin, Clock3 } from "lucide-react";
 import { useCurrency } from "@/components/app/CurrencyProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 
 type Opportunity = {
   id: string;
@@ -30,6 +30,7 @@ type Opportunity = {
   fetchedAt?: string | null;
   categories?: string[];
   countryTags?: string[];
+  locationName?: string | null;
   keywords?: string[];
   action?: {
     state: "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
@@ -103,115 +104,52 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
   }
 
   return (
-    <Card className="transition-shadow hover:shadow-lg">
-      <CardHeader className="space-y-3">
-        {imageUrl && (
-          <div className="overflow-hidden rounded-xl border bg-muted/20">
-            <img
-              src={imageUrl}
-              alt={opp.title}
-              className="aspect-[16/9] w-full object-cover"
-              loading="lazy"
-              decoding="async"
-            />
-          </div>
-        )}
-        <div className="flex items-start justify-between gap-3">
-          <CardTitle className="text-base leading-snug break-words">
-            <Link href={`/opportunities/${opp.id}`} className="hover:underline">
-              {opp.title}
-            </Link>
-          </CardTitle>
+    <Card className="group overflow-hidden rounded-2xl border bg-card transition-all hover:-translate-y-0.5 hover:shadow-xl">
+      {imageUrl ? (
+        <div className="relative overflow-hidden border-b bg-muted/20">
+          <img src={imageUrl} alt={opp.title} className="aspect-[4/3] w-full object-cover transition duration-300 group-hover:scale-[1.02]" loading="lazy" decoding="async" />
+          {isSponsored && <Badge className="absolute left-3 top-3">Sponsored</Badge>}
+        </div>
+      ) : (
+        <div className="flex aspect-[4/3] items-center justify-center border-b bg-muted/30 text-sm text-muted-foreground">No image</div>
+      )}
 
+      <CardContent className="space-y-3 p-4">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="line-clamp-2 text-base leading-snug"><Link href={`/opportunities/${opp.id}`} className="hover:underline">{opp.title}</Link></CardTitle>
           {opp.url && (
-            <a
-              className="shrink-0 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-              href={opp.url}
-              target="_blank"
-              rel="noreferrer"
-              title="Open source link"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </a>
+            <a className="shrink-0 text-muted-foreground hover:text-foreground" href={opp.url} target="_blank" rel="noreferrer" title="Open source link"><ExternalLink className="h-4 w-4" /></a>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {isSponsored && <Badge variant="secondary">Sponsored</Badge>}
-          {state !== "NONE" && <Badge>{state}</Badge>}
-          {typeof opp.matchScore === "number" && <Badge variant="secondary">Match {opp.matchScore}%</Badge>}
-          {opp.source && <Badge variant="secondary">{opp.source}</Badge>}
-          {poster && <Badge variant="outline">Posted by {poster}</Badge>}
-          {dateLabel && <span className="text-xs text-muted-foreground">{dateLabel}</span>}
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground line-clamp-2 break-words">{opp.summary ?? opp.details ?? "—"}</p>
-
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-          {opp.askAmount != null && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              Ask {format(opp.askAmount, { fromCurrency: opp.askCurrency ?? "USD" })}
-            </Badge>
-          )}
-          {opp.expectedRoiPercent != null && (
-            <Badge variant="outline">
-              ROI {opp.expectedRoiPercent}%{opp.expectedRoiDurationMonths ? ` / ${opp.expectedRoiDurationMonths}m` : ""}
-            </Badge>
-          )}
-          {state === "INVESTED" && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              <Banknote className="h-3 w-3" />
-              {format(opp.action?.investedAmt ?? 0)}
-            </Badge>
-          )}
-          {tags.map((t) => (
-            <Badge key={`tag-${t}`} variant="outline" className="text-xs">
-              {t}
-            </Badge>
-          ))}
-          {keywords.map((k) => (
-            <Badge key={`kw-${k}`} variant="secondary" className="text-xs">
-              {k}
-            </Badge>
-          ))}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{opp.locationName || "Remote / N/A"}</span>
+          {dateLabel && <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" />{dateLabel}</span>}
+          {poster && <Badge variant="outline">{poster}</Badge>}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant={state === "SAVED" ? "default" : "outline"}
-            disabled={busy}
-            onClick={() => setState("SAVED")}
-          >
-            <Bookmark className="h-4 w-4 mr-2" />
-            Save
-          </Button>
+        <p className="line-clamp-2 text-sm text-muted-foreground">{opp.summary ?? opp.details ?? "—"}</p>
 
-          <Button
-            size="sm"
-            variant={state === "VERY_INTERESTED" ? "default" : "outline"}
-            disabled={busy}
-            onClick={() => setState("VERY_INTERESTED")}
-          >
-            <Star className="h-4 w-4 mr-2" />
-            Interested
-          </Button>
+        <div className="flex flex-wrap gap-1.5 text-xs">
+          <Badge variant="outline">{opp.askAmount != null ? format(opp.askAmount, { fromCurrency: opp.askCurrency ?? "USD" }) : "Price N/A"}</Badge>
+          {opp.expectedRoiPercent != null && <Badge variant="secondary">ROI {opp.expectedRoiPercent}%</Badge>}
+          {state !== "NONE" && <Badge>{state === "SAVED" ? "Saved" : state === "VERY_INTERESTED" ? "Interested" : "Invested"}</Badge>}
+          {tags.map((t) => <Badge key={`tag-${t}`} variant="outline">{t}</Badge>)}
+          {keywords.map((k) => <Badge key={`kw-${k}`} variant="secondary">{k}</Badge>)}
+        </div>
 
-          <Button
-            size="sm"
-            variant={state === "INVESTED" ? "default" : "outline"}
-            disabled={busy}
-            onClick={markInvested}
-          >
-            <Banknote className="h-4 w-4 mr-2" />
-            Invested
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Button size="sm" variant={state === "SAVED" ? "default" : "outline"} disabled={busy} onClick={() => setState("SAVED")}>
+            <Bookmark className="mr-1 h-4 w-4" />Save
           </Button>
-
+          <Button size="sm" variant={state === "VERY_INTERESTED" ? "default" : "outline"} disabled={busy} onClick={() => setState("VERY_INTERESTED")}>
+            <Star className="mr-1 h-4 w-4" />Interest
+          </Button>
+          <Button size="sm" variant={state === "INVESTED" ? "default" : "outline"} disabled={busy} onClick={markInvested}>
+            <Banknote className="mr-1 h-4 w-4" />Invest
+          </Button>
           <Button size="sm" variant="ghost" disabled={busy} onClick={() => setState("NONE")}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Clear
+            <RotateCcw className="mr-1 h-4 w-4" />Clear
           </Button>
         </div>
       </CardContent>
