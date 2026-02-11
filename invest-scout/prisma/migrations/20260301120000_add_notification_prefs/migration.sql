@@ -1,6 +1,0 @@
--- AlterTable
-ALTER TABLE "Profile" ADD COLUMN "notifyMessages" BOOLEAN NOT NULL DEFAULT true;
-ALTER TABLE "Profile" ADD COLUMN "notifyFollows" BOOLEAN NOT NULL DEFAULT true;
-ALTER TABLE "Profile" ADD COLUMN "notifyOpportunities" BOOLEAN NOT NULL DEFAULT true;
-ALTER TABLE "Profile" ADD COLUMN "notifyForums" BOOLEAN NOT NULL DEFAULT true;
-ALTER TABLE "Profile" ADD COLUMN "notifyJournal" BOOLEAN NOT NULL DEFAULT true;
