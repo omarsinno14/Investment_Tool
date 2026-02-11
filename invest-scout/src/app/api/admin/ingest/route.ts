@@ -52,7 +52,8 @@ export async function POST(req: Request) {
   );
 
   const pickCountries = ["GLOBAL", ...countryTags];
-  const picked = pickSourcesForCountries(sources, pickCountries);
+  const pickCountriesClean = pickCountries.filter((c): c is string => Boolean(c));
+  const picked = pickSourcesForCountries(sources, pickCountriesClean);
   const maxSources = Number(process.env.NEWS_MAX_SOURCES || 30);
   const selectedSources = picked.slice(0, maxSources);
   const cutoff = getCutoffDate();

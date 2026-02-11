@@ -1,3 +1,4 @@
+import type { NextRequest } from "next/server";
 import { getPrismaClient } from "@/lib/db";
 import { requireUserId } from "@/lib/auth-server";
 import { applyRateLimitHeaders, rateLimit } from "@/lib/rate-limit";
@@ -5,8 +6,9 @@ import { getClientIp, getRequestId } from "@/lib/request-context";
 import { decodeCursor, encodeCursor, paginationSchema } from "@/lib/pagination";
 import { jsonResponse, withTiming } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
+type Ctx = { params: { id: string } };
 
-export async function GET(req: Request, { params }: { params: { id?: string } }) {
+export async function GET(req: NextRequest, { params }: Ctx) {
   return withTiming(async () => {
     const requestId = getRequestId(req);
     try {
@@ -90,7 +92,7 @@ export async function GET(req: Request, { params }: { params: { id?: string } })
   }, req, "conversation.messages");
 }
 
-export async function POST(req: Request, { params }: { params: { id?: string } }) {
+export async function POST(req: NextRequest, { params }: Ctx) {
   return withTiming(async () => {
     const requestId = getRequestId(req);
     try {
