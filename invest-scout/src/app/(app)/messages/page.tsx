@@ -273,6 +273,10 @@ export default function MessagesPage() {
     if (!activeConversationId && conversations.length > 0) {
       setActiveConversationId(conversations[0].id);
     }
+    if (!activeConversationId && conversations.length === 0) {
+      setMessages([]);
+      setMessagesLoading(false);
+    }
   }, [conversations, activeConversationId]);
 
   useEffect(() => {
@@ -335,8 +339,8 @@ export default function MessagesPage() {
     const onScroll = () => {
       const nearTop = el.scrollTop < 120;
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-      if (nearTop && nextCursor && !loadingOlder) {
-        loadMessages(activeConversationId ?? "", nextCursor, "backward");
+      if (nearTop && nextCursor && !loadingOlder && activeConversationId) {
+        loadMessages(activeConversationId, nextCursor, "backward");
       }
       setNewMessageIndicator(!nearBottom);
     };
@@ -614,6 +618,7 @@ export default function MessagesPage() {
   }, [messages, currentUserId]);
 
   const activeConversation = conversations.find((conv) => conv.id === activeConversationId);
+  const hasActiveConversation = Boolean(activeConversationId && activeConversation);
   const partner = activeConversation?.partner?.user;
   const partnerLabel = formatPartnerLabel(partner);
   const partnerReadAt = activeConversation?.partnerLastReadAt ? new Date(activeConversation.partnerLastReadAt) : null;

@@ -68,7 +68,7 @@ export default function OpportunitiesPage() {
   const [customTagFilter, setCustomTagFilter] = useState("");
   const [maxAsk, setMaxAsk] = useState("");
   const [benefitFilter, setBenefitFilter] = useState("");
-  const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED" | "INVESTED">("ALL");
+  const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED">("ALL");
   const [sort, setSort] = useState<"NEWEST" | "OLDEST" | "PRICE_LOW" | "PRICE_HIGH">("NEWEST");
   const [showStats, setShowStats] = useState(true);
   const [postOpen, setPostOpen] = useState(false);
@@ -362,11 +362,6 @@ export default function OpportunitiesPage() {
     const total = opps.length;
     const saved = opps.filter((o: any) => o.action?.state === "SAVED").length;
     const interested = opps.filter((o: any) => o.action?.state === "VERY_INTERESTED").length;
-    const invested = opps.filter((o: any) => o.action?.state === "INVESTED").length;
-
-    const investedAmt = opps
-      .filter((o: any) => o.action?.state === "INVESTED")
-      .reduce((sum: number, o: any) => sum + (Number(o.action?.investedAmt) || 0), 0);
 
     const last = opps.map((o: any) => toDateValue(o)).reduce((m: number, v: number) => Math.max(m, v), 0);
 
@@ -374,8 +369,6 @@ export default function OpportunitiesPage() {
       total,
       saved,
       interested,
-      invested,
-      investedAmt,
       lastUpdated: last ? new Date(last).toLocaleString() : "—",
     };
   }, [opps]);
@@ -696,13 +689,6 @@ export default function OpportunitiesPage() {
                     >
                       Interested
                     </Button>
-                    <Button
-                      variant={tab === "INVESTED" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setTab("INVESTED")}
-                    >
-                      Invested
-                    </Button>
                   </div>
                   <Select value={sort} onValueChange={(v: any) => setSort(v)}>
                     <SelectTrigger>
@@ -736,7 +722,7 @@ export default function OpportunitiesPage() {
       </div>
 
       {showStats && (
-        <div className="hidden gap-4 md:grid md:grid-cols-5">
+        <div className="hidden gap-4 md:grid md:grid-cols-3">
           <Card>
             <CardHeader className="py-4">
               <CardTitle className="text-sm text-muted-foreground">Matched</CardTitle>
@@ -758,19 +744,6 @@ export default function OpportunitiesPage() {
             <CardContent className="pt-0 text-2xl font-semibold">{kpis.interested}</CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="py-4">
-              <CardTitle className="text-sm text-muted-foreground">Invested</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 text-2xl font-semibold">{kpis.invested}</CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="py-4">
-              <CardTitle className="text-sm text-muted-foreground">Invested</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 text-2xl font-semibold">{format(kpis.investedAmt)}</CardContent>
-          </Card>
         </div>
       )}
 
@@ -893,13 +866,6 @@ export default function OpportunitiesPage() {
                 onClick={() => setTab("VERY_INTERESTED")}
               >
                 Interested
-              </Button>
-              <Button
-                variant={tab === "INVESTED" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTab("INVESTED")}
-              >
-                Invested
               </Button>
 
               <Select value={sort} onValueChange={(v: any) => setSort(v)}>
