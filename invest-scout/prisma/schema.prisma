@@ -66,6 +66,8 @@ enum ReportTargetType {
   USER
   FORUM_POST
   OPPORTUNITY
+  HUB_POST
+  HUB_COMMENT
 }
 
 model User {
@@ -105,6 +107,8 @@ model User {
   hubsOwned                Hub[]                     @relation("HubOwner")
   hubMemberships           HubMembership[]
   hubPosts                 HubPost[]
+  hubComments              HubComment[]
+  hubReactions             HubReaction[]
   contentMentions          ContentMention[]          @relation("MentionedUser")
 
   // ✅ Added missing back-relations (named to match the view models)
@@ -300,6 +304,8 @@ model Hub {
   name        String
   slug        String   @unique
   description String?
+  imageUrl     String?
+  coverImageUrl String?
   isPrivate   Boolean  @default(false)
   ownerUserId String
   inviteToken String?
@@ -309,6 +315,8 @@ model Hub {
   owner       User            @relation("HubOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
   memberships HubMembership[]
   posts       HubPost[]
+  comments    HubComment[]
+  reactions   HubReaction[]
 
   @@unique([name])
   @@index([name])
@@ -350,9 +358,47 @@ model HubPost {
   opportunity Opportunity? @relation("HubPostOpportunity", fields: [opportunityId], references: [id], onDelete: SetNull)
 
   mentions ContentMention[]
+  comments HubComment[]
+  reactions HubReaction[]
 
   @@index([hubId, createdAt])
   @@index([authorUserId, createdAt])
+}
+
+model HubComment {
+  id         String   @id @default(cuid())
+  hubId      String
+  postId     String
+  userId     String
+  body       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  hub  Hub     @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  post HubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([hubId, createdAt])
+  @@index([postId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model HubReaction {
+  id        String   @id @default(cuid())
+  hubId     String
+  postId    String
+  userId    String
+  type      String
+  createdAt DateTime @default(now())
+
+  hub  Hub     @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  post HubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, type])
+  @@index([hubId, createdAt])
+  @@index([postId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model ContentMention {

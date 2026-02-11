@@ -49,6 +49,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ slug: str
         name: body?.name ? String(body.name).trim() : undefined,
         description: body?.description !== undefined ? String(body.description).trim() : undefined,
         isPrivate: body?.isPrivate !== undefined ? Boolean(body.isPrivate) : undefined,
+        imageUrl: body?.imageUrl !== undefined ? String(body.imageUrl).trim() || null : undefined,
+        coverImageUrl: body?.coverImageUrl !== undefined ? String(body.coverImageUrl).trim() || null : undefined,
       },
     });
     return NextResponse.json({ hub: updated });

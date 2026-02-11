@@ -23,6 +23,7 @@ export async function GET(req: Request, context: { params: Promise<{ slug: strin
       include: {
         author: { select: { id: true, email: true, profile: { select: { username: true, imageUrl: true, name: true } } } },
         opportunity: { select: { id: true, title: true, summary: true, source: true } },
+        _count: { select: { comments: true, reactions: true } },
       },
       take: 80,
     });

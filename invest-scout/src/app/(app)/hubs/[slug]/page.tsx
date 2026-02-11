@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,14 +19,22 @@ export default function HubPage() {
   const [hub, setHub] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [tab, setTab] = useState("posts");
+  const [presence, setPresence] = useState({ onlineNow: 0, members: 0 });
   const [draft, setDraft] = useState({ title: "", body: "", type: "DISCUSSION", opportunityId: "", newsHeadline: "", newsUrl: "", newsSource: "" });
+  const [savingHub, setSavingHub] = useState(false);
 
   async function load() {
-    const [hubRes, postsRes] = await Promise.all([
+    const [hubRes, postsRes, presenceRes] = await Promise.all([
       fetch(`/api/hubs/${params.slug}`, { credentials: "include" }),
       fetch(`/api/hubs/${params.slug}/posts?tab=${tab}`, { credentials: "include" }),
+      fetch(`/api/hubs/${params.slug}/presence`, { credentials: "include" }),
     ]);
-    const [hubData, postData] = await Promise.all([hubRes.json().catch(() => ({})), postsRes.json().catch(() => ({}))]);
+    const [hubData, postData, presenceData] = await Promise.all([
+      hubRes.json().catch(() => ({})),
+      postsRes.json().catch(() => ({})),
+      presenceRes.json().catch(() => ({})),
+    ]);
+
     if (!hubRes.ok) {
       if (hubRes.status === 403 && inviteToken) {
         setHub({ pendingInvite: true, slug: params.slug });
@@ -33,16 +43,30 @@ export default function HubPage() {
       toast.error(hubData?.error ?? "Unable to load hub");
       return;
     }
+
     if (!postsRes.ok && postsRes.status !== 403) {
       toast.error(postData?.error ?? "Unable to load hub posts");
     }
+
     setHub(hubData);
     setPosts(postData.posts ?? []);
+    if (presenceRes.ok) setPresence({ onlineNow: presenceData.onlineNow ?? 0, members: presenceData.members ?? hubData?.hub?._count?.memberships ?? 0 });
   }
 
   useEffect(() => {
     load();
   }, [params.slug, tab]);
+
+  useEffect(() => {
+    const ping = async () => {
+      const res = await fetch(`/api/hubs/${params.slug}/presence`, { method: "POST", credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setPresence({ onlineNow: data.onlineNow ?? 0, members: data.members ?? 0 });
+    };
+    ping();
+    const id = window.setInterval(ping, 30000);
+    return () => window.clearInterval(id);
+  }, [params.slug]);
 
   async function joinHub() {
     const res = await fetch(`/api/hubs/${params.slug}/join`, {
@@ -80,8 +104,23 @@ export default function HubPage() {
     load();
   }
 
+  async function saveHubImages(payload: Record<string, string>) {
+    setSavingHub(true);
+    const res = await fetch(`/api/hubs/${params.slug}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+    setSavingHub(false);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return toast.error(data?.error ?? "Unable to update hub");
+    toast.success("Hub updated");
+    load();
+  }
+
   const isMember = Boolean(hub?.isMember);
-  const canPost = isMember;
+  const isOwner = hub?.viewerRole === "owner";
 
   if (hub?.pendingInvite) {
     return (
@@ -99,17 +138,35 @@ export default function HubPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
-      <Card>
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <div>
-            <h1 className="text-2xl font-semibold">{hub?.hub?.name ?? "Hub"}</h1>
-            <p className="text-sm text-muted-foreground">{hub?.hub?.description || "No description"}</p>
-            <div className="mt-1 text-xs text-muted-foreground">{hub?.hub?._count?.memberships ?? 0} members</div>
+      <Card className="overflow-hidden">
+        <div className="h-32 w-full bg-muted/30">
+          {hub?.hub?.coverImageUrl ? <img src={hub.hub.coverImageUrl} alt="Hub cover" className="h-full w-full object-cover" /> : null}
+        </div>
+        <CardContent className="space-y-3 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-16 w-16 overflow-hidden rounded-full border bg-muted">
+                {hub?.hub?.imageUrl ? <img src={hub.hub.imageUrl} alt="Hub avatar" className="h-full w-full object-cover" /> : null}
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold">{hub?.hub?.name ?? "Hub"}</h1>
+                <p className="text-sm text-muted-foreground">{hub?.hub?.description || "No description"}</p>
+                <div className="mt-1 text-xs text-muted-foreground">{presence.members || hub?.hub?._count?.memberships ?? 0} members • {presence.onlineNow} online now</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={hub?.hub?.isPrivate ? "secondary" : "outline"}>{hub?.hub?.isPrivate ? "Private" : "Public"}</Badge>
+              {!isMember ? <Button onClick={joinHub}>Join</Button> : <Button variant="outline" onClick={leaveHub}>Joined • Leave</Button>}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={hub?.hub?.isPrivate ? "secondary" : "outline"}>{hub?.hub?.isPrivate ? "Private" : "Public"}</Badge>
-            {!isMember ? <Button onClick={joinHub}>Join</Button> : <Button variant="outline" onClick={leaveHub}>Joined • Leave</Button>}
-          </div>
+
+          {isOwner && (
+            <div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2">
+              <Input placeholder="Hub avatar URL" defaultValue={hub?.hub?.imageUrl ?? ""} onBlur={(e) => saveHubImages({ imageUrl: e.target.value })} disabled={savingHub} />
+              <Input placeholder="Hub cover URL" defaultValue={hub?.hub?.coverImageUrl ?? ""} onBlur={(e) => saveHubImages({ coverImageUrl: e.target.value })} disabled={savingHub} />
+              <p className="sm:col-span-2 text-xs text-muted-foreground">Use your existing uploaded image URLs (same pattern as profile images).</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -122,11 +179,11 @@ export default function HubPage() {
         </TabsList>
 
         <TabsContent value="about">
-          <Card><CardContent className="p-4 text-sm">Owner-only moderation is enabled. Private hubs require invite links.</CardContent></Card>
+          <Card><CardContent className="p-4 text-sm">Owner moderation is enabled. Members can create posts and comments. Private hubs require invite links.</CardContent></Card>
         </TabsContent>
 
         <TabsContent value={tab === "posts" ? "posts" : tab}>
-          {canPost && (
+          {isMember && (
             <Card className="mb-3">
               <CardContent className="space-y-2 p-4">
                 <Input placeholder="Title" value={draft.title} onChange={(e) => setDraft((p) => ({ ...p, title: e.target.value }))} />
@@ -158,13 +215,23 @@ export default function HubPage() {
                 <CardContent className="p-4">
                   <div className="text-xs text-muted-foreground">{post.author?.profile?.username || post.author?.email} • {new Date(post.createdAt).toLocaleString()}</div>
                   <div className="mt-1 text-lg font-medium">{post.title}</div>
-                  <p className="mt-1 text-sm text-muted-foreground">{post.body}</p>
-                  {post.type === "OPPORTUNITY_IMPORT" && post.opportunity && (
-                    <div className="mt-3 rounded-md border bg-muted/40 p-2 text-sm">Opportunity: {post.opportunity.title}</div>
-                  )}
-                  {post.type === "NEWS_IMPORT" && (
-                    <div className="mt-3 rounded-md border bg-muted/40 p-2 text-sm">News: {post.newsHeadline} • {post.newsSource}</div>
-                  )}
+                  <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">{post.body}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <span>{post._count?.reactions ?? 0} likes</span>
+                    <span>{post._count?.comments ?? 0} comments</span>
+                    <Link className="text-primary underline" href={`/hubs/${params.slug}/posts/${post.id}`}>Open discussion</Link>
+                    <button type="button" className="inline-flex items-center gap-1" onClick={async () => {
+                      const url = `${window.location.origin}/hubs/${params.slug}/posts/${post.id}`;
+                      if (navigator.share) {
+                        await navigator.share({ title: post.title, url }).catch(() => undefined);
+                      } else {
+                        await navigator.clipboard.writeText(url);
+                        toast.success("Link copied");
+                      }
+                    }}>
+                      <Share2 className="h-3 w-3" /> Share
+                    </button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
