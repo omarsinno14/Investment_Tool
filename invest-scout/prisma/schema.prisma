@@ -76,36 +76,36 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  profile                Profile?
-  interests              Interest[]
-  actions                OpportunityAction[]
-  moneyManagement        MoneyManagement?
-  postedOpportunities    Opportunity[]
-  messagesSent           Message[]             @relation("MessageFromUser")
-  messagesReceived       Message[]             @relation("MessageToUser")
+  profile                  Profile?
+  interests                Interest[]
+  actions                  OpportunityAction[]
+  moneyManagement          MoneyManagement?
+  postedOpportunities      Opportunity[]
+  messagesSent             Message[]                 @relation("MessageFromUser")
+  messagesReceived         Message[]                 @relation("MessageToUser")
   conversationParticipants ConversationParticipant[]
-  forumPosts             ForumPost[]
-  forumComments          ForumComment[]
-  forumReactions         ForumReaction[]
-  forumSaves             ForumSave[]
-  forumReposts           ForumRepost[]
-  following              Follow[]              @relation("Follower")
-  followers              Follow[]              @relation("Following")
-  followRequestsSent     FollowRequest[]       @relation("FollowRequestSender")
-  followRequestsReceived FollowRequest[]       @relation("FollowRequestReceiver")
-  notifications          Notification[]
-  tagFollows             TagFollow[]
-  journalEntries         JournalEntry[]        @relation("JournalOwner")
-  journalCollaborations  JournalCollaborator[]
-  journalInvitesSent     JournalInvite[]       @relation("JournalInviteSender")
-  journalInvitesReceived JournalInvite[]       @relation("JournalInviteReceiver")
-  reportsSent            Report[]              @relation("ReportReporter")
-  blocksInitiated        Block[]               @relation("Blocker")
-  blocksReceived         Block[]               @relation("Blocked")
-  hubsOwned              Hub[]                 @relation("HubOwner")
-  hubMemberships         HubMembership[]
-  hubPosts               HubPost[]
-  contentMentions        ContentMention[]      @relation("MentionedUser")
+  forumPosts               ForumPost[]
+  forumComments            ForumComment[]
+  forumReactions           ForumReaction[]
+  forumSaves               ForumSave[]
+  forumReposts             ForumRepost[]
+  following                Follow[]                  @relation("Follower")
+  followers                Follow[]                  @relation("Following")
+  followRequestsSent       FollowRequest[]           @relation("FollowRequestSender")
+  followRequestsReceived   FollowRequest[]           @relation("FollowRequestReceiver")
+  notifications            Notification[]
+  tagFollows               TagFollow[]
+  journalEntries           JournalEntry[]            @relation("JournalOwner")
+  journalCollaborations    JournalCollaborator[]
+  journalInvitesSent       JournalInvite[]           @relation("JournalInviteSender")
+  journalInvitesReceived   JournalInvite[]           @relation("JournalInviteReceiver")
+  reportsSent              Report[]                  @relation("ReportReporter")
+  blocksInitiated          Block[]                   @relation("Blocker")
+  blocksReceived           Block[]                   @relation("Blocked")
+  hubsOwned                Hub[]                     @relation("HubOwner")
+  hubMemberships           HubMembership[]
+  hubPosts                 HubPost[]
+  contentMentions          ContentMention[]          @relation("MentionedUser")
 
   // ✅ Added missing back-relations (named to match the view models)
   opportunityViews OpportunityView[] @relation("OpportunityView_viewer")
@@ -246,8 +246,9 @@ model Opportunity {
   boostedBudget             Float?
   boostedCurrency           String?
 
-  categories String[] @default([])
-  keywords   String[] @default([])
+  hubPosts   HubPost[] @relation("HubPostOpportunity")
+  categories String[]  @default([])
+  keywords   String[]  @default([])
 
   actions OpportunityAction[]
   views   OpportunityView[]
@@ -329,25 +330,26 @@ model HubMembership {
 }
 
 model HubPost {
-  id               String      @id @default(cuid())
-  hubId            String
-  authorUserId     String
-  title            String
-  body             String
-  type             HubPostType @default(DISCUSSION)
-  opportunityId    String?
-  newsHeadline     String?
-  newsUrl          String?
-  newsSource       String?
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  editedAt         DateTime?
-  deletedAt        DateTime?
+  id            String      @id @default(cuid())
+  hubId         String
+  authorUserId  String
+  title         String
+  body          String
+  type          HubPostType @default(DISCUSSION)
+  opportunityId String?
+  newsHeadline  String?
+  newsUrl       String?
+  newsSource    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  editedAt      DateTime?
+  deletedAt     DateTime?
 
   hub         Hub          @relation(fields: [hubId], references: [id], onDelete: Cascade)
   author      User         @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
-  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
-  mentions    ContentMention[]
+  opportunity Opportunity? @relation("HubPostOpportunity", fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  mentions ContentMention[]
 
   @@index([hubId, createdAt])
   @@index([authorUserId, createdAt])
@@ -360,9 +362,9 @@ model ContentMention {
   mentionedUserId String
   createdAt       DateTime @default(now())
 
-  forumPost      ForumPost? @relation(fields: [forumPostId], references: [id], onDelete: Cascade)
-  hubPost        HubPost?   @relation(fields: [hubPostId], references: [id], onDelete: Cascade)
-  mentionedUser  User       @relation("MentionedUser", fields: [mentionedUserId], references: [id], onDelete: Cascade)
+  forumPost     ForumPost? @relation(fields: [forumPostId], references: [id], onDelete: Cascade)
+  hubPost       HubPost?   @relation(fields: [hubPostId], references: [id], onDelete: Cascade)
+  mentionedUser User       @relation("MentionedUser", fields: [mentionedUserId], references: [id], onDelete: Cascade)
 
   @@index([mentionedUserId, createdAt])
   @@index([forumPostId])
@@ -464,20 +466,20 @@ model OpportunityAction {
 }
 
 model Message {
-  id            String   @id @default(cuid())
-  fromUserId    String
-  toUserId      String
+  id             String    @id @default(cuid())
+  fromUserId     String
+  toUserId       String
   conversationId String?
-  body          String
-  opportunityId String?
-  readAt        DateTime?
-  editedAt      DateTime?
-  deletedAt     DateTime?
-  createdAt     DateTime @default(now())
+  body           String
+  opportunityId  String?
+  readAt         DateTime?
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
 
-  fromUser    User         @relation("MessageFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser      User         @relation("MessageToUser", fields: [toUserId], references: [id], onDelete: Cascade)
-  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  fromUser     User          @relation("MessageFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser       User          @relation("MessageToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+  opportunity  Opportunity?  @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
   conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 
   @@index([fromUserId])
@@ -487,10 +489,10 @@ model Message {
 }
 
 model Conversation {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   lastMessageAt DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   participants ConversationParticipant[]
   messages     Message[]
@@ -499,12 +501,12 @@ model Conversation {
 }
 
 model ConversationParticipant {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   conversationId String
   userId         String
   lastReadAt     DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
