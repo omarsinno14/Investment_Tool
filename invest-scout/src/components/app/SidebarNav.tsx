@@ -39,7 +39,7 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
   return (
     <aside className={`flex h-full flex-col overflow-y-auto border-r bg-background py-6 ${collapsed ? "w-20 px-3" : "w-64 px-4"}`}>
       <div className="flex items-center justify-between">
-        <Link href="/dashboard" className="text-lg font-semibold tracking-tight">{collapsed ? "I" : "Invescout"}</Link>
+        <Link href="/dashboard" className="text-lg font-semibold tracking-tight">{collapsed ? "I" : "Vertica"}</Link>
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleCollapsed} aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}>
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>

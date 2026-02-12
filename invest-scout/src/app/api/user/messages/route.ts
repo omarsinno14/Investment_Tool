@@ -10,6 +10,14 @@ function normalize(value: string) {
   return value.trim();
 }
 
+async function hasMutualFollow(prisma: any, userId: string, otherUserId: string) {
+  const [a,b] = await Promise.all([
+    prisma.follow.findUnique({ where: { followerId_followingId: { followerId: userId, followingId: otherUserId } }, select: { id: true } }),
+    prisma.follow.findUnique({ where: { followerId_followingId: { followerId: otherUserId, followingId: userId } }, select: { id: true } }),
+  ]);
+  return Boolean(a && b);
+}
+
 export async function GET(req: Request) {
   return withTiming(async () => {
     const requestId = getRequestId(req);
@@ -37,6 +45,11 @@ export async function GET(req: Request) {
         if (!recipient) return jsonResponse(req, { messages: [] }, 200, "messages", requestId);
         if (blockedSet.has(recipient.id)) {
           return jsonResponse(req, { error: "Conversation unavailable" }, 403, "messages", requestId);
+        }
+
+        const mutual = await hasMutualFollow(prisma, userId, recipient.id);
+        if (!mutual) {
+          return jsonResponse(req, { error: "Follow each other to message" }, 403, "messages.send", requestId);
         }
 
         const conversation = await getOrCreateConversation(prisma, userId, recipient.id);

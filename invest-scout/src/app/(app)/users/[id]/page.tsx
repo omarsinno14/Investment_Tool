@@ -311,9 +311,10 @@ export default function UserProfilePage() {
             >
               {following ? "Following" : followRequestStatus === "PENDING" ? "Requested" : "Follow"}
             </Button>
-            <Button asChild variant="outline" disabled={!identifier || !followedBy || isBlocked || isBlockedBy}>
+            <Button asChild variant="outline" disabled={!identifier || !followedBy || !following || isBlocked || isBlockedBy}>
               <a href={`/messages?partner=${encodeURIComponent(identifier || "")}`}>Message</a>
             </Button>
+            {!following || !followedBy ? <p className="text-xs text-muted-foreground">Follow each other to message.</p> : null}
             <Button variant="outline" onClick={toggleBlock}>
               {isBlocked ? "Unblock" : "Block"}
             </Button>

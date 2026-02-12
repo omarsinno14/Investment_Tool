@@ -105,6 +105,7 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const coverRef = useRef<HTMLInputElement | null>(null);
   const cvRef = useRef<HTMLInputElement | null>(null);
+  const [adminRequests, setAdminRequests] = useState<any[] | null>(null);
 
   // Choose which risk scale to use based on what the backend returns
   const riskScale = useMemo(() => {
@@ -182,6 +183,31 @@ export default function SettingsPage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/approvals", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setAdminRequests(data.requests ?? []);
+        }
+      } catch {}
+    })();
+  }, []);
+
+  async function decideAdminRequest(requestId: string, action: "APPROVE" | "REJECT") {
+    const res = await fetch("/api/admin/approvals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ requestId, action }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return toast.error(data?.error ?? "Action failed");
+    setAdminRequests((prev) => (prev ?? []).filter((r) => r.id !== requestId));
+    toast.success(`Request ${action === "APPROVE" ? "approved" : "rejected"}`);
+  }
 
   useEffect(() => {
     (async () => {
@@ -828,6 +854,24 @@ export default function SettingsPage() {
           })}
         </CardContent>
       </Card>
+
+      {adminRequests ? (
+        <Card>
+          <CardHeader><CardTitle>Admin approvals (super admin)</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {adminRequests.length === 0 ? <div className="text-sm text-muted-foreground">No pending admin requests.</div> : null}
+            {adminRequests.map((r) => (
+              <div key={r.id} className="flex items-center justify-between rounded border p-2 text-sm">
+                <div>{r.email} ({r.username})</div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => decideAdminRequest(r.id, "APPROVE")}>Approve</Button>
+                  <Button size="sm" variant="outline" onClick={() => decideAdminRequest(r.id, "REJECT")}>Reject</Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

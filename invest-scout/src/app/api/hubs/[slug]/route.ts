@@ -37,6 +37,8 @@ export async function PATCH(req: Request, context: { params: Promise<{ slug: str
     if (!prisma) return NextResponse.json({ error: "Database unavailable" }, { status: 500 });
     const userId = await requireUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const actor = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (actor?.role !== "ADMIN") return NextResponse.json({ error: "Only admins can manage forums" }, { status: 403 });
     const { slug } = await context.params;
     const hub = await prisma.hub.findUnique({ where: { slug } });
     if (!hub) return NextResponse.json({ error: "Hub not found" }, { status: 404 });
