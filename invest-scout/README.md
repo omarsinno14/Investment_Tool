@@ -29,6 +29,63 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 - If you only need Prisma types, `npm run prisma:generate` is sufficient.
 - Run `npm run test:smoke` to validate core API auth guards without a running server.
 
+
+## Vertica run checklist (cookies/secrets/url/db/prisma)
+
+1. Create env file:
+
+```bash
+cp .env.example .env
+```
+
+2. Set strong secrets (required for auth cookies/session):
+
+```bash
+openssl rand -hex 32
+```
+
+- Put the value in `NEXTAUTH_SECRET`.
+- Keep `NEXTAUTH_URL` and `APP_URL` identical (usually `http://localhost:3000` in dev).
+
+3. Start Postgres + Redis:
+
+```bash
+npm run db:up
+```
+
+4. Validate env wiring before boot:
+
+```bash
+npm run env:check
+```
+
+5. Apply Prisma migrations + generate client:
+
+```bash
+npm run prisma:migrate
+```
+
+6. Seed super admin:
+
+```bash
+npm run prisma:seed
+```
+
+7. Start app:
+
+```bash
+npm run dev
+```
+
+If you need a clean DB reset:
+
+```bash
+docker compose down -v
+npm run db:up
+npm run prisma:migrate
+npm run prisma:seed
+```
+
 ## Production configuration
 
 1. Copy `.env.example` to `.env` and set values via environment variables only (no secrets in Git).
