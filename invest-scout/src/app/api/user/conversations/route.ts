@@ -6,6 +6,14 @@ import { getClientIp, getRequestId } from "@/lib/request-context";
 import { jsonResponse, withTiming } from "@/lib/api-response";
 import { logger } from "@/lib/logger";
 
+async function hasMutualFollow(prisma: any, userId: string, otherUserId: string) {
+  const [a, b] = await Promise.all([
+    prisma.follow.findUnique({ where: { followerId_followingId: { followerId: userId, followingId: otherUserId } }, select: { id: true } }),
+    prisma.follow.findUnique({ where: { followerId_followingId: { followerId: otherUserId, followingId: userId } }, select: { id: true } }),
+  ]);
+  return Boolean(a && b);
+}
+
 export async function GET(req: Request) {
   return withTiming(async () => {
     const requestId = getRequestId(req);
@@ -122,6 +130,9 @@ export async function POST(req: Request) {
       if (blocked) {
         return jsonResponse(req, { error: "Conversation unavailable" }, 403, "conversations.create", requestId);
       }
+
+      const mutual = await hasMutualFollow(prisma, userId, recipient.id);
+      if (!mutual) return jsonResponse(req, { error: "Follow each other to message" }, 403, "conversations.create", requestId);
 
       const conversation = await getOrCreateConversation(prisma, userId, recipient.id);
       return jsonResponse(req, { conversationId: conversation.id }, 200, "conversations.create", requestId);

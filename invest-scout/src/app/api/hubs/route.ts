@@ -60,6 +60,9 @@ export async function POST(req: Request) {
     const userId = await requireUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const actor = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (actor?.role !== "ADMIN") return NextResponse.json({ error: "Only admins can create/manage forums" }, { status: 403 });
+
     const body = await req.json().catch(() => null);
     const name = String(body?.name ?? "").trim();
     const description = String(body?.description ?? "").trim();

@@ -63,7 +63,7 @@ export default function RegisterPage() {
         <div className="w-full max-w-xl">
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Create your Invescout account</CardTitle>
+              <CardTitle>Create your Vertica account</CardTitle>
             </CardHeader>
             <CardContent>
               <form className="space-y-4" onSubmit={onSubmit}>

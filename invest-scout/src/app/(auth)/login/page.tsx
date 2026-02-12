@@ -46,7 +46,7 @@ export default function LoginPage() {
               I
             </div>
             <div>
-              <h1 className="text-2xl font-semibold">Invescout</h1>
+              <h1 className="text-2xl font-semibold">Vertica</h1>
               <p className="text-sm text-muted-foreground">Welcome back. Sign in to continue.</p>
             </div>
           </div>
@@ -76,6 +76,9 @@ export default function LoginPage() {
                 <Link className="underline" href="/register">
                   Create one
                 </Link>
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Need admin access? <Link className="underline" href="/admin/login">Admin account</Link>
               </p>
             </CardContent>
           </Card>

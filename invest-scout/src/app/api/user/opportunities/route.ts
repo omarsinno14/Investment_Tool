@@ -25,6 +25,9 @@ export async function POST(req: Request) {
     const userId = await requireUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const actor = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (actor?.role !== "ADMIN") return NextResponse.json({ error: "Only admins can post opportunities" }, { status: 403 });
+
     const formData = await req.formData();
     const title = sanitizeProfanity(toString(formData.get("title")));
     const summary = sanitizeProfanity(toString(formData.get("summary")));
