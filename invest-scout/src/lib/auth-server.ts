@@ -1,4 +1,6 @@
+// src/lib/auth-server.ts
 import { getServerSession } from "next-auth";
+import { cookies } from "next/headers";
 import { getPrismaClient } from "@/lib/db";
 import { authOptions } from "@/lib/auth";
 
