@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-const STORAGE_KEY = "invescout-preferred-currency";
-const RATE_CACHE_KEY = "invescout-currency-rates";
+const STORAGE_KEY = "vertica-preferred-currency";
+const RATE_CACHE_KEY = "vertica-currency-rates";
 const RATE_CACHE_TTL_MS = 1000 * 60 * 60 * 12;
 
 export const SUPPORTED_CURRENCIES = [

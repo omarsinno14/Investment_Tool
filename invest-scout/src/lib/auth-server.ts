@@ -1,26 +1,22 @@
 import { getServerSession } from "next-auth";
 import { getPrismaClient } from "@/lib/db";
-import { authOptions } from "@/lib/auth"; // <-- make sure this path matches your authOptions file
+import { authOptions } from "@/lib/auth";
+
+export async function requireSessionUser() {
+  const session = await getServerSession(authOptions);
+  const email = session?.user?.email;
+  if (!email) return null;
+
+  const prisma = getPrismaClient();
+  if (!prisma) return null;
+
+  return prisma.user.findUnique({
+    where: { email },
+    include: { profile: { select: { username: true } } },
+  });
+}
 
 export async function requireUserId(): Promise<string | null> {
-  try {
-    const session = await getServerSession(authOptions);
-
-    // NextAuth usually guarantees email, not id
-    const email = session?.user?.email;
-    if (!email) return null;
-
-    const prisma = getPrismaClient();
-    if (!prisma) return null;
-
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true },
-    });
-
-    return user?.id ?? null;
-  } catch (e) {
-    console.error("Failed to resolve session", e);
-    return null;
-  }
+  const user = await requireSessionUser();
+  return user?.id ?? null;
 }

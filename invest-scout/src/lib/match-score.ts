@@ -3,6 +3,7 @@ type InterestInput = { type?: string | null; value?: string | null };
 type MatchContext = {
   interestTerms: string[];
   countryTerms: string[];
+  cityTerms: string[];
   userCountry: string | null;
   userRegion: string | null;
   investAmount: number | null;
@@ -34,22 +35,22 @@ export function buildMatchContext({
 }): MatchContext {
   const interestTerms: string[] = [];
   const countryTerms: string[] = [];
+  const cityTerms: string[] = [];
 
   for (const interest of interests) {
     const raw = String(interest?.value ?? "").trim();
     if (!raw) continue;
     const value = normalize(raw);
     const type = String(interest?.type ?? "").toUpperCase();
-    if (type === "COUNTRY") {
-      countryTerms.push(value);
-    } else {
-      interestTerms.push(value);
-    }
+    if (type === "COUNTRY") countryTerms.push(value);
+    else if (type === "CITY") cityTerms.push(value);
+    else interestTerms.push(value);
   }
 
   return {
     interestTerms,
     countryTerms,
+    cityTerms,
     userCountry: userCountry ? normalize(userCountry) : null,
     userRegion: userRegion ? normalize(userRegion) : null,
     investAmount: typeof investAmount === "number" ? investAmount : null,
@@ -75,10 +76,11 @@ export function matchesOpportunityInterest(
 }
 
 export function matchesOpportunityLocation(
-  opportunity: { locationName?: string | null; countryTags?: string[] | null },
+  opportunity: { locationName?: string | null; countryTags?: string[] | null; cityTags?: string[] | null },
   context: MatchContext
 ) {
   const countryTags = (opportunity.countryTags ?? []).map((tag) => normalize(tag));
+  const cityTags = (opportunity.cityTags ?? []).map((tag) => normalize(tag));
   const loc = safeText(opportunity.locationName ?? "");
   if (!loc && countryTags.length === 0) return false;
   const countryMatch =
@@ -88,8 +90,9 @@ export function matchesOpportunityLocation(
       (context.userCountry && tag.includes(context.userCountry)) ||
       context.countryTerms.some((term) => tag.includes(term))
     );
+  const cityMatch = context.cityTerms.some((term) => loc.includes(term) || cityTags.some((tag) => tag.includes(term)));
   const regionMatch = context.userRegion ? loc.includes(context.userRegion) : false;
-  return Boolean(countryMatch || regionMatch);
+  return Boolean(countryMatch || cityMatch || regionMatch);
 }
 
 export function getMatchScore(
@@ -101,6 +104,10 @@ export function getMatchScore(
     keywords?: string[] | null;
     locationName?: string | null;
     countryTags?: string[] | null;
+    cityTags?: string[] | null;
+    assetTags?: string[] | null;
+    strategyTags?: string[] | null;
+    keywordTags?: string[] | null;
     askAmount?: number | null;
   },
   context: MatchContext
@@ -108,6 +115,7 @@ export function getMatchScore(
   let score = 0;
   const loc = safeText(opportunity.locationName ?? "");
   const countryTags = (opportunity.countryTags ?? []).map((tag) => normalize(tag));
+  const cityTags = (opportunity.cityTags ?? []).map((tag) => normalize(tag));
   const countryMatch =
     (context.userCountry && loc.includes(context.userCountry)) ||
     context.countryTerms.some((term) => loc.includes(term)) ||
@@ -115,10 +123,11 @@ export function getMatchScore(
       (context.userCountry && tag.includes(context.userCountry)) ||
       context.countryTerms.some((term) => tag.includes(term))
     );
+  const cityMatch = context.cityTerms.some((term) => loc.includes(term) || cityTags.some((tag) => tag.includes(term)));
   const regionMatch = context.userRegion ? loc.includes(context.userRegion) : false;
 
-  if (countryMatch && regionMatch) score += 30;
-  else if (countryMatch) score += 20;
+  if ((countryMatch || cityMatch) && regionMatch) score += 30;
+  else if (countryMatch || cityMatch) score += 20;
   else if (regionMatch) score += 10;
 
   if (matchesOpportunityInterest(opportunity, context)) {
@@ -126,7 +135,7 @@ export function getMatchScore(
   }
 
   const haystack = normalize(
-    `${(opportunity.tags ?? []).join(" ")} ${(opportunity.keywords ?? []).join(" ")}`
+    `${(opportunity.tags ?? []).join(" ")} ${(opportunity.keywords ?? []).join(" ")} ${(opportunity.assetTags ?? []).join(" ")} ${(opportunity.strategyTags ?? []).join(" ")} ${(opportunity.keywordTags ?? []).join(" ")}`
   );
   if (includesAny(haystack, context.interestTerms)) {
     score += 20;
@@ -142,11 +151,11 @@ export function getMatchScore(
 }
 
 export function shouldIncludeOpportunity(
-  opportunity: { locationName?: string | null; countryTags?: string[] | null; title?: string | null; summary?: string | null; details?: string | null; tags?: string[] | null; keywords?: string[] | null },
+  opportunity: { locationName?: string | null; countryTags?: string[] | null; cityTags?: string[] | null; title?: string | null; summary?: string | null; details?: string | null; tags?: string[] | null; keywords?: string[] | null; assetTags?: string[] | null; strategyTags?: string[] | null; keywordTags?: string[] | null },
   context: MatchContext
 ) {
   const hasInterestTerms = context.interestTerms.length > 0;
-  const hasLocationTerms = Boolean(context.userCountry || context.userRegion || context.countryTerms.length > 0);
+  const hasLocationTerms = Boolean(context.userCountry || context.userRegion || context.countryTerms.length > 0 || context.cityTerms.length > 0);
 
   const interestMatch = matchesOpportunityInterest(opportunity, context);
   const locationMatch = matchesOpportunityLocation(opportunity, context);

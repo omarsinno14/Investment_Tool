@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -104,6 +105,16 @@ export default function HubPage() {
     load();
   }
 
+  async function uploadHubImage(file: File, kind: "imageUrl" | "coverImageUrl") {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("folder", "hubs");
+    const res = await fetch("/api/upload", { method: "POST", credentials: "include", body: form });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return toast.error(data?.error ?? "Upload failed");
+    await saveHubImages({ [kind]: data.url });
+  }
+
   async function saveHubImages(payload: Record<string, string>) {
     setSavingHub(true);
     const res = await fetch(`/api/hubs/${params.slug}`, {
@@ -162,9 +173,15 @@ export default function HubPage() {
 
           {isOwner && (
             <div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2">
-              <Input placeholder="Hub avatar URL" defaultValue={hub?.hub?.imageUrl ?? ""} onBlur={(e) => saveHubImages({ imageUrl: e.target.value })} disabled={savingHub} />
-              <Input placeholder="Hub cover URL" defaultValue={hub?.hub?.coverImageUrl ?? ""} onBlur={(e) => saveHubImages({ coverImageUrl: e.target.value })} disabled={savingHub} />
-              <p className="sm:col-span-2 text-xs text-muted-foreground">Use your existing uploaded image URLs (same pattern as profile images).</p>
+              <div>
+                <Label>Forum image</Label>
+                <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={async (e) => { const file = e.target.files?.[0]; if (file) await uploadHubImage(file, "imageUrl"); }} disabled={savingHub} />
+              </div>
+              <div>
+                <Label>Forum cover image</Label>
+                <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={async (e) => { const file = e.target.files?.[0]; if (file) await uploadHubImage(file, "coverImageUrl"); }} disabled={savingHub} />
+              </div>
+              <p className="sm:col-span-2 text-xs text-muted-foreground">Upload JPEG/PNG/WEBP files (max 5MB).</p>
             </div>
           )}
         </CardContent>

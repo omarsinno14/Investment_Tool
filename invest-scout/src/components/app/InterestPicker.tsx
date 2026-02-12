@@ -2,27 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, X, Sparkles } from "lucide-react";
-
-import { cn } from "@/lib/utils";
-import { COUNTRIES_ALL } from "@/lib/countries";
-import { INDUSTRIES_BY_SECTOR, INTEREST_TYPES, SECTORS } from "@/lib/interests";
-import { buildSmartSuggestions } from "@/lib/suggestions";
-
-import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { ASSET_CLASSES, CITIES_BY_COUNTRY, COUNTRIES, INTEREST_TYPES, REITS, STRATEGIES, SUBTOPICS } from "@/lib/interests";
 
 type Interest = { type: string; value: string; parent?: string | null };
 
@@ -30,364 +16,101 @@ function keyOf(i: Interest) {
   return `${i.type}:${i.value}`;
 }
 
-function MultiSelectCombobox({
-  title,
-  placeholder,
-  items,
-  selectedSet,
-  onToggle,
-}: {
-  title: string;
-  placeholder: string;
-  items: string[];
-  selectedSet: Set<string>;
-  onToggle: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  const selectedCount = useMemo(() => {
-    let c = 0;
-    for (const it of items) if (selectedSet.has(it)) c++;
-    return c;
-  }, [items, selectedSet]);
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center justify-between">
-          <span>{title}</span>
-          <span className="text-sm text-muted-foreground">{selectedCount} selected</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-full justify-between">
-              {placeholder}
-              <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[360px] p-0" align="start">
-            <Command>
-              <CommandInput placeholder="Search..." />
-              <CommandList>
-                <CommandEmpty>No results.</CommandEmpty>
-                <CommandGroup>
-                  <ScrollArea className="h-[320px]">
-                    {items.map((item) => {
-                      const isSelected = selectedSet.has(item);
-                      return (
-                        <CommandItem key={item} value={item} onSelect={() => onToggle(item)}>
-                          <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
-                          {item}
-                        </CommandItem>
-                      );
-                    })}
-                  </ScrollArea>
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function InterestPicker() {
   const [selected, setSelected] = useState<Interest[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  const [sectorFilter, setSectorFilter] = useState<string | null>(null);
   const [custom, setCustom] = useState("");
 
   useEffect(() => {
     (async () => {
-      try {
-        const res = await fetch("/api/user/interests", { credentials: "include" });
-        if (res.status === 401) {
-          window.location.href = "/login";
-          return;
-        }
-
-        const ct = res.headers.get("content-type") ?? "";
-        const isJson = ct.includes("application/json");
-        const data = isJson ? await res.json().catch(() => ({})) : {};
-
-        if (!res.ok) {
-          const fallbackMsg = isJson ? data?.error || "Failed to load interests" : "Failed to load interests";
-          throw new Error(fallbackMsg);
-        }
-
-        if (!isJson) {
-          const txt = await res.text();
-          throw new Error(`Unexpected response (${ct}): ${txt.slice(0, 120)}`);
-        }
-
-        setSelected(data.interests ?? []);
-      } catch (e) {
-        console.error(e);
-        toast.error("Failed to load interests");
-      } finally {
-        setLoading(false);
-      }
+      const res = await fetch("/api/user/interests", { credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setSelected(data.interests ?? []);
+      else toast.error(data?.error ?? "Failed to load interests");
+      setLoading(false);
     })();
   }, []);
 
-  const selectedKeySet = useMemo(() => new Set(selected.map(keyOf)), [selected]);
-
-  function isSelected(type: string, value: string) {
-    return selectedKeySet.has(`${type}:${value}`);
-  }
+  const selectedSet = useMemo(() => new Set(selected.map(keyOf)), [selected]);
 
   function toggle(interest: Interest) {
-    const k = keyOf(interest);
-    if (selectedKeySet.has(k)) {
-      setSelected((prev) => prev.filter((x) => keyOf(x) !== k));
-    } else {
-      setSelected((prev) => [...prev, interest]);
-    }
+    const key = keyOf(interest);
+    if (selectedSet.has(key)) setSelected((p) => p.filter((i) => keyOf(i) !== key));
+    else setSelected((p) => [...p, interest]);
   }
-
-  const selectedSectors = useMemo(() => {
-    const s = new Set<string>();
-    for (const i of selected) if (i.type === INTEREST_TYPES.SECTOR) s.add(i.value);
-    return s;
-  }, [selected]);
-
-  const selectedIndustries = useMemo(() => {
-    const s = new Set<string>();
-    for (const i of selected) if (i.type === INTEREST_TYPES.INDUSTRY) s.add(i.value);
-    return s;
-  }, [selected]);
-
-  const selectedCountries = useMemo(() => {
-    const s = new Set<string>();
-    for (const i of selected) if (i.type === INTEREST_TYPES.COUNTRY) s.add(i.value);
-    return s;
-  }, [selected]);
-
-  const industriesForSector = useMemo(() => {
-    if (!sectorFilter) {
-      const all = Object.values(INDUSTRIES_BY_SECTOR).flat();
-      return Array.from(new Set(all)).sort((a, b) => a.localeCompare(b));
-    }
-    return (INDUSTRIES_BY_SECTOR[sectorFilter] ?? []).slice().sort((a, b) => a.localeCompare(b));
-  }, [sectorFilter]);
-
-  const smartSuggestions = useMemo(() => {
-    return buildSmartSuggestions({
-      query: custom,
-      selectedCountries: Array.from(selectedCountries),
-      selectedSectors: Array.from(selectedSectors),
-      selectedIndustries: Array.from(selectedIndustries),
-    });
-  }, [custom, selectedCountries, selectedSectors, selectedIndustries]);
 
   async function save() {
     setSaving(true);
-    try {
-      const res = await fetch("/api/user/interests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ interests: selected }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data?.error ?? "Failed to save interests");
-        return;
-      }
-
-      toast.success("Interests saved");
-      const ingestRes = await fetch("/api/user/ingest", {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!ingestRes.ok) {
-        const data = await ingestRes.json().catch(() => ({}));
-        toast.error(data?.error ?? "Unable to fetch fresh headlines");
-        return;
-      }
-      toast.message("Fetching new headlines for your interests");
-    } catch (e) {
-      console.error(e);
-      toast.error("Network error");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function addCustom(value?: string) {
-    const v = (value ?? custom).trim();
-    if (!v) return;
-
-    if (isSelected(INTEREST_TYPES.CUSTOM, v)) {
-      toast.message("Already added");
-      return;
-    }
-
-    toggle({ type: INTEREST_TYPES.CUSTOM, value: v });
-    setCustom("");
+    const res = await fetch("/api/user/interests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ interests: selected }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) toast.error(data?.error ?? "Failed to save interests");
+    else toast.success("Real-estate interests saved");
+    setSaving(false);
   }
 
   if (loading) return <div>Loading...</div>;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-      {/* Left: pickers */}
-      <div className="space-y-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Industry filter (optional)</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button size="sm" variant={sectorFilter === null ? "default" : "outline"} onClick={() => setSectorFilter(null)}>
-              All industries
-            </Button>
-            {SECTORS.map((s) => (
-              <Button
-                key={s}
-                size="sm"
-                variant={sectorFilter === s ? "default" : "outline"}
-                onClick={() => setSectorFilter(s)}
-              >
-                {s}
-              </Button>
+    <div className="space-y-4">
+      {[{ title: "Asset Class", type: INTEREST_TYPES.ASSET_CLASS, values: ASSET_CLASSES }, { title: "Strategy", type: INTEREST_TYPES.STRATEGY, values: STRATEGIES }, { title: "REIT", type: INTEREST_TYPES.REIT, values: REITS }, { title: "Subtopics", type: INTEREST_TYPES.SUBTOPIC, values: SUBTOPICS }].map((section) => (
+        <Card key={section.title}>
+          <CardHeader><CardTitle className="text-base">{section.title}</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-2 md:grid-cols-3">
+            {section.values.map((v) => (
+              <label key={v} className="flex items-center gap-2 text-sm">
+                <Checkbox checked={selectedSet.has(`${section.type}:${v}`)} onCheckedChange={() => toggle({ type: section.type, value: v })} />
+                {v}
+              </label>
             ))}
           </CardContent>
         </Card>
+      ))}
 
-        <MultiSelectCombobox
-          title="Sectors"
-          placeholder="Search sectors..."
-          items={SECTORS}
-          selectedSet={selectedSectors}
-          onToggle={(v) => toggle({ type: INTEREST_TYPES.SECTOR, value: v })}
-        />
-
-        <MultiSelectCombobox
-          title="Industries / Niches"
-          placeholder={sectorFilter ? `Search industries in ${sectorFilter}...` : "Search industries..."}
-          items={industriesForSector}
-          selectedSet={selectedIndustries}
-          onToggle={(v) =>
-            toggle({
-              type: INTEREST_TYPES.INDUSTRY,
-              value: v,
-              parent: sectorFilter ?? null,
-            })
-          }
-        />
-
-        <MultiSelectCombobox
-          title="Countries (worldwide)"
-          placeholder="Search countries..."
-          items={COUNTRIES_ALL}
-          selectedSet={selectedCountries}
-          onToggle={(v) => toggle({ type: INTEREST_TYPES.COUNTRY, value: v })}
-        />
-
-        {/* Custom keywords + Smart suggestions */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Custom keywords</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-2">
-              <Input
-                placeholder='e.g. "Dubai off-plan", "AI data centers", "Saudi banking"...'
-                value={custom}
-                onChange={(e) => setCustom(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addCustom();
-                  }
-                }}
-              />
-              <Button onClick={() => addCustom()} variant="outline">
-                Add
-              </Button>
-            </div>
-
-            {custom.trim().length >= 2 && (
-              <div className="rounded-lg border bg-muted/30 p-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Sparkles className="h-4 w-4" />
-                  Smart suggestions
-                </div>
-                <div className="mt-2 grid gap-2">
-                  {smartSuggestions.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">No suggestions yet.</div>
-                  ) : (
-                    smartSuggestions.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        className="text-left rounded-md border bg-background px-3 py-2 text-sm hover:bg-accent"
-                        onClick={() => addCustom(s)}
-                      >
-                        {s}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Right: selected + save */}
-      <div className="space-y-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Selected interests</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {selected.length === 0 ? (
-              <div className="text-sm text-muted-foreground">Nothing selected yet.</div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {selected.map((i) => (
-                  <Badge key={keyOf(i)} variant="secondary" className="flex items-center gap-1">
-                    <span className="text-xs opacity-70">{i.type}:</span>
-                    <span>{i.value}</span>
-                    <button
-                      className="ml-1 rounded-sm hover:opacity-70"
-                      onClick={() => toggle(i)}
-                      aria-label="Remove"
-                      type="button"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Countries & Cities</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          {COUNTRIES.map((country) => (
+            <div key={country} className="space-y-2">
+              <label className="flex items-center gap-2 font-medium text-sm">
+                <Checkbox checked={selectedSet.has(`COUNTRY:${country}`)} onCheckedChange={() => toggle({ type: INTEREST_TYPES.COUNTRY, value: country })} />
+                {country}
+              </label>
+              <div className="ml-6 grid grid-cols-2 gap-2 md:grid-cols-3">
+                {(CITIES_BY_COUNTRY[country] ?? []).map((city) => (
+                  <label key={city} className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={selectedSet.has(`CITY:${city}`)} onCheckedChange={() => toggle({ type: INTEREST_TYPES.CITY, value: city, parent: country })} />
+                    {city}
+                  </label>
                 ))}
               </div>
-            )}
-
-            <div className="pt-2 flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">{selected.length} total</div>
-              <Button onClick={save} disabled={saving}>
-                {saving ? "Saving..." : "Save"}
-              </Button>
             </div>
-          </CardContent>
-        </Card>
+          ))}
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Pro tip</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground space-y-2">
-            <div>• Custom keywords are the strongest signal for your feed.</div>
-            <div>• Use Country + Sector + a specific phrase (ex: “UAE banking M&A”).</div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Custom keywords</CardTitle></CardHeader>
+        <CardContent className="flex gap-2">
+          <Input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Optional keywords" />
+          <Button type="button" variant="outline" onClick={() => { if (custom.trim()) { toggle({ type: INTEREST_TYPES.CUSTOM, value: custom.trim() }); setCustom(""); } }}>Add</Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Selected</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {selected.map((i) => <Badge key={keyOf(i)}>{i.type}: {i.value} <button onClick={() => toggle(i)}><X className="h-3 w-3 inline"/></button></Badge>)}
+          </div>
+          <Button onClick={save} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

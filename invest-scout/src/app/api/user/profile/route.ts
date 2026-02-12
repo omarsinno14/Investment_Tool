@@ -12,9 +12,9 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, profile: true },
+      select: { email: true, role: true, profile: true },
     });
-    return NextResponse.json({ profile: user?.profile ?? null, email: user?.email ?? null });
+    return NextResponse.json({ profile: user?.profile ?? null, email: user?.email ?? null, role: user?.role ?? "USER" });
   } catch (e) {
     console.error("Failed to load profile", e);
     return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
