@@ -97,25 +97,29 @@ export default function ForumsPage() {
           <h1 className="text-2xl font-semibold">Forums & Hubs</h1>
           <p className="text-sm text-muted-foreground">Discover communities and discussions.</p>
         </div>
-        {role === "ADMIN" ? <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" />Create Hub</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Create a Hub</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <Label>Hub name</Label>
-              <Input value={createData.name} onChange={(e) => setCreateData((p) => ({ ...p, name: e.target.value }))} />
-              <Label>Description</Label>
-              <Textarea value={createData.description} onChange={(e) => setCreateData((p) => ({ ...p, description: e.target.value }))} />
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={createData.isPrivate} onChange={(e) => setCreateData((p) => ({ ...p, isPrivate: e.target.checked }))} />
-                Private hub (invite-only)
-              </label>
-            </div>
-            <DialogFooter><Button onClick={createHub}>Create</Button></DialogFooter>
-          </DialogContent>
-        </Dialog> : <div className="text-xs text-muted-foreground">Only admins can create/manage forums.</div>
+        {role === "ADMIN" ? (
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2"><Plus className="h-4 w-4" />Create Hub</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Create a Hub</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <Label>Hub name</Label>
+                <Input value={createData.name} onChange={(e) => setCreateData((p) => ({ ...p, name: e.target.value }))} />
+                <Label>Description</Label>
+                <Textarea value={createData.description} onChange={(e) => setCreateData((p) => ({ ...p, description: e.target.value }))} />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={createData.isPrivate} onChange={(e) => setCreateData((p) => ({ ...p, isPrivate: e.target.checked }))} />
+                  Private hub (invite-only)
+                </label>
+              </div>
+              <DialogFooter><Button onClick={createHub}>Create</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
+        ) : (
+          <div className="text-xs text-muted-foreground">Only admins can create/manage forums.</div>
+        )}
       </div>
 
       <Card>

@@ -22,8 +22,3 @@ export async function requireUserId(): Promise<string | null> {
   const user = await requireSessionUser();
   return user?.id ?? null;
 }
-
-export async function requireUserId(): Promise<string | null> {
-  const user = await requireSessionUser();
-  return user?.id ?? null;
-}

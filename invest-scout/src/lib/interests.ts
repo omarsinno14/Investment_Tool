@@ -23,3 +23,10 @@ export const REITS: string[] = [...REAL_ESTATE_REITS];
 export const SUBTOPICS: string[] = [...REAL_ESTATE_SUBTOPICS];
 export const COUNTRIES: string[] = [...REAL_ESTATE_COUNTRIES];
 export const CITIES_BY_COUNTRY: Record<string, string[]> = REAL_ESTATE_COUNTRIES_AND_CITIES;
+
+
+// Backward-compatible aliases used by opportunities UI
+export const SECTORS: string[] = [...ASSET_CLASSES];
+export const INDUSTRIES_BY_SECTOR: Record<string, string[]> = Object.fromEntries(
+  ASSET_CLASSES.map((asset) => [asset, [...SUBTOPICS]])
+);
