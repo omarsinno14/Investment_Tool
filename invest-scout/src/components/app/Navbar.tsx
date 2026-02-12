@@ -87,7 +87,7 @@ export function Navbar() {
     <header className="border-b">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/feed" className="font-semibold tracking-tight">
-          Invescout
+          Vertica
         </Link>
         <nav className="flex items-center gap-3 text-sm">
           <Link href="/feed" className={navClass("/feed")} aria-current={pathname.startsWith("/feed") ? "page" : undefined}>

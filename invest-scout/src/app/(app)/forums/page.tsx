@@ -32,19 +32,22 @@ export default function ForumsPage() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [createData, setCreateData] = useState({ name: "", description: "", isPrivate: false });
+  const [role, setRole] = useState("USER");
 
   async function loadAll(query = "") {
     setLoading(true);
     try {
-      const [hubsRes, myRes, postsRes] = await Promise.all([
+      const [hubsRes, myRes, postsRes, profileRes] = await Promise.all([
         fetch(`/api/hubs${query ? `?q=${encodeURIComponent(query)}` : ""}`, { credentials: "include" }),
         fetch("/api/hubs/my", { credentials: "include" }),
         fetch("/api/forums", { credentials: "include" }),
+        fetch("/api/user/profile", { credentials: "include" }),
       ]);
-      const [hubsData, myData, postsData] = await Promise.all([
+      const [hubsData, myData, postsData, profileData] = await Promise.all([
         hubsRes.json().catch(() => ({})),
         myRes.json().catch(() => ({})),
         postsRes.json().catch(() => ({})),
+        profileRes.json().catch(() => ({})),
       ]);
       if (!hubsRes.ok) throw new Error(hubsData?.error ?? "Failed to load hubs");
       if (!myRes.ok) throw new Error(myData?.error ?? "Failed to load your hubs");
@@ -52,6 +55,7 @@ export default function ForumsPage() {
       setHubs(hubsData.hubs ?? []);
       setMyHubs(myData.hubs ?? []);
       setPosts((postsData.posts ?? []).slice(0, 8));
+      setRole(profileRes.ok ? (profileData.role ?? "USER") : "USER");
     } catch (e) {
       console.error(e);
       toast.error("Unable to load forums hub view");
@@ -93,25 +97,29 @@ export default function ForumsPage() {
           <h1 className="text-2xl font-semibold">Forums & Hubs</h1>
           <p className="text-sm text-muted-foreground">Discover communities and discussions.</p>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" />Create Hub</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Create a Hub</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <Label>Hub name</Label>
-              <Input value={createData.name} onChange={(e) => setCreateData((p) => ({ ...p, name: e.target.value }))} />
-              <Label>Description</Label>
-              <Textarea value={createData.description} onChange={(e) => setCreateData((p) => ({ ...p, description: e.target.value }))} />
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={createData.isPrivate} onChange={(e) => setCreateData((p) => ({ ...p, isPrivate: e.target.checked }))} />
-                Private hub (invite-only)
-              </label>
-            </div>
-            <DialogFooter><Button onClick={createHub}>Create</Button></DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {role === "ADMIN" ? (
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2"><Plus className="h-4 w-4" />Create Hub</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Create a Hub</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <Label>Hub name</Label>
+                <Input value={createData.name} onChange={(e) => setCreateData((p) => ({ ...p, name: e.target.value }))} />
+                <Label>Description</Label>
+                <Textarea value={createData.description} onChange={(e) => setCreateData((p) => ({ ...p, description: e.target.value }))} />
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={createData.isPrivate} onChange={(e) => setCreateData((p) => ({ ...p, isPrivate: e.target.checked }))} />
+                  Private hub (invite-only)
+                </label>
+              </div>
+              <DialogFooter><Button onClick={createHub}>Create</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
+        ) : (
+          <div className="text-xs text-muted-foreground">Only admins can create/manage forums.</div>
+        )}
       </div>
 
       <Card>

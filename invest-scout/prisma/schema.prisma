@@ -16,10 +16,24 @@ enum RiskTolerance {
 }
 
 enum InterestType {
-  SECTOR
-  INDUSTRY
+  ASSET_CLASS
+  STRATEGY
+  REIT
   COUNTRY
+  CITY
+  SUBTOPIC
   CUSTOM
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum AdminSignupRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum ActionState {
@@ -77,6 +91,7 @@ model User {
   deactivatedAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  role          UserRole  @default(USER)
 
   profile                  Profile?
   interests                Interest[]
@@ -110,6 +125,7 @@ model User {
   hubComments              HubComment[]
   hubReactions             HubReaction[]
   contentMentions          ContentMention[]          @relation("MentionedUser")
+  decidedAdminSignupRequests AdminSignupRequest[]    @relation("AdminRequestDecider")
 
   // ✅ Added missing back-relations (named to match the view models)
   opportunityViews OpportunityView[] @relation("OpportunityView_viewer")
@@ -239,6 +255,10 @@ model Opportunity {
   locationMapUrl            String?
   tags                      String[]  @default([])
   countryTags               String[]  @default([])
+  cityTags                  String[]  @default([])
+  assetTags                 String[]  @default([])
+  strategyTags              String[]  @default([])
+  keywordTags               String[]  @default([])
   messages                  Message[]
   createdByUserId           String?
   createdByUser             User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
@@ -259,6 +279,20 @@ model Opportunity {
 
   @@index([fetchedAt])
   @@index([createdByUserId, fetchedAt])
+}
+
+model AdminSignupRequest {
+  id              String                   @id @default(cuid())
+  email           String                   @unique
+  username        String
+  passwordHash    String
+  status          AdminSignupRequestStatus @default(PENDING)
+  createdAt       DateTime                 @default(now())
+  decidedAt       DateTime?
+  decidedByUserId String?
+  decidedByUser   User?                    @relation("AdminRequestDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
 }
 
 model OpportunityView {

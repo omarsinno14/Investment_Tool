@@ -6,7 +6,7 @@ export default function InterestsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Interests</h1>
         <p className="text-muted-foreground">
-          Pick sectors, industries/niches, countries, and keywords to tailor your news and opportunity feeds.
+          Pick real-estate interests by asset class, strategy, REITs, market locations, and subtopics to personalize your feed.
         </p>
       </div>
       <InterestPicker />

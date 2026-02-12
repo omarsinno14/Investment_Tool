@@ -1,8 +1,8 @@
 export const NAV_BADGE_KEYS = {
-  messages: "invescout-last-seen-messages",
-  notifications: "invescout-last-seen-notifications",
-  opportunities: "invescout-last-seen-opportunities",
-  headlines: "invescout-last-seen-headlines",
+  messages: "vertica-last-seen-messages",
+  notifications: "vertica-last-seen-notifications",
+  opportunities: "vertica-last-seen-opportunities",
+  headlines: "vertica-last-seen-headlines",
 } as const;
 
 export function markNavSeen(key: string) {
