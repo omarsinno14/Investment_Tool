@@ -93,39 +93,39 @@ model User {
   updatedAt     DateTime  @updatedAt
   role          UserRole  @default(USER)
 
-  profile                  Profile?
-  interests                Interest[]
-  actions                  OpportunityAction[]
-  moneyManagement          MoneyManagement?
-  postedOpportunities      Opportunity[]
-  messagesSent             Message[]                 @relation("MessageFromUser")
-  messagesReceived         Message[]                 @relation("MessageToUser")
-  conversationParticipants ConversationParticipant[]
-  forumPosts               ForumPost[]
-  forumComments            ForumComment[]
-  forumReactions           ForumReaction[]
-  forumSaves               ForumSave[]
-  forumReposts             ForumRepost[]
-  following                Follow[]                  @relation("Follower")
-  followers                Follow[]                  @relation("Following")
-  followRequestsSent       FollowRequest[]           @relation("FollowRequestSender")
-  followRequestsReceived   FollowRequest[]           @relation("FollowRequestReceiver")
-  notifications            Notification[]
-  tagFollows               TagFollow[]
-  journalEntries           JournalEntry[]            @relation("JournalOwner")
-  journalCollaborations    JournalCollaborator[]
-  journalInvitesSent       JournalInvite[]           @relation("JournalInviteSender")
-  journalInvitesReceived   JournalInvite[]           @relation("JournalInviteReceiver")
-  reportsSent              Report[]                  @relation("ReportReporter")
-  blocksInitiated          Block[]                   @relation("Blocker")
-  blocksReceived           Block[]                   @relation("Blocked")
-  hubsOwned                Hub[]                     @relation("HubOwner")
-  hubMemberships           HubMembership[]
-  hubPosts                 HubPost[]
-  hubComments              HubComment[]
-  hubReactions             HubReaction[]
-  contentMentions          ContentMention[]          @relation("MentionedUser")
-  decidedAdminSignupRequests AdminSignupRequest[]    @relation("AdminRequestDecider")
+  profile                    Profile?
+  interests                  Interest[]
+  actions                    OpportunityAction[]
+  moneyManagement            MoneyManagement?
+  postedOpportunities        Opportunity[]
+  messagesSent               Message[]                 @relation("MessageFromUser")
+  messagesReceived           Message[]                 @relation("MessageToUser")
+  conversationParticipants   ConversationParticipant[]
+  forumPosts                 ForumPost[]
+  forumComments              ForumComment[]
+  forumReactions             ForumReaction[]
+  forumSaves                 ForumSave[]
+  forumReposts               ForumRepost[]
+  following                  Follow[]                  @relation("Follower")
+  followers                  Follow[]                  @relation("Following")
+  followRequestsSent         FollowRequest[]           @relation("FollowRequestSender")
+  followRequestsReceived     FollowRequest[]           @relation("FollowRequestReceiver")
+  notifications              Notification[]
+  tagFollows                 TagFollow[]
+  journalEntries             JournalEntry[]            @relation("JournalOwner")
+  journalCollaborations      JournalCollaborator[]
+  journalInvitesSent         JournalInvite[]           @relation("JournalInviteSender")
+  journalInvitesReceived     JournalInvite[]           @relation("JournalInviteReceiver")
+  reportsSent                Report[]                  @relation("ReportReporter")
+  blocksInitiated            Block[]                   @relation("Blocker")
+  blocksReceived             Block[]                   @relation("Blocked")
+  hubsOwned                  Hub[]                     @relation("HubOwner")
+  hubMemberships             HubMembership[]
+  hubPosts                   HubPost[]
+  hubComments                HubComment[]
+  hubReactions               HubReaction[]
+  contentMentions            ContentMention[]          @relation("MentionedUser")
+  decidedAdminSignupRequests AdminSignupRequest[]      @relation("AdminRequestDecider")
 
   // ✅ Added missing back-relations (named to match the view models)
   opportunityViews OpportunityView[] @relation("OpportunityView_viewer")
@@ -334,17 +334,17 @@ model ForumPost {
 }
 
 model Hub {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String?
-  imageUrl     String?
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  description   String?
+  imageUrl      String?
   coverImageUrl String?
-  isPrivate   Boolean  @default(false)
-  ownerUserId String
-  inviteToken String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isPrivate     Boolean  @default(false)
+  ownerUserId   String
+  inviteToken   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   owner       User            @relation("HubOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
   memberships HubMembership[]
@@ -391,8 +391,8 @@ model HubPost {
   author      User         @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
   opportunity Opportunity? @relation("HubPostOpportunity", fields: [opportunityId], references: [id], onDelete: SetNull)
 
-  mentions ContentMention[]
-  comments HubComment[]
+  mentions  ContentMention[]
+  comments  HubComment[]
   reactions HubReaction[]
 
   @@index([hubId, createdAt])
@@ -400,13 +400,13 @@ model HubPost {
 }
 
 model HubComment {
-  id         String   @id @default(cuid())
-  hubId      String
-  postId     String
-  userId     String
-  body       String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  hubId     String
+  postId    String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   hub  Hub     @relation(fields: [hubId], references: [id], onDelete: Cascade)
   post HubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
