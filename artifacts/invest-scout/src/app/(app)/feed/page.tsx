@@ -236,18 +236,18 @@ export default function FeedPage() {
     }
     setPosting(true);
     try {
-      const formData = new FormData();
-      formData.append("title", oppForm.title);
-      formData.append("summary", oppForm.summary);
-      formData.append("tags", oppForm.tags);
-      formData.append("askAmount", oppForm.askAmount);
-      formData.append("askCurrency", oppForm.askCurrency);
-      formData.append("expectedRoiPercent", oppForm.expectedRoiPercent);
-
       const res = await fetch("/api/user/opportunities", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: formData,
+        body: JSON.stringify({
+          title: oppForm.title,
+          summary: oppForm.summary,
+          tags: oppForm.tags,
+          askAmount: oppForm.askAmount,
+          askCurrency: oppForm.askCurrency,
+          expectedRoiPercent: oppForm.expectedRoiPercent,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to post opportunity");
@@ -277,15 +277,15 @@ export default function FeedPage() {
     }
     setPosting(true);
     try {
-      const formData = new FormData();
-      formData.append("title", forumForm.title);
-      formData.append("body", forumForm.body);
-      formData.append("tags", forumForm.tags);
-
       const res = await fetch("/api/forums", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: formData,
+        body: JSON.stringify({
+          title: forumForm.title,
+          body: forumForm.body,
+          tags: forumForm.tags ? forumForm.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to post forum");

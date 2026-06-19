@@ -172,27 +172,26 @@ export default function OpportunitiesPage() {
     }
     setPosting(true);
     try {
-      const formData = new FormData();
-      formData.append("title", postForm.title);
-      formData.append("summary", postForm.summary);
-      formData.append("details", postForm.details);
-      formData.append("askAmount", postForm.askAmount);
-      formData.append("askCurrency", postForm.askCurrency);
-      formData.append("expectedRoiPercent", postForm.expectedRoiPercent);
-      formData.append("expectedRoiDurationMonths", postForm.expectedRoiDurationMonths);
-      formData.append("benefits", postForm.benefits);
-      formData.append("tags", postForm.tags);
-      formData.append("locationName", postForm.locationName);
-      formData.append("locationMapUrl", postForm.locationMapUrl);
-      formData.append("contactEmail", postForm.contactEmail);
-      formData.append("contactPhone", postForm.contactPhone);
-      formData.append("contactUsername", postForm.contactUsername);
-      postForm.images.forEach((file) => formData.append("images", file));
-
       const res = await fetch("/api/user/opportunities", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: formData,
+        body: JSON.stringify({
+          title: postForm.title,
+          summary: postForm.summary,
+          details: postForm.details,
+          askAmount: postForm.askAmount,
+          askCurrency: postForm.askCurrency,
+          expectedRoiPercent: postForm.expectedRoiPercent,
+          expectedRoiDurationMonths: postForm.expectedRoiDurationMonths,
+          benefits: postForm.benefits,
+          tags: postForm.tags ? postForm.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
+          locationName: postForm.locationName,
+          locationMapUrl: postForm.locationMapUrl,
+          contactEmail: postForm.contactEmail,
+          contactPhone: postForm.contactPhone,
+          contactUsername: postForm.contactUsername,
+        }),
       });
 
       const data = await res.json().catch(() => ({}));

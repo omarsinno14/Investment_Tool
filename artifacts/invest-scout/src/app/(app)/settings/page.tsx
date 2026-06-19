@@ -204,7 +204,7 @@ export default function SettingsPage() {
       body: JSON.stringify({ requestId, action }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return toast.error(data?.error ?? "Action failed");
+    if (!res.ok) { toast.error(data?.error ?? "Action failed"); return; }
     setAdminRequests((prev) => (prev ?? []).filter((r) => r.id !== requestId));
     toast.success(`Request ${action === "APPROVE" ? "approved" : "rejected"}`);
   }

@@ -77,7 +77,7 @@ export default function HubPage() {
       body: JSON.stringify({ inviteToken }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return toast.error(data?.error ?? "Unable to join hub");
+    if (!res.ok) { toast.error(data?.error ?? "Unable to join hub"); return; }
     toast.success("Joined hub");
     load();
   }
@@ -86,7 +86,7 @@ export default function HubPage() {
     if (!confirm("Leave this hub?")) return;
     const res = await fetch(`/api/hubs/${params.slug}/join`, { method: "DELETE", credentials: "include" });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return toast.error(data?.error ?? "Unable to leave hub");
+    if (!res.ok) { toast.error(data?.error ?? "Unable to leave hub"); return; }
     toast.success("Left hub");
     load();
   }
@@ -99,7 +99,7 @@ export default function HubPage() {
       body: JSON.stringify(draft),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return toast.error(data?.error ?? "Unable to post");
+    if (!res.ok) { toast.error(data?.error ?? "Unable to post"); return; }
     setDraft({ title: "", body: "", type: "DISCUSSION", opportunityId: "", newsHeadline: "", newsUrl: "", newsSource: "" });
     toast.success("Posted");
     load();
@@ -111,7 +111,7 @@ export default function HubPage() {
     form.append("folder", "hubs");
     const res = await fetch("/api/upload", { method: "POST", credentials: "include", body: form });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return toast.error(data?.error ?? "Upload failed");
+    if (!res.ok) { toast.error(data?.error ?? "Upload failed"); return; }
     await saveHubImages({ [kind]: data.url });
   }
 
@@ -125,7 +125,7 @@ export default function HubPage() {
     });
     setSavingHub(false);
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return toast.error(data?.error ?? "Unable to update hub");
+    if (!res.ok) { toast.error(data?.error ?? "Unable to update hub"); return; }
     toast.success("Hub updated");
     load();
   }

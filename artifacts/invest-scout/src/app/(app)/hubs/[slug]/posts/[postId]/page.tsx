@@ -20,7 +20,7 @@ export default function HubPostDetailPage() {
   async function load() {
     const res = await fetch(`/api/hubs/${params.slug}/posts/${params.postId}`, { credentials: "include" });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return toast.error(data?.error ?? "Unable to load post");
+    if (!res.ok) { toast.error(data?.error ?? "Unable to load post"); return; }
     setPost(data.post);
     setViewerId(data.viewerId ?? null);
   }
@@ -37,7 +37,7 @@ export default function HubPostDetailPage() {
       body: JSON.stringify({ type: "LIKE" }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return toast.error(data?.error ?? "Unable to react");
+    if (!res.ok) { toast.error(data?.error ?? "Unable to react"); return; }
     load();
   }
 
@@ -49,7 +49,7 @@ export default function HubPostDetailPage() {
       body: JSON.stringify({ body: commentDraft }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return toast.error(data?.error ?? "Unable to comment");
+    if (!res.ok) { toast.error(data?.error ?? "Unable to comment"); return; }
     setCommentDraft("");
     load();
   }
@@ -62,7 +62,7 @@ export default function HubPostDetailPage() {
       body: JSON.stringify({ targetType: "HUB_POST", targetId: params.postId, reason: reportReason }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return toast.error(data?.error ?? "Unable to report");
+    if (!res.ok) { toast.error(data?.error ?? "Unable to report"); return; }
     toast.success("Reported");
     setReportReason("");
   }

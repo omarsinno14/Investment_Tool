@@ -1,55 +1,75 @@
-export const REAL_ESTATE_ASSET_CLASSES = [
+export const REAL_ESTATE_ASSET_CLASSES: string[] = [
   "Residential",
   "Commercial",
   "Industrial",
   "Retail",
-  "Hospitality",
+  "Office",
+  "Multifamily",
   "Land",
-  "Mixed-use",
-] as const;
+  "Mixed-Use",
+  "Hospitality",
+  "Healthcare",
+];
 
-export const REAL_ESTATE_STRATEGIES = [
-  "Buy-to-let",
-  "Flip",
-  "Development",
-  "Value-add",
-  "Core/Core+",
-  "Opportunistic",
-] as const;
+export const REAL_ESTATE_STRATEGIES: string[] = [
+  "Buy and Hold",
+  "Fix and Flip",
+  "Wholesaling",
+  "BRRRR",
+  "Short-Term Rental",
+  "Syndication",
+  "REITs",
+  "Ground-Up Development",
+  "Value-Add",
+  "Triple Net Lease",
+];
 
-export const REAL_ESTATE_REITS = ["REITs", "Equity REIT", "Mortgage REIT"] as const;
+export const REAL_ESTATE_REITS: string[] = [
+  "Public REIT",
+  "Private REIT",
+  "Non-Traded REIT",
+  "Mortgage REIT",
+  "Equity REIT",
+];
 
-export const REAL_ESTATE_SUBTOPICS = [
-  "Property management",
-  "Short-term rentals",
-  "Long-term rentals",
-  "Mortgage/financing",
-  "Legal/tax",
-  "Construction costs",
-  "Yield/Cap rate",
-  "Vacancy",
-  "Appreciation",
-  "Rental comps",
-] as const;
+export const REAL_ESTATE_SUBTOPICS: string[] = [
+  "Market Analysis",
+  "Due Diligence",
+  "Financing",
+  "Property Management",
+  "Tax Strategy",
+  "Legal & Contracts",
+  "Renovation",
+  "Zoning & Permits",
+  "Exit Strategies",
+];
+
+export const REAL_ESTATE_COUNTRIES: string[] = [
+  "United States",
+  "Canada",
+  "United Kingdom",
+  "Australia",
+  "Germany",
+  "France",
+  "Spain",
+  "Portugal",
+  "UAE",
+  "Singapore",
+  "Mexico",
+  "Brazil",
+];
 
 export const REAL_ESTATE_COUNTRIES_AND_CITIES: Record<string, string[]> = {
-  UAE: ["Dubai", "Abu Dhabi", "Sharjah"],
-  Lebanon: ["Beirut", "Jounieh", "Tripoli"],
-  Greece: ["Athens", "Thessaloniki", "Santorini"],
-  Syria: ["Damascus", "Aleppo", "Latakia"],
-  Qatar: ["Doha", "Lusail", "Al Wakrah"],
-  Oman: ["Muscat", "Salalah", "Sohar"],
-  Egypt: ["Cairo", "Alexandria", "New Cairo"],
-  Turkey: ["Istanbul", "Ankara", "Izmir"],
-  "Saudi Arabia": ["Riyadh", "Jeddah", "Dammam"],
+  "United States": ["New York", "Los Angeles", "Chicago", "Houston", "Miami", "Phoenix", "Dallas", "Atlanta"],
+  "Canada": ["Toronto", "Vancouver", "Montreal", "Calgary", "Ottawa"],
+  "United Kingdom": ["London", "Manchester", "Birmingham", "Edinburgh"],
+  "Australia": ["Sydney", "Melbourne", "Brisbane", "Perth"],
+  "Germany": ["Berlin", "Munich", "Hamburg", "Frankfurt"],
+  "France": ["Paris", "Lyon", "Marseille"],
+  "Spain": ["Madrid", "Barcelona", "Valencia"],
+  "Portugal": ["Lisbon", "Porto"],
+  "UAE": ["Dubai", "Abu Dhabi"],
+  "Singapore": ["Singapore"],
+  "Mexico": ["Mexico City", "Guadalajara", "Monterrey"],
+  "Brazil": ["São Paulo", "Rio de Janeiro", "Brasília"],
 };
-
-export const REAL_ESTATE_COUNTRIES = Object.keys(REAL_ESTATE_COUNTRIES_AND_CITIES);
-
-export function cityToCountry(city: string): string | null {
-  const lower = city.toLowerCase();
-  for (const [country, cities] of Object.entries(REAL_ESTATE_COUNTRIES_AND_CITIES)) {
-    if (cities.some((c) => c.toLowerCase() === lower)) return country;
-  }
-  return null;
-}

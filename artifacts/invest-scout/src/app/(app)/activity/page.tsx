@@ -1,5 +1,6 @@
 
+import { Redirect } from "wouter";
 
 export default function ActivityPage() {
-  redirect("/settings?tab=activity");
+  return <Redirect to="/settings?tab=activity" />;
 }

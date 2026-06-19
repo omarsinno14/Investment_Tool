@@ -58,18 +58,18 @@ function AppRoutes() {
       <Route path="/dashboard" component={() => <AppShell><DashboardPage /></AppShell>} />
       <Route path="/feed" component={() => <AppShell><FeedPage /></AppShell>} />
       <Route path="/opportunities" component={() => <AppShell><OpportunitiesPage /></AppShell>} />
-      <Route path="/opportunities/:id" component={({ params }) => <AppShell><OpportunityDetailPage params={params} /></AppShell>} />
+      <Route path="/opportunities/:id" component={() => <AppShell><OpportunityDetailPage /></AppShell>} />
       <Route path="/headlines" component={() => <AppShell><HeadlinesPage /></AppShell>} />
       <Route path="/forums" component={() => <AppShell><ForumsPage /></AppShell>} />
-      <Route path="/forums/:id" component={({ params }) => <AppShell><ForumDetailPage params={params} /></AppShell>} />
+      <Route path="/forums/:id" component={() => <AppShell><ForumDetailPage /></AppShell>} />
       <Route path="/hubs" component={() => <AppShell><HubsPage /></AppShell>} />
-      <Route path="/hubs/:slug" component={({ params }) => <AppShell><HubDetailPage params={params} /></AppShell>} />
-      <Route path="/hubs/:slug/posts/:postId" component={({ params }) => <AppShell><HubPostDetailPage params={params} /></AppShell>} />
+      <Route path="/hubs/:slug" component={() => <AppShell><HubDetailPage /></AppShell>} />
+      <Route path="/hubs/:slug/posts/:postId" component={() => <AppShell><HubPostDetailPage /></AppShell>} />
       <Route path="/messages" component={() => <AppShell><MessagesPage /></AppShell>} />
       <Route path="/notifications" component={() => <AppShell><NotificationsPage /></AppShell>} />
       <Route path="/my-profile" component={() => <AppShell><MyProfilePage /></AppShell>} />
       <Route path="/users" component={() => <AppShell><UsersPage /></AppShell>} />
-      <Route path="/users/:id" component={({ params }) => <AppShell><UserDetailPage params={params} /></AppShell>} />
+      <Route path="/users/:id" component={() => <AppShell><UserDetailPage /></AppShell>} />
       <Route path="/settings" component={() => <AppShell><SettingsPage /></AppShell>} />
       <Route path="/interests" component={() => <AppShell><InterestsPage /></AppShell>} />
       <Route path="/portfolio" component={() => <AppShell><PortfolioPage /></AppShell>} />
@@ -77,7 +77,7 @@ function AppRoutes() {
       <Route path="/goals" component={() => <AppShell><GoalsPage /></AppShell>} />
       <Route path="/journal" component={() => <AppShell><JournalPage /></AppShell>} />
       <Route path="/tools" component={() => <AppShell><ToolsPage /></AppShell>} />
-      <Route path="/tools/:slug" component={({ params }) => <AppShell><ToolDetailPage params={params} /></AppShell>} />
+      <Route path="/tools/:slug" component={() => <AppShell><ToolDetailPage /></AppShell>} />
       <Route path="/ratios" component={() => <AppShell><RatiosPage /></AppShell>} />
       <Route path="/follow-requests" component={() => <AppShell><FollowRequestsPage /></AppShell>} />
       <Route path="/activity" component={() => <Redirect to="/settings?tab=activity" />} />

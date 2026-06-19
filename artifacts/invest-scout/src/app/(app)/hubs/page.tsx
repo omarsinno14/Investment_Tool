@@ -1,5 +1,5 @@
-
+import { Redirect } from "wouter";
 
 export default function HubsIndexPage() {
-  redirect("/forums");
+  return <Redirect to="/forums" />;
 }

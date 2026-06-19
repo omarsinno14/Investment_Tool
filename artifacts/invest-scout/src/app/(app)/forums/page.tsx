@@ -37,23 +37,21 @@ export default function ForumsPage() {
   async function loadAll(query = "") {
     setLoading(true);
     try {
-      const [hubsRes, myRes, postsRes, profileRes] = await Promise.all([
+      const [hubsRes, postsRes, profileRes] = await Promise.all([
         fetch(`/api/hubs${query ? `?q=${encodeURIComponent(query)}` : ""}`, { credentials: "include" }),
-        fetch("/api/hubs/my", { credentials: "include" }),
         fetch("/api/forums", { credentials: "include" }),
         fetch("/api/user/profile", { credentials: "include" }),
       ]);
-      const [hubsData, myData, postsData, profileData] = await Promise.all([
+      const [hubsData, postsData, profileData] = await Promise.all([
         hubsRes.json().catch(() => ({})),
-        myRes.json().catch(() => ({})),
         postsRes.json().catch(() => ({})),
         profileRes.json().catch(() => ({})),
       ]);
       if (!hubsRes.ok) throw new Error(hubsData?.error ?? "Failed to load hubs");
-      if (!myRes.ok) throw new Error(myData?.error ?? "Failed to load your hubs");
       if (!postsRes.ok) throw new Error(postsData?.error ?? "Failed to load discussions");
-      setHubs(hubsData.hubs ?? []);
-      setMyHubs(myData.hubs ?? []);
+      const allHubs: Hub[] = hubsData.hubs ?? [];
+      setHubs(allHubs);
+      setMyHubs(allHubs.filter((h) => h.isMember));
       setPosts((postsData.posts ?? []).slice(0, 8));
       setRole(profileRes.ok ? (profileData.role ?? "USER") : "USER");
     } catch (e) {
