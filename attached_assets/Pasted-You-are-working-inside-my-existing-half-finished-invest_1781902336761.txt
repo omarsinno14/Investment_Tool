@@ -1,0 +1,225 @@
+You are working inside my existing half-finished investment tool website codebase.
+
+Your job is to fully inspect, test, fix, and complete the product so it becomes a production-ready responsive web app, with a clean path to becoming a mobile app later.
+
+Important: Do not assume the tech stack. First inspect the repository structure, package files, routes, database setup, authentication setup, environment variables, and existing UI/components. Then create a clear implementation plan before making changes.
+
+The website is an investment tool platform. Users should be able to create accounts, verify their emails, log in, use investment-related tools, message each other when allowed, see ads, upgrade to premium, and admins should be able to manage the platform.
+
+Main tasks:
+
+1. Full codebase audit
+
+* Inspect every important part of the app.
+* Identify what already works, what is broken, what is incomplete, and what is missing.
+* Run the project locally if possible.
+* Run existing tests, linting, type checks, build commands, and database commands.
+* Fix any broken routes, broken components, console errors, build errors, dependency issues, styling issues, and API errors.
+* Document findings in a clear summary.
+
+2. Finish the core website
+
+* Complete the main landing page, dashboard, navigation, footer, tool pages, pricing page, account pages, settings page, and error states.
+* Make sure every button, form, link, modal, and menu either works or is intentionally disabled with a clear reason.
+* Add loading states, empty states, success messages, error messages, and validation everywhere needed.
+* Make the design feel polished, modern, trustworthy, and suitable for a finance/investment platform.
+
+3. Mobile responsiveness
+
+* Make the entire website fully responsive for desktop, tablet, and mobile.
+* Test all pages at common breakpoints.
+* Make navigation mobile-friendly with a proper hamburger menu or mobile layout.
+* Ensure forms, cards, tables, dashboards, charts, and buttons work well on small screens.
+* Avoid horizontal overflow.
+* Make the UI app-ready so it can later be wrapped or converted into a mobile app.
+
+4. Authentication and user accounts
+   Implement or fix a complete authentication system:
+
+* User sign up with email and password.
+* Email verification before full account access.
+* Login with email and password.
+* Logout.
+* Password reset by email.
+* Secure session handling.
+* Protected routes for logged-in users.
+* Public routes for guests.
+* Account settings page.
+* Profile page.
+* Verified account status.
+* Block unverified users from premium or sensitive features until verified.
+* Prevent duplicate accounts with the same email.
+* Add proper validation and secure error handling.
+
+5. Email verification system
+
+* Add email verification tokens or use the project’s existing auth provider if available.
+* Send verification email after sign up.
+* Add verification success and failure pages.
+* Allow users to resend verification emails.
+* Make sure expired or invalid verification links are handled properly.
+* Use environment variables for email provider credentials.
+* In development, make email behavior easy to test.
+
+6. User roles and permissions
+   Create a proper role system:
+
+* Guest
+* Registered user
+* Verified user
+* Premium user
+* Advertiser
+* Admin / super admin
+
+Make sure permissions are enforced both in the frontend and backend/API layer. Do not rely only on hiding buttons in the UI.
+
+7. Admin panel
+   Build or complete an admin panel with secure admin-only access:
+
+* Admin login/access protection.
+* View users.
+* Search/filter users.
+* See whether users are verified, premium, banned, or advertisers.
+* Ban/unban users.
+* Promote/demote roles if appropriate.
+* View payments/subscriptions.
+* View ads submitted by advertisers.
+* Approve/reject ads.
+* View reports/flags.
+* Basic dashboard metrics: users, signups, active users if available, revenue, premium subscriptions, active ads.
+* Make the admin panel clean, simple, and secure.
+
+8. Direct messages / DMs
+   Add or complete a DM system if the architecture supports it:
+
+* Users can message other users only when allowed.
+* Add inbox/conversation page.
+* Add message sending, receiving, timestamps, read/unread state if feasible.
+* Add blocking/reporting to prevent abuse.
+* Prevent spam and unsafe behavior with rate limits or basic protections.
+* Make sure users cannot read conversations they are not part of.
+* Admins should not casually read private messages unless there is a report/moderation reason. Handle privacy carefully.
+
+9. Ads system
+   Create or complete an ads system:
+
+* Advertisers can submit ads.
+* Admins can approve/reject ads.
+* Ads can have title, image, link, placement, start/end date, status, and budget/payment status if applicable.
+* Show approved ads in defined placements.
+* Do not show unapproved or expired ads.
+* Add basic click/impression tracking if reasonable for the stack.
+* Add advertiser dashboard if feasible.
+* Add admin controls for ads.
+
+10. Payments and premium
+    Integrate or prepare a payment gateway for:
+
+* Premium subscriptions.
+* Ad payments.
+
+Use Stripe unless the existing project already uses another provider. Use test mode and environment variables. Do not hardcode secrets.
+
+Premium features should include:
+
+* Upgrade page.
+* Pricing page.
+* Checkout flow.
+* Payment success page.
+* Payment cancelled page.
+* Subscription status.
+* Premium badge or status.
+* Webhook handling for subscription/payment updates if backend supports it.
+* Protect premium-only features properly.
+* Make the payment system secure and production-ready in structure, even if using test keys.
+
+11. Investment/finance safety
+    Because this is an investment tool:
+
+* Add clear disclaimers that the platform does not provide personalized financial advice unless legally authorized.
+* Add risk warnings where investment outputs, estimates, projections, or calculators are shown.
+* Avoid guaranteeing returns.
+* Make outputs transparent and explain assumptions.
+* Add Terms, Privacy Policy placeholders, and financial disclaimer pages if missing.
+* Make the product feel credible and compliant-ready.
+
+12. Security
+    Audit and improve:
+
+* Authentication security.
+* Authorization checks.
+* Input validation.
+* API route protection.
+* XSS protection.
+* CSRF/session safety where applicable.
+* Rate limiting for login, signup, password reset, DMs, ad submissions, and payments where feasible.
+* Secure password handling through the auth provider or hashing if custom auth exists.
+* Environment variables for secrets.
+* No exposed API keys or secrets in the frontend.
+* Proper error handling without leaking sensitive information.
+
+13. Database and backend
+
+* Inspect the existing database/schema.
+* Add missing models/tables/migrations for users, verification, roles, messages, ads, payments/subscriptions, reports, and admin actions if needed.
+* Keep migrations clean.
+* Avoid destructive database changes unless clearly necessary.
+* Seed sample data only for development, not production.
+* Make sure backend APIs are typed, validated, and protected.
+
+14. UX polish
+
+* Make the app pleasant and trustworthy.
+* Add consistent spacing, typography, buttons, cards, forms, and page layouts.
+* Add user-friendly error messages.
+* Add skeleton loaders or loading indicators where appropriate.
+* Add toasts/notifications for successful actions.
+* Make account onboarding clear after sign up.
+* Make verified vs unverified account status obvious.
+* Make premium upgrade prompts tasteful, not annoying.
+
+15. Testing and verification
+    After implementation:
+
+* Run lint.
+* Run type checks.
+* Run tests.
+* Run build.
+* Manually test major flows:
+
+  * Landing page
+  * Sign up
+  * Email verification
+  * Login
+  * Logout
+  * Password reset
+  * Dashboard access
+  * Mobile navigation
+  * Admin access
+  * Premium checkout in test mode
+  * Ad submission and approval
+  * DM flow
+  * Protected routes
+  * Unverified account restrictions
+
+16. Final deliverable
+    At the end, provide:
+
+* A summary of what was broken or incomplete.
+* A summary of what was fixed or built.
+* Any features that were not possible because of missing credentials, missing provider setup, or unclear requirements.
+* Exact environment variables needed.
+* How to run the project locally.
+* How to test auth, email verification, payments, admin, ads, and DMs.
+* Any remaining recommendations before production launch.
+
+Rules:
+
+* Make careful, incremental changes.
+* Prefer simple, maintainable architecture.
+* Do not delete important existing work without explaining why.
+* Do not hardcode secrets.
+* Do not leave broken pages or dead buttons.
+* Do not fake payment success without clearly marking it as test/dev only.
+* Do not ignore security, privacy, or financial disclaimer requirements.
+* Make the website feel like a real product, not a demo.
