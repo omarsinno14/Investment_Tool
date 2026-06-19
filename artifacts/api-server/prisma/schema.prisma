@@ -1,0 +1,733 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RiskTolerance {
+  EXTREMELY_LOW
+  LOW
+  MEDIUM
+  MEDIUM_HIGH
+  HIGH
+  EXTREMELY_HIGH
+}
+
+enum InterestType {
+  ASSET_CLASS
+  STRATEGY
+  REIT
+  COUNTRY
+  CITY
+  SUBTOPIC
+  CUSTOM
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum AdminSignupRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ActionState {
+  NONE
+  SAVED
+  VERY_INTERESTED
+  INVESTED
+}
+
+enum NotificationType {
+  MESSAGE
+  FOLLOW_REQUEST
+  FOLLOW_ACCEPTED
+  FORUM_REACTION
+  FORUM_COMMENT
+  OPPORTUNITY_MATCH
+  OPPORTUNITY_TRENDING
+  JOURNAL_INVITE
+  JOURNAL_INVITE_ACCEPTED
+  REPORT_RECEIVED
+  NEWS_BREAKING
+  FORUM_MENTION
+  HUB_MENTION
+}
+
+enum HubPostType {
+  DISCUSSION
+  OPPORTUNITY_IMPORT
+  NEWS_IMPORT
+}
+
+enum FollowRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum TagSource {
+  FORUM
+  OPPORTUNITY
+}
+
+enum ReportTargetType {
+  USER
+  FORUM_POST
+  OPPORTUNITY
+  HUB_POST
+  HUB_COMMENT
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  deactivatedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          UserRole  @default(USER)
+
+  profile                    Profile?
+  interests                  Interest[]
+  actions                    OpportunityAction[]
+  moneyManagement            MoneyManagement?
+  postedOpportunities        Opportunity[]
+  messagesSent               Message[]                 @relation("MessageFromUser")
+  messagesReceived           Message[]                 @relation("MessageToUser")
+  conversationParticipants   ConversationParticipant[]
+  forumPosts                 ForumPost[]
+  forumComments              ForumComment[]
+  forumReactions             ForumReaction[]
+  forumSaves                 ForumSave[]
+  forumReposts               ForumRepost[]
+  following                  Follow[]                  @relation("Follower")
+  followers                  Follow[]                  @relation("Following")
+  followRequestsSent         FollowRequest[]           @relation("FollowRequestSender")
+  followRequestsReceived     FollowRequest[]           @relation("FollowRequestReceiver")
+  notifications              Notification[]
+  tagFollows                 TagFollow[]
+  journalEntries             JournalEntry[]            @relation("JournalOwner")
+  journalCollaborations      JournalCollaborator[]
+  journalInvitesSent         JournalInvite[]           @relation("JournalInviteSender")
+  journalInvitesReceived     JournalInvite[]           @relation("JournalInviteReceiver")
+  reportsSent                Report[]                  @relation("ReportReporter")
+  blocksInitiated            Block[]                   @relation("Blocker")
+  blocksReceived             Block[]                   @relation("Blocked")
+  hubsOwned                  Hub[]                     @relation("HubOwner")
+  hubMemberships             HubMembership[]
+  hubPosts                   HubPost[]
+  hubComments                HubComment[]
+  hubReactions               HubReaction[]
+  contentMentions            ContentMention[]          @relation("MentionedUser")
+  decidedAdminSignupRequests AdminSignupRequest[]      @relation("AdminRequestDecider")
+
+  // ✅ Added missing back-relations (named to match the view models)
+  opportunityViews OpportunityView[] @relation("OpportunityView_viewer")
+  forumViews       ForumView[]       @relation("ForumView_viewer")
+
+  @@index([email])
+}
+
+model Profile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name                        String?
+  username                    String?       @unique
+  usernameLower               String?       @unique
+  phone                       String?       @unique
+  imageUrl                    String?
+  coverPhotoUrl               String?
+  websiteUrl                  String?
+  cvUrl                       String?
+  bio                         String?
+  occupation                  String?
+  currency                    String?
+  age                         Int?
+  familySituation             String?
+  netWorth                    Float?
+  riskTolerance               RiskTolerance @default(MEDIUM)
+  investAmount                Float?
+  layoutPreference            String?
+  emailVerified               Boolean       @default(false)
+  phoneVerified               Boolean       @default(false)
+  identityVerified            Boolean       @default(false)
+  expertiseTags               String[]      @default([])
+  verifiedExpertiseTags       String[]      @default([])
+  hideAgeFromNonFollowers     Boolean       @default(false)
+  hideContactFromNonFollowers Boolean       @default(false)
+  hidePhotoFromNonFollowers   Boolean       @default(false)
+  hidePostsFromNonFollowers   Boolean       @default(false)
+  hideFollowerCount           Boolean       @default(false)
+  requiresFollowApproval      Boolean       @default(false)
+  notifyMessages              Boolean       @default(true)
+  notifyFollows               Boolean       @default(true)
+  notifyOpportunities         Boolean       @default(true)
+  notifyForums                Boolean       @default(true)
+  notifyJournal               Boolean       @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Interest {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      InterestType
+  value     String
+  parent    String?
+  createdAt DateTime     @default(now())
+
+  @@unique([userId, type, value])
+  @@index([userId])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model FollowRequest {
+  id          String              @id @default(cuid())
+  followerId  String
+  followingId String
+  status      FollowRequestStatus @default(PENDING)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  follower  User @relation("FollowRequestSender", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("FollowRequestReceiver", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+model Opportunity {
+  id                        String    @id @default(cuid())
+  title                     String
+  url                       String?   @unique
+  source                    String?
+  summary                   String?
+  imageUrl                  String?
+  imageUrls                 String[]  @default([])
+  details                   String?
+  askAmount                 Float?
+  askCurrency               String?   @default("USD")
+  benefits                  String?
+  expectedRoiPercent        Float?
+  expectedRoiDurationMonths Int?
+  contactEmail              String?
+  contactPhone              String?
+  contactUsername           String?
+  locationName              String?
+  locationMapUrl            String?
+  tags                      String[]  @default([])
+  countryTags               String[]  @default([])
+  cityTags                  String[]  @default([])
+  assetTags                 String[]  @default([])
+  strategyTags              String[]  @default([])
+  keywordTags               String[]  @default([])
+  messages                  Message[]
+  createdByUserId           String?
+  createdByUser             User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  publishedAt               DateTime?
+  fetchedAt                 DateTime  @default(now())
+  archivedAt                DateTime?
+  boostedAt                 DateTime?
+  boostedUntil              DateTime?
+  boostedBudget             Float?
+  boostedCurrency           String?
+
+  hubPosts   HubPost[] @relation("HubPostOpportunity")
+  categories String[]  @default([])
+  keywords   String[]  @default([])
+
+  actions OpportunityAction[]
+  views   OpportunityView[]
+
+  @@index([fetchedAt])
+  @@index([createdByUserId, fetchedAt])
+}
+
+model AdminSignupRequest {
+  id              String                   @id @default(cuid())
+  email           String                   @unique
+  username        String
+  passwordHash    String
+  status          AdminSignupRequestStatus @default(PENDING)
+  createdAt       DateTime                 @default(now())
+  decidedAt       DateTime?
+  decidedByUserId String?
+  decidedByUser   User?                    @relation("AdminRequestDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model OpportunityView {
+  id            String   @id @default(cuid())
+  opportunityId String
+  viewerId      String?
+  createdAt     DateTime @default(now())
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  // ✅ Named relation + back relation on User
+  viewer      User?       @relation("OpportunityView_viewer", fields: [viewerId], references: [id], onDelete: SetNull)
+
+  @@index([opportunityId, createdAt])
+  @@index([viewerId])
+}
+
+model ForumPost {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  body       String
+  imageUrl   String?
+  tags       String[]  @default([])
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  comments  ForumComment[]
+  reactions ForumReaction[]
+  saves     ForumSave[]
+  reposts   ForumRepost[]
+  views     ForumView[]
+  mentions  ContentMention[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+model Hub {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  description   String?
+  imageUrl      String?
+  coverImageUrl String?
+  isPrivate     Boolean  @default(false)
+  ownerUserId   String
+  inviteToken   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  owner       User            @relation("HubOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  memberships HubMembership[]
+  posts       HubPost[]
+  comments    HubComment[]
+  reactions   HubReaction[]
+
+  @@unique([name])
+  @@index([name])
+  @@index([ownerUserId])
+}
+
+model HubMembership {
+  id       String   @id @default(cuid())
+  hubId    String
+  userId   String
+  role     String   @default("member")
+  joinedAt DateTime @default(now())
+
+  hub  Hub  @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([hubId, userId])
+  @@index([userId, joinedAt])
+}
+
+model HubPost {
+  id            String      @id @default(cuid())
+  hubId         String
+  authorUserId  String
+  title         String
+  body          String
+  type          HubPostType @default(DISCUSSION)
+  opportunityId String?
+  newsHeadline  String?
+  newsUrl       String?
+  newsSource    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  editedAt      DateTime?
+  deletedAt     DateTime?
+
+  hub         Hub          @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  author      User         @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  opportunity Opportunity? @relation("HubPostOpportunity", fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  mentions  ContentMention[]
+  comments  HubComment[]
+  reactions HubReaction[]
+
+  @@index([hubId, createdAt])
+  @@index([authorUserId, createdAt])
+}
+
+model HubComment {
+  id        String   @id @default(cuid())
+  hubId     String
+  postId    String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hub  Hub     @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  post HubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([hubId, createdAt])
+  @@index([postId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model HubReaction {
+  id        String   @id @default(cuid())
+  hubId     String
+  postId    String
+  userId    String
+  type      String
+  createdAt DateTime @default(now())
+
+  hub  Hub     @relation(fields: [hubId], references: [id], onDelete: Cascade)
+  post HubPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId, type])
+  @@index([hubId, createdAt])
+  @@index([postId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model ContentMention {
+  id              String   @id @default(cuid())
+  forumPostId     String?
+  hubPostId       String?
+  mentionedUserId String
+  createdAt       DateTime @default(now())
+
+  forumPost     ForumPost? @relation(fields: [forumPostId], references: [id], onDelete: Cascade)
+  hubPost       HubPost?   @relation(fields: [hubPostId], references: [id], onDelete: Cascade)
+  mentionedUser User       @relation("MentionedUser", fields: [mentionedUserId], references: [id], onDelete: Cascade)
+
+  @@index([mentionedUserId, createdAt])
+  @@index([forumPostId])
+  @@index([hubPostId])
+}
+
+model ForumView {
+  id        String   @id @default(cuid())
+  postId    String
+  viewerId  String?
+  createdAt DateTime @default(now())
+
+  post   ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  // ✅ Named relation + back relation on User
+  viewer User?     @relation("ForumView_viewer", fields: [viewerId], references: [id], onDelete: SetNull)
+
+  @@index([postId, createdAt])
+  @@index([viewerId])
+}
+
+model ForumComment {
+  id        String    @id @default(cuid())
+  postId    String
+  userId    String
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime  @default(now())
+
+  @@index([postId])
+  @@index([postId, createdAt])
+  @@index([userId])
+}
+
+model ForumReaction {
+  id     String @id @default(cuid())
+  postId String
+  userId String
+  type   String
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId, type])
+  @@index([postId])
+  @@index([userId])
+}
+
+model ForumSave {
+  id     String @id @default(cuid())
+  postId String
+  userId String
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model ForumRepost {
+  id     String @id @default(cuid())
+  postId String
+  userId String
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model OpportunityAction {
+  id            String @id @default(cuid())
+  userId        String
+  opportunityId String
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  state       ActionState @default(NONE)
+  investedAmt Float?
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, opportunityId])
+  @@index([userId, state])
+  @@index([opportunityId])
+}
+
+model Message {
+  id             String    @id @default(cuid())
+  fromUserId     String
+  toUserId       String
+  conversationId String?
+  body           String
+  opportunityId  String?
+  readAt         DateTime?
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  fromUser     User          @relation("MessageFromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser       User          @relation("MessageToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+  opportunity  Opportunity?  @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([opportunityId])
+  @@index([conversationId, createdAt])
+}
+
+model Conversation {
+  id            String    @id @default(cuid())
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([lastMessageAt])
+}
+
+model ConversationParticipant {
+  id             String    @id @default(cuid())
+  conversationId String
+  userId         String
+  lastReadAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model TagFollow {
+  id        String    @id @default(cuid())
+  userId    String
+  tag       String
+  source    TagSource
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tag, source])
+  @@index([userId])
+}
+
+model MoneyManagement {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  incomeMonthly       Float?
+  incomeYearly        Float?
+  taxRate             Float?
+  locationCountry     String?
+  locationRegion      String?
+  investmentsValue    Float?
+  investmentsCashflow Float?
+  debts               Float?
+  spendingDaily       Float?
+  liabilities         Float?
+  spendingWeekly      Float?
+  spendingMonthly     Float?
+  savingsCurrent      Float?
+  dependents          Int?
+  goalSavings         Float?
+  goalInvestments     Float?
+  goalNetWorth        Float?
+  hideSensitive       Boolean         @default(false)
+  snapshots           MoneySnapshot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model MoneySnapshot {
+  id                String   @id @default(cuid())
+  moneyManagementId String
+  grossMonthly      Float
+  netMonthly        Float
+  spendingTotal     Float
+  netCashflow       Float
+  savingsCurrent    Float
+  createdAt         DateTime @default(now())
+
+  moneyManagement MoneyManagement @relation(fields: [moneyManagementId], references: [id], onDelete: Cascade)
+
+  @@index([moneyManagementId, createdAt])
+}
+
+model JournalEntry {
+  id           String   @id @default(cuid())
+  ownerId      String
+  title        String?
+  body         String
+  entryDate    DateTime
+  imageUrls    String[] @default([])
+  chartData    Json?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner         User                  @relation("JournalOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  collaborators JournalCollaborator[]
+  invites       JournalInvite[]
+
+  @@index([ownerId, entryDate])
+}
+
+model JournalCollaborator {
+  id        String   @id @default(cuid())
+  entryId   String
+  userId    String
+  role      String?
+  createdAt DateTime @default(now())
+
+  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, userId])
+  @@index([userId])
+}
+
+model JournalInvite {
+  id         String              @id @default(cuid())
+  entryId    String
+  fromUserId String
+  toUserId   String
+  status     FollowRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  entry    JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  fromUser User         @relation("JournalInviteSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User         @relation("JournalInviteReceiver", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([toUserId, status])
+  @@index([entryId])
+}
+
+model Report {
+  id         String           @id @default(cuid())
+  reporterId String
+  targetType ReportTargetType
+  targetId   String
+  reason     String
+  createdAt  DateTime         @default(now())
+  resolvedAt DateTime?
+
+  reporter User @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId])
+  @@index([reporterId])
+}

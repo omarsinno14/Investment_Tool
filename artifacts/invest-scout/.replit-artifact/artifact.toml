@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Vertica - Investment Scout"
+version = "1.0.0"
+id = "artifacts/invest-scout"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18546
+
+[services.development]
+run = "pnpm --filter @workspace/invest-scout run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/invest-scout", "run", "build" ]
+publicDir = "artifacts/invest-scout/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18546"
+BASE_PATH = "/"
