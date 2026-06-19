@@ -108,6 +108,22 @@ router.post("/forums", async (req, res) => {
   }
 });
 
+router.get("/forums/:id/comments", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  try {
+    const comments = await prisma.forumComment.findMany({
+      where: { postId: req.params.id },
+      orderBy: { createdAt: "asc" },
+      include: { user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } } },
+    });
+    return res.json({ comments });
+  } catch (e) {
+    logger.error({ err: e }, "Forum comments GET error");
+    return res.status(500).json({ error: "Failed to load comments" });
+  }
+});
+
 router.post("/forums/:id/comments", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
@@ -122,6 +138,39 @@ router.post("/forums/:id/comments", async (req, res) => {
   } catch (e) {
     logger.error({ err: e }, "Forum comment error");
     return res.status(500).json({ error: "Failed to add comment" });
+  }
+});
+
+router.get("/forums/:id/reactions", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  try {
+    const reactions = await prisma.forumReaction.findMany({
+      where: { postId: req.params.id },
+    });
+    return res.json({ reactions });
+  } catch (e) {
+    logger.error({ err: e }, "Forum reactions GET error");
+    return res.status(500).json({ error: "Failed to load reactions" });
+  }
+});
+
+router.post("/forums/:id/reactions", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  try {
+    const { type } = req.body ?? {};
+    if (!type) return res.status(400).json({ error: "Reaction type required" });
+    const existing = await prisma.forumReaction.findUnique({ where: { postId_userId_type: { postId: req.params.id, userId, type } } });
+    if (existing) {
+      await prisma.forumReaction.delete({ where: { id: existing.id } });
+      return res.json({ removed: true });
+    }
+    const reaction = await prisma.forumReaction.create({ data: { postId: req.params.id, userId, type } });
+    return res.json({ reaction });
+  } catch (e) {
+    logger.error({ err: e }, "Forum reactions POST error");
+    return res.status(500).json({ error: "Failed to react" });
   }
 });
 

@@ -143,4 +143,36 @@ router.get("/hubs/:slug/posts", async (req, res) => {
   }
 });
 
+router.get("/hubs/:slug/presence", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  try {
+    const hub = await prisma.hub.findUnique({
+      where: { slug: req.params.slug },
+      include: { _count: { select: { memberships: true } } },
+    });
+    if (!hub) return res.status(404).json({ error: "Hub not found" });
+    return res.json({ onlineNow: 1, members: hub._count.memberships });
+  } catch (e) {
+    logger.error({ err: e }, "Hub presence GET error");
+    return res.status(500).json({ error: "Failed to load presence" });
+  }
+});
+
+router.post("/hubs/:slug/presence", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  try {
+    const hub = await prisma.hub.findUnique({
+      where: { slug: req.params.slug },
+      include: { _count: { select: { memberships: true } } },
+    });
+    if (!hub) return res.status(404).json({ error: "Hub not found" });
+    return res.json({ onlineNow: 1, members: hub._count.memberships });
+  } catch (e) {
+    logger.error({ err: e }, "Hub presence POST error");
+    return res.status(500).json({ error: "Failed to update presence" });
+  }
+});
+
 export default router;

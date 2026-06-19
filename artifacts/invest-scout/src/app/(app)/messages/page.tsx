@@ -1,7 +1,7 @@
 
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
@@ -115,7 +115,8 @@ function buildChatItems(messages: Message[]) {
 }
 
 export default function MessagesPage() {
-  const searchParams = useSearchParams();
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -267,7 +268,7 @@ export default function MessagesPage() {
       setShowThreadList(false);
       await loadMessages(data.conversationId, null, "forward");
     })();
-  }, [searchParams]);
+  }, [searchString]);
 
   useEffect(() => {
     if (!activeConversationId && conversations.length > 0) {

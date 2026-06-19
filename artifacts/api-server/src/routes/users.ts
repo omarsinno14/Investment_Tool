@@ -12,6 +12,38 @@ function requireAuth(req: any, res: any): string | null {
   return req.session.userId as string;
 }
 
+router.get("/users/search", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  try {
+    const { q, limit: limitStr } = req.query as Record<string, string>;
+    const limit = Math.min(Number(limitStr) || 10, 30);
+    const search = (q ?? "").trim();
+    if (!search) return res.json({ users: [] });
+
+    const items = await prisma.user.findMany({
+      where: {
+        deactivatedAt: null,
+        OR: [
+          { email: { contains: search, mode: "insensitive" } },
+          { profile: { name: { contains: search, mode: "insensitive" } } },
+          { profile: { username: { contains: search, mode: "insensitive" } } },
+        ],
+      },
+      take: limit,
+      select: {
+        id: true,
+        email: true,
+        profile: { select: { name: true, username: true, imageUrl: true } },
+      },
+    });
+    return res.json({ users: items });
+  } catch (e) {
+    logger.error({ err: e }, "Users search error");
+    return res.status(500).json({ error: "Failed to search users" });
+  }
+});
+
 router.get("/users", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;

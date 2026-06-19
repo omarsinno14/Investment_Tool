@@ -11,6 +11,9 @@ import messagesRouter from "./messages";
 import usersRouter from "./users";
 import hubsRouter from "./hubs";
 import moneyManagementRouter from "./moneyManagement";
+import followRouter from "./follow";
+import conversationsRouter from "./conversations";
+import reportsRouter from "./reports";
 
 const router: IRouter = Router();
 
@@ -26,5 +29,8 @@ router.use(messagesRouter);
 router.use(usersRouter);
 router.use(hubsRouter);
 router.use(moneyManagementRouter);
+router.use(followRouter);
+router.use(conversationsRouter);
+router.use(reportsRouter);
 
 export default router;

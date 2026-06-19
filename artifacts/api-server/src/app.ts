@@ -38,7 +38,7 @@ app.use(
       if (!origin || allowedOrigins.some((o) => origin.startsWith(o))) {
         callback(null, true);
       } else {
-        callback(null, true);
+        callback(new Error(`CORS: origin not allowed: ${origin}`), false);
       }
     },
     credentials: true,

@@ -1,6 +1,9 @@
 import session from "express-session";
 
-const SESSION_SECRET = process.env.SESSION_SECRET ?? "vertica-dev-secret-change-in-prod";
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  throw new Error("SESSION_SECRET environment variable is required");
+}
 
 export const sessionMiddleware = session({
   secret: SESSION_SECRET,
