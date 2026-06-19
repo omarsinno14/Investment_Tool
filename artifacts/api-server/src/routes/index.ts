@@ -14,6 +14,7 @@ import moneyManagementRouter from "./moneyManagement";
 import followRouter from "./follow";
 import conversationsRouter from "./conversations";
 import reportsRouter from "./reports";
+import pushTokensRouter from "./pushTokens";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(moneyManagementRouter);
 router.use(followRouter);
 router.use(conversationsRouter);
 router.use(reportsRouter);
+router.use(pushTokensRouter);
 
 export default router;

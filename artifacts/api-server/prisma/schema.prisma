@@ -130,6 +130,7 @@ model User {
   // ✅ Added missing back-relations (named to match the view models)
   opportunityViews OpportunityView[] @relation("OpportunityView_viewer")
   forumViews       ForumView[]       @relation("ForumView_viewer")
+  pushTokens       PushToken[]
 
   @@index([email])
 }
@@ -730,4 +731,18 @@ model Report {
 
   @@index([targetType, targetId])
   @@index([reporterId])
+}
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String
+  platform  String   @default("unknown")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+  @@index([userId])
 }

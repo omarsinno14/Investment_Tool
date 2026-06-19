@@ -16,6 +16,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useNotificationSetup } from "@/hooks/useNotifications";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,6 +26,7 @@ const queryClient = new QueryClient({
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
+  useNotificationSetup();
 
   if (loading) {
     return (
@@ -59,6 +61,8 @@ function RootLayoutNav() {
           <Stack.Screen name="ratios" options={{ headerShown: true, title: "Ratios", headerBackTitle: "Back" }} />
           <Stack.Screen name="tools/index" options={{ headerShown: true, title: "Tools", headerBackTitle: "Back" }} />
           <Stack.Screen name="tools/[slug]" options={{ headerShown: true, title: "Tool", headerBackTitle: "Back" }} />
+          <Stack.Screen name="post-deal" options={{ presentation: "modal", headerShown: false }} />
+          <Stack.Screen name="post-discussion" options={{ presentation: "modal", headerShown: false }} />
         </>
       ) : (
         <>

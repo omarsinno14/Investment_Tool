@@ -28,14 +28,23 @@ app.use(
   }),
 );
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS
+const extraOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
-  : ["http://localhost:18546", "http://localhost:5173"];
+  : [];
+
+const defaultOrigins = ["http://localhost", "http://127.0.0.1"];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.some((o) => origin.startsWith(o))) {
+      if (!origin) return callback(null, true);
+      const allowed =
+        defaultOrigins.some((o) => origin.startsWith(o)) ||
+        extraOrigins.some((o) => origin.startsWith(o)) ||
+        origin.includes(".replit.dev") ||
+        origin.includes(".repl.co") ||
+        origin.includes(".picard.replit.dev");
+      if (allowed) {
         callback(null, true);
       } else {
         callback(new Error(`CORS: origin not allowed: ${origin}`), false);
