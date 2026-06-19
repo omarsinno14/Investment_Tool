@@ -46,6 +46,19 @@ function RootLayoutNav() {
           <Stack.Screen name="settings" options={{ headerShown: true, title: "Settings", headerBackTitle: "Back" }} />
           <Stack.Screen name="user/[id]" options={{ headerShown: true, title: "Profile", headerBackTitle: "Back" }} />
           <Stack.Screen name="conversation/[id]" options={{ headerShown: true, title: "Chat", headerBackTitle: "Back" }} />
+          <Stack.Screen name="dashboard" options={{ headerShown: true, title: "Dashboard", headerBackTitle: "Back" }} />
+          <Stack.Screen name="headlines" options={{ headerShown: true, title: "Headlines", headerBackTitle: "Back" }} />
+          <Stack.Screen name="activity" options={{ headerShown: true, title: "Activity", headerBackTitle: "Back" }} />
+          <Stack.Screen name="interests" options={{ headerShown: true, title: "Interests", headerBackTitle: "Back" }} />
+          <Stack.Screen name="users" options={{ headerShown: true, title: "Investors", headerBackTitle: "Back" }} />
+          <Stack.Screen name="follow-requests" options={{ headerShown: true, title: "Follow Requests", headerBackTitle: "Back" }} />
+          <Stack.Screen name="portfolio" options={{ headerShown: true, title: "Portfolio", headerBackTitle: "Back" }} />
+          <Stack.Screen name="cashflow" options={{ headerShown: true, title: "Cash Flow", headerBackTitle: "Back" }} />
+          <Stack.Screen name="goals" options={{ headerShown: true, title: "Goals", headerBackTitle: "Back" }} />
+          <Stack.Screen name="journal" options={{ headerShown: true, title: "Journal", headerBackTitle: "Back" }} />
+          <Stack.Screen name="ratios" options={{ headerShown: true, title: "Ratios", headerBackTitle: "Back" }} />
+          <Stack.Screen name="tools/index" options={{ headerShown: true, title: "Tools", headerBackTitle: "Back" }} />
+          <Stack.Screen name="tools/[slug]" options={{ headerShown: true, title: "Tool", headerBackTitle: "Back" }} />
         </>
       ) : (
         <>

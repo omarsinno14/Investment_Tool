@@ -120,19 +120,34 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Account</Text>
+              <Text style={styles.sectionTitle}>Discover</Text>
               <View style={styles.menuGroup}>
-                <MenuItem icon="user" label="Edit Profile" onPress={() => router.push("/settings")} colors={colors} />
-                <MenuItem icon="bell" label="Notifications" onPress={() => router.push("/notifications")} colors={colors} />
-                <MenuItem icon="users" label="Follow Requests" onPress={() => router.push("/settings")} colors={colors} />
+                <MenuItem icon="home" label="Dashboard" onPress={() => router.push("/dashboard")} colors={colors} />
+                <MenuItem icon="rss" label="Headlines" onPress={() => router.push("/headlines")} colors={colors} />
+                <MenuItem icon="activity" label="Activity" onPress={() => router.push("/activity")} colors={colors} />
+                <MenuItem icon="users" label="Investors" onPress={() => router.push("/users")} colors={colors} />
               </View>
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Content</Text>
+              <Text style={styles.sectionTitle}>Finance</Text>
               <View style={styles.menuGroup}>
-                <MenuItem icon="trending-up" label="My Opportunities" onPress={() => router.push("/opportunities")} colors={colors} />
-                <MenuItem icon="message-square" label="Discussions" onPress={() => router.push("/(tabs)")} colors={colors} />
+                <MenuItem icon="pie-chart" label="Portfolio" onPress={() => router.push("/portfolio")} colors={colors} />
+                <MenuItem icon="dollar-sign" label="Cash Flow" onPress={() => router.push("/cashflow")} colors={colors} />
+                <MenuItem icon="target" label="Goals" onPress={() => router.push("/goals")} colors={colors} />
+                <MenuItem icon="book-open" label="Journal" onPress={() => router.push("/journal")} colors={colors} />
+                <MenuItem icon="bar-chart-2" label="Ratios" onPress={() => router.push("/ratios")} colors={colors} />
+                <MenuItem icon="tool" label="Tools" onPress={() => router.push("/tools/index")} colors={colors} />
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Account</Text>
+              <View style={styles.menuGroup}>
+                <MenuItem icon="user" label="Edit Profile" onPress={() => router.push("/settings")} colors={colors} />
+                <MenuItem icon="star" label="Interests" onPress={() => router.push("/interests")} colors={colors} />
+                <MenuItem icon="bell" label="Notifications" onPress={() => router.push("/notifications")} colors={colors} />
+                <MenuItem icon="user-plus" label="Follow Requests" onPress={() => router.push("/follow-requests")} colors={colors} />
               </View>
             </View>
 
