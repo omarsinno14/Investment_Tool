@@ -251,8 +251,8 @@ export default function HeadlinesPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {displayedItems.map((item) => (
-            <HeadlineCard key={item.id} item={item} />
+          {displayedItems.map((item, i) => (
+            <HeadlineCard key={`${item.id}-${i}`} item={item} />
           ))}
         </div>
       )}

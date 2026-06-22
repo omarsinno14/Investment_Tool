@@ -22,3 +22,8 @@ Use shadcn semantic tokens mapped to these (bg-background/text-foreground/bg-pri
 
 ## Admin
 - Seeded admin: admin@vertica.app. Admin endpoints under /api/admin/* are ADMIN-role gated. role is exposed at top level of /api/user/profile.
+
+## Stale canvas preview iframes (white screen / 404 false alarms)
+A reported "web is white" / "mobile is 404" in the canvas can be a stale iframe, NOT a server fault. The canvas iframe does NOT auto-reload when a workflow restarts; it keeps showing the last frame (e.g. a mid-edit broken bundle, or a pre-restart Expo 404).
+**Why:** screenshots/curl from the agent hit fresh sessions and pass (200 + render), while the user's cached iframe still shows the old broken state.
+**How to apply:** verify health first (curl localhost:80/<path> and the Expo domain → expect 200; screenshot logged-out AND reproduce logged-in via runTest since some crashes are auth-only). If healthy, restart the workflow then re-call presentArtifact for each artifact to force the iframe to reload. Expo web also needs a first-load Metro bundle (~10-30s) which can transiently error.
