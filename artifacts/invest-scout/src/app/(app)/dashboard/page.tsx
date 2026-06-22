@@ -11,6 +11,7 @@ import {
   Rss,
   TrendingUp,
   Users,
+  Wallet,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -40,12 +41,21 @@ function getGreeting() {
   return "Good evening";
 }
 
-function QuickActionCard({ icon: Icon, label, href, color }: { icon: any; label: string; href: string; color: string }) {
+const QUICK_ACTIONS = [
+  { icon: TrendingUp, label: "Opportunities", href: "/opportunities" },
+  { icon: Rss, label: "News", href: "/headlines" },
+  { icon: BookOpen, label: "Forums", href: "/forums" },
+  { icon: BarChart2, label: "Portfolio", href: "/portfolio" },
+  { icon: Users, label: "Investors", href: "/users" },
+  { icon: Bell, label: "Alerts", href: "/notifications" },
+];
+
+function QuickActionCard({ icon: Icon, label, href }: { icon: any; label: string; href: string }) {
   return (
     <Link href={href}>
-      <div className="group flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-center transition-all hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm cursor-pointer">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${color}`}>
-          <Icon className="h-5 w-5" />
+      <div className="group flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-center transition-all hover:border-primary/40 hover:bg-primary/5 cursor-pointer">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+          <Icon className="h-5 w-5 text-foreground group-hover:text-primary transition-colors" />
         </div>
         <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">{label}</span>
       </div>
@@ -97,16 +107,12 @@ export default function DashboardPage() {
 
   const focus = useMemo(() => ({
     countries: interests.filter((x) => x.type === "COUNTRY").map((x) => x.value),
-    sectors: interests.filter((x) => x.type === "SECTOR").map((x) => x.value),
+    sectors: interests.filter((x) => x.type === "SECTOR" || x.type === "ASSET_CLASS").map((x) => x.value),
     total: interests.length,
   }), [interests]);
 
   const setupPct = useMemo(() => {
-    const checks = [
-      focus.total > 0,
-      Boolean(profile?.name),
-      communityOpps.length > 0,
-    ];
+    const checks = [focus.total > 0, Boolean(profile?.name), communityOpps.length > 0];
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
   }, [focus.total, profile, communityOpps.length]);
 
@@ -115,12 +121,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* ── Hero greeting ── */}
+      {/* ── Hero ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <Avatar className="h-12 w-12 ring-2 ring-primary/20">
+          <Avatar className="h-12 w-12 ring-2 ring-border">
             <AvatarImage src={profile?.imageUrl} />
-            <AvatarFallback className="bg-primary text-primary-foreground font-semibold">{initials}</AvatarFallback>
+            <AvatarFallback className="bg-foreground text-background font-semibold text-sm">{initials}</AvatarFallback>
           </Avatar>
           <div>
             <p className="text-sm text-muted-foreground">{getGreeting()}</p>
@@ -135,24 +141,18 @@ export default function DashboardPage() {
 
       {/* ── Quick actions ── */}
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-        <QuickActionCard icon={TrendingUp} label="Opportunities" href="/opportunities" color="bg-emerald-500/10 text-emerald-600" />
-        <QuickActionCard icon={Rss} label="News" href="/headlines" color="bg-amber-500/10 text-amber-600" />
-        <QuickActionCard icon={BookOpen} label="Forums" href="/forums" color="bg-blue-500/10 text-blue-600" />
-        <QuickActionCard icon={BarChart2} label="Portfolio" href="/portfolio" color="bg-violet-500/10 text-violet-600" />
-        <QuickActionCard icon={Users} label="Investors" href="/users" color="bg-rose-500/10 text-rose-600" />
-        <QuickActionCard icon={Bell} label="Alerts" href="/notifications" color="bg-orange-500/10 text-orange-600" />
+        {QUICK_ACTIONS.map((a) => <QuickActionCard key={a.href} {...a} />)}
       </div>
 
       {/* ── Main grid ── */}
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        {/* Left: news + opportunities */}
         <div className="space-y-6">
 
           {/* Latest News */}
           <Card className="overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
               <div className="flex items-center gap-2">
-                <Rss className="h-4 w-4 text-amber-500" />
+                <Rss className="h-4 w-4 text-accent" />
                 <CardTitle className="text-sm font-semibold">Latest News</CardTitle>
               </div>
               <Button asChild variant="ghost" size="sm" className="text-xs">
@@ -161,20 +161,18 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="divide-y p-0">
               {loading ? (
-                <div className="space-y-0 divide-y">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="flex items-start gap-3 px-5 py-4">
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-3.5 w-[88%]" />
-                        <Skeleton className="h-3 w-[40%]" />
-                      </div>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3 px-5 py-4">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3.5 w-[88%]" />
+                      <Skeleton className="h-3 w-[40%]" />
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))
               ) : headlines.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-10 text-center px-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
-                    <Rss className="h-5 w-5 text-amber-500" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                    <Rss className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div>
                     <p className="font-medium text-sm">No news yet</p>
@@ -196,7 +194,7 @@ export default function DashboardPage() {
                         {h.title}
                       </p>
                       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        {h.source && <span className="font-medium text-amber-600">{h.source}</span>}
+                        {h.source && <span className="font-medium text-accent">{h.source}</span>}
                         {h.fetchedAt && <><span>·</span><span>{timeAgo(h.fetchedAt)}</span></>}
                       </div>
                     </div>
@@ -207,11 +205,11 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Community Opportunities */}
+          {/* Opportunities */}
           <Card className="overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
+                <TrendingUp className="h-4 w-4 text-primary" />
                 <CardTitle className="text-sm font-semibold">Opportunities</CardTitle>
               </div>
               <Button asChild variant="ghost" size="sm" className="text-xs">
@@ -220,21 +218,19 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="divide-y p-0">
               {loading ? (
-                <div className="divide-y">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="flex items-start gap-3 px-5 py-4">
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-3.5 w-[85%]" />
-                        <Skeleton className="h-3 w-[45%]" />
-                      </div>
-                      <Skeleton className="h-5 w-14 rounded-full" />
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3 px-5 py-4">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3.5 w-[85%]" />
+                      <Skeleton className="h-3 w-[45%]" />
                     </div>
-                  ))}
-                </div>
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                  </div>
+                ))
               ) : communityOpps.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-10 text-center px-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
-                    <TrendingUp className="h-5 w-5 text-emerald-500" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                    <TrendingUp className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div>
                     <p className="font-medium text-sm">No opportunities yet</p>
@@ -264,18 +260,18 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Right: setup + interests */}
+        {/* Right column */}
         <div className="space-y-6">
 
-          {/* Onboarding progress */}
+          {/* Onboarding */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold">Getting started</CardTitle>
               <p className="text-xs text-muted-foreground">{setupPct}% complete</p>
             </CardHeader>
             <CardContent className="space-y-4">
-              {loading ? <Skeleton className="h-2 w-full rounded-full" /> : <Progress value={setupPct} className="h-1.5" />}
-              <div className="space-y-2.5 text-sm">
+              {loading ? <Skeleton className="h-1.5 w-full rounded-full" /> : <Progress value={setupPct} className="h-1.5" />}
+              <div className="space-y-2 text-sm">
                 {[
                   { label: "Set interests", done: focus.total > 0, href: "/interests" },
                   { label: "Complete profile", done: Boolean(profile?.name), href: "/settings" },
@@ -284,8 +280,8 @@ export default function DashboardPage() {
                   <Link key={item.label} href={item.href}>
                     <div className={`flex items-center justify-between rounded-lg px-3 py-2 transition-colors ${item.done ? "text-muted-foreground" : "hover:bg-muted/40 cursor-pointer"}`}>
                       <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${item.done ? "bg-emerald-500" : "bg-muted-foreground/30"}`} />
-                        <span className={item.done ? "line-through" : ""}>{item.label}</span>
+                        <div className={`h-2 w-2 rounded-full ${item.done ? "bg-primary" : "bg-border"}`} />
+                        <span className={item.done ? "line-through opacity-60" : ""}>{item.label}</span>
                       </div>
                       {!item.done && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
                     </div>
@@ -299,7 +295,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div className="flex items-center gap-2">
-                <Globe className="h-4 w-4 text-blue-500" />
+                <Globe className="h-4 w-4 text-muted-foreground" />
                 <CardTitle className="text-sm font-semibold">Your interests</CardTitle>
               </div>
               <Button asChild variant="ghost" size="sm" className="text-xs">
@@ -331,10 +327,13 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Navigation shortcuts */}
+          {/* Explore */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Explore</CardTitle>
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-semibold">Explore</CardTitle>
+              </div>
             </CardHeader>
             <CardContent className="space-y-1 p-2">
               {[

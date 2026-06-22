@@ -4,7 +4,7 @@ import { Globe, Hash, Lock, MessageSquare, Plus, Search, Users } from "lucide-re
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,6 @@ type ForumPost = {
   body: string;
   tags?: string[];
   createdAt: string;
-  userId?: string;
   _count?: { comments: number };
 };
 
@@ -46,20 +45,11 @@ function timeAgo(d?: string) {
 
 function HubCard({ hub, onJoin }: { hub: Hub; onJoin: (id: string) => void }) {
   const initial = hub.name.charAt(0).toUpperCase();
-  const colors = [
-    "bg-emerald-500/10 text-emerald-600",
-    "bg-blue-500/10 text-blue-600",
-    "bg-amber-500/10 text-amber-600",
-    "bg-violet-500/10 text-violet-600",
-    "bg-rose-500/10 text-rose-600",
-    "bg-cyan-500/10 text-cyan-600",
-  ];
-  const color = colors[hub.name.charCodeAt(0) % colors.length];
-
   return (
     <Link href={`/hubs/${hub.slug}`}>
       <div className="group flex items-start gap-3 rounded-xl border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-sm cursor-pointer">
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${color}`}>
+        {/* Avatar — Espresso Black, cream text. Clean, no color chaos */}
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-foreground text-background text-sm font-bold">
           {initial}
         </div>
         <div className="min-w-0 flex-1">
@@ -77,7 +67,7 @@ function HubCard({ hub, onJoin }: { hub: Hub; onJoin: (id: string) => void }) {
         </div>
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onJoin(hub.id); }}
-          className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${hub.isMember ? "bg-muted text-muted-foreground hover:bg-destructive/10 hover:text-destructive" : "border-primary text-primary hover:bg-primary hover:text-primary-foreground"}`}
+          className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${hub.isMember ? "bg-muted text-muted-foreground border-border" : "border-primary text-primary hover:bg-primary hover:text-primary-foreground"}`}
         >
           {hub.isMember ? "Joined" : "Join"}
         </button>
@@ -130,7 +120,7 @@ export default function ForumsPage() {
     setLoading(true);
     try {
       const [hubsRes, postsRes, profileRes] = await Promise.all([
-        fetch(`/api/hubs${q ? `?q=${encodeURIComponent(q)}&limit=50` : "?limit=50"}`, { credentials: "include" }),
+        fetch(`/api/hubs${q ? `?q=${encodeURIComponent(q)}&limit=60` : "?limit=60"}`, { credentials: "include" }),
         fetch("/api/forums?limit=20", { credentials: "include" }),
         fetch("/api/user/profile", { credentials: "include" }),
       ]);
@@ -159,14 +149,14 @@ export default function ForumsPage() {
   async function toggleJoin(hubId: string) {
     const hub = hubs.find((h) => h.id === hubId);
     if (!hub) return;
-    const wasMember = hub.isMember;
-    setHubs((prev) => prev.map((h) => h.id === hubId ? { ...h, isMember: !wasMember } : h));
+    const was = hub.isMember;
+    setHubs((prev) => prev.map((h) => h.id === hubId ? { ...h, isMember: !was } : h));
     try {
       const res = await fetch(`/api/hubs/${hub.slug}/join`, { method: "POST", credentials: "include" });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to update membership");
+      if (!res.ok) throw new Error(data?.error ?? "Failed");
     } catch (e: any) {
-      setHubs((prev) => prev.map((h) => h.id === hubId ? { ...h, isMember: wasMember } : h));
+      setHubs((prev) => prev.map((h) => h.id === hubId ? { ...h, isMember: was } : h));
       toast.error(e?.message ?? "Failed to update membership");
     }
   }
@@ -207,11 +197,11 @@ export default function ForumsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Users className="h-5 w-5 text-blue-500" />
+            <Users className="h-5 w-5 text-muted-foreground" />
             <h1 className="text-2xl font-bold tracking-tight">Community</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            {hubs.length > 0 ? `${hubs.length} hubs · ` : ""} join communities, share deals, and discuss investments.
+            {hubs.length > 0 ? `${hubs.length} hubs · ` : ""}Join communities, share deals, and discuss investments.
           </p>
         </div>
         {role === "ADMIN" && (
@@ -227,28 +217,14 @@ export default function ForumsPage() {
               <div className="space-y-4 pt-2">
                 <div className="space-y-1.5">
                   <Label>Hub name</Label>
-                  <Input
-                    value={createData.name}
-                    onChange={(e) => setCreateData((p) => ({ ...p, name: e.target.value }))}
-                    placeholder="e.g. East Africa Startups"
-                  />
+                  <Input value={createData.name} onChange={(e) => setCreateData((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. East Africa Startups" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Description</Label>
-                  <Textarea
-                    value={createData.description}
-                    onChange={(e) => setCreateData((p) => ({ ...p, description: e.target.value }))}
-                    placeholder="What is this hub about?"
-                    rows={3}
-                  />
+                  <Textarea value={createData.description} onChange={(e) => setCreateData((p) => ({ ...p, description: e.target.value }))} placeholder="What is this hub about?" rows={3} />
                 </div>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border"
-                    checked={createData.isPrivate}
-                    onChange={(e) => setCreateData((p) => ({ ...p, isPrivate: e.target.checked }))}
-                  />
+                  <input type="checkbox" className="rounded border" checked={createData.isPrivate} onChange={(e) => setCreateData((p) => ({ ...p, isPrivate: e.target.checked }))} />
                   Private hub (invite-only)
                 </label>
               </div>
@@ -272,7 +248,7 @@ export default function ForumsPage() {
             <Icon className="h-4 w-4" />
             <span className="hidden sm:inline">{label}</span>
             {count > 0 && (
-              <span className={`rounded-full px-1.5 py-0 text-[10px] font-semibold ${activeTab === key ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+              <span className={`rounded-full px-1.5 text-[10px] font-semibold ${activeTab === key ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                 {count}
               </span>
             )}
@@ -280,51 +256,33 @@ export default function ForumsPage() {
         ))}
       </div>
 
-      {/* Discover tab */}
+      {/* ── Discover tab ── */}
       {activeTab === "discover" && (
         <div className="space-y-6">
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              placeholder="Search hubs by name or country…"
-              value={hubQuery}
-              onChange={(e) => setHubQuery(e.target.value)}
-            />
+            <Input className="pl-9" placeholder="Search hubs by name or topic…" value={hubQuery} onChange={(e) => setHubQuery(e.target.value)} />
           </div>
 
-          {/* Featured */}
           {featuredHubs.length > 0 && !hubQuery && (
             <div className="space-y-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-0.5">Featured Communities</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Featured Communities</h2>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {loading ? (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="rounded-xl border bg-card p-4 space-y-2">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-3 w-48" />
-                    </div>
-                  ))
-                ) : (
-                  featuredHubs.map((hub) => <HubCard key={hub.id} hub={hub} onJoin={toggleJoin} />)
-                )}
+                {loading ? Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-48" /></CardContent></Card>
+                )) : featuredHubs.map((hub) => <HubCard key={hub.id} hub={hub} onJoin={toggleJoin} />)}
               </div>
             </div>
           )}
 
-          {/* Country / all hubs */}
           <div className="space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-0.5">
-              {hubQuery ? `Results for "${hubQuery}"` : "Country Hubs"}
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {hubQuery ? `Results for "${hubQuery}"` : "All Hubs"}
             </h2>
             {loading ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 9 }).map((_, i) => (
-                  <div key={i} className="rounded-xl border bg-card p-4 space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-40" />
-                  </div>
+                  <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-3 w-40" /></CardContent></Card>
                 ))}
               </div>
             ) : allHubs.length === 0 ? (
@@ -344,30 +302,25 @@ export default function ForumsPage() {
         </div>
       )}
 
-      {/* My hubs tab */}
+      {/* ── My hubs tab ── */}
       {activeTab === "mine" && (
         <div className="space-y-4">
           {loading ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="rounded-xl border bg-card p-4 space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-48" />
-                </div>
+                <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-48" /></CardContent></Card>
               ))}
             </div>
           ) : myHubs.length === 0 ? (
             <div className="flex flex-col items-center gap-4 rounded-xl border bg-card py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/10">
-                <Hash className="h-6 w-6 text-blue-500" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                <Hash className="h-6 w-6 text-muted-foreground" />
               </div>
               <div>
                 <p className="font-semibold">No hub memberships yet</p>
                 <p className="text-sm text-muted-foreground mt-1">Join hubs to build your investment community.</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setActiveTab("discover")}>
-                Discover hubs
-              </Button>
+              <Button variant="outline" size="sm" onClick={() => setActiveTab("discover")}>Discover hubs</Button>
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -377,7 +330,7 @@ export default function ForumsPage() {
         </div>
       )}
 
-      {/* Discussions tab */}
+      {/* ── Discussions tab ── */}
       {activeTab === "discussions" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -392,16 +345,13 @@ export default function ForumsPage() {
           {loading ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="rounded-xl border bg-card p-4 space-y-2">
-                  <Skeleton className="h-4 w-[80%]" />
-                  <Skeleton className="h-3 w-[60%]" />
-                </div>
+                <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-4 w-[80%]" /><Skeleton className="h-3 w-[60%]" /></CardContent></Card>
               ))}
             </div>
           ) : posts.length === 0 ? (
             <div className="flex flex-col items-center gap-4 rounded-xl border bg-card py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-500/10">
-                <MessageSquare className="h-6 w-6 text-violet-500" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                <MessageSquare className="h-6 w-6 text-muted-foreground" />
               </div>
               <div>
                 <p className="font-semibold">No discussions yet</p>

@@ -382,8 +382,8 @@ export default function FeedPage() {
             </div>
           ) : filteredOpps.length === 0 ? (
             <div className="flex flex-col items-center gap-4 rounded-xl border bg-card py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
-                <TrendingUp className="h-6 w-6 text-emerald-500" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                <TrendingUp className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <p className="font-semibold">No opportunities yet</p>
@@ -433,8 +433,8 @@ export default function FeedPage() {
             </div>
           ) : filteredForums.length === 0 ? (
             <div className="flex flex-col items-center gap-4 rounded-xl border bg-card py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/10">
-                <MessageSquare className="h-6 w-6 text-blue-500" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                <MessageSquare className="h-6 w-6 text-muted-foreground" />
               </div>
               <div>
                 <p className="font-semibold">No discussions yet</p>

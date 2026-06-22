@@ -18,6 +18,7 @@ import pushTokensRouter from "./pushTokens";
 import headlinesRouter from "./headlines";
 import blocksRouter from "./blocks";
 import overviewRouter from "./overview";
+import adminSeedRouter from "./adminSeed";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(pushTokensRouter);
 router.use(headlinesRouter);
 router.use(blocksRouter);
 router.use(overviewRouter);
+router.use(adminSeedRouter);
 
 export default router;

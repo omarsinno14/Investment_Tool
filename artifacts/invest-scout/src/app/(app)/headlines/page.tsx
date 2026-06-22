@@ -42,13 +42,13 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
         <div className="min-w-0 flex-1 space-y-2">
           {/* Source + time */}
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-amber-600">
+            <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-accent">
               <Rss className="h-3 w-3" />
               {item.source ?? "News"}
             </span>
             {item.fetchedAt && (
               <>
-                <span className="text-muted-foreground/50">·</span>
+                <span className="text-muted-foreground/40">·</span>
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                   <Clock className="h-3 w-3" />
                   {timeAgo(item.fetchedAt)}
@@ -105,12 +105,12 @@ export default function HeadlinesPage() {
   const [items, setItems] = useState<HeadlineItem[]>([]);
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<"for-you" | "all">("for-you");
+  const [activeSource, setActiveSource] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/headlines?limit=60", { credentials: "include" });
+      const res = await fetch("/api/headlines?limit=80", { credentials: "include" });
       if (res.status === 401) { window.location.href = "/login"; return; }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to load headlines");
@@ -128,15 +128,6 @@ export default function HeadlinesPage() {
     load();
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return items.filter((i) => {
-      if (q && !`${i.title} ${i.summary ?? ""} ${i.source ?? ""}`.toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [items, query]);
-
-  // Group by source for "all" tab exploration
   const sources = useMemo(() => {
     const map = new Map<string, number>();
     for (const i of items) {
@@ -146,13 +137,14 @@ export default function HeadlinesPage() {
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   }, [items]);
 
-  const [activeSource, setActiveSource] = useState<string | null>(null);
-
   const displayedItems = useMemo(() => {
-    let list = filtered;
-    if (activeSource) list = list.filter((i) => i.source === activeSource);
-    return list;
-  }, [filtered, activeSource]);
+    const q = query.trim().toLowerCase();
+    return items.filter((i) => {
+      if (activeSource && i.source !== activeSource) return false;
+      if (q && !`${i.title} ${i.summary ?? ""} ${i.source ?? ""}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [items, query, activeSource]);
 
   return (
     <div className="space-y-6">
@@ -160,7 +152,7 @@ export default function HeadlinesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Rss className="h-5 w-5 text-amber-500" />
+            <Rss className="h-5 w-5 text-accent" />
             <h1 className="text-2xl font-bold tracking-tight">News</h1>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -173,31 +165,15 @@ export default function HeadlinesPage() {
         </Button>
       </div>
 
-      {/* Controls */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        {/* Tabs */}
-        <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-1">
-          {(["for-you", "all"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-all ${tab === t ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {t === "for-you" ? "For You" : "All News"}
-            </button>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div className="relative flex-1 sm:max-w-[280px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-9 h-9"
-            placeholder="Search headlines…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="pl-9"
+          placeholder="Search headlines…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
       </div>
 
       {/* Source filter pills */}
@@ -205,7 +181,7 @@ export default function HeadlinesPage() {
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => setActiveSource(null)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${!activeSource ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/50 hover:text-foreground text-muted-foreground"}`}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${!activeSource ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:border-foreground/40 hover:text-foreground"}`}
           >
             All sources
           </button>
@@ -213,9 +189,9 @@ export default function HeadlinesPage() {
             <button
               key={src}
               onClick={() => setActiveSource(activeSource === src ? null : src)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${activeSource === src ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/50 hover:text-foreground text-muted-foreground"}`}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${activeSource === src ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:border-foreground/40 hover:text-foreground"}`}
             >
-              {src} <span className="opacity-60">({count})</span>
+              {src} <span className="opacity-50">({count})</span>
             </button>
           ))}
         </div>
@@ -228,8 +204,8 @@ export default function HeadlinesPage() {
         </div>
       ) : displayedItems.length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-xl border bg-card py-16 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10">
-            <Rss className="h-6 w-6 text-amber-500" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <Rss className="h-6 w-6 text-muted-foreground" />
           </div>
           <div>
             <p className="font-semibold">No headlines found</p>

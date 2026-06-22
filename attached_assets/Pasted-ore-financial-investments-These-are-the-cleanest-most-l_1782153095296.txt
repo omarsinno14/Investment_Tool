@@ -1,0 +1,128 @@
+ore financial investments
+
+These are the cleanest, most legitimate categories:
+
+Investment Type	What it means
+Stocks	Buying ownership in public companies like Apple, Tesla, NVIDIA, banks, etc.
+ETFs	Baskets of stocks/bonds traded like stocks. Example: S&P 500 ETFs, dividend ETFs, tech ETFs.
+Mutual funds	Professionally managed pooled funds. Similar idea to ETFs, but usually less flexible.
+Bonds	Lending money to governments or companies in exchange for interest.
+Treasury bills / GICs / term deposits	Lower-risk fixed-income products. Good for cash parking.
+Dividend stocks	Companies that pay regular cash distributions.
+Index funds	Passive funds that track markets like the S&P 500, Nasdaq, TSX, etc.
+Money market funds	Short-term, lower-risk funds used for cash-like returns.
+
+Regulators like the SEC list stocks, bonds, ETFs, mutual funds, money market funds, Treasury securities, annuities, and alternatives as common investment products.
+
+Alternative investments
+
+These feel more “opportunity marketplace” and could fit your app well.
+
+Investment Type	What it means
+Private equity	Investing in private companies before they go public or get acquired.
+Venture capital	Investing in startups early. High risk, high upside.
+Angel investing	Personally investing in startups, usually at early stages.
+Private credit	Lending money to companies outside traditional banks.
+Hedge funds	Actively managed funds using complex strategies. Usually for wealthy/accredited investors.
+Private placements	Buying securities not offered publicly. Usually restricted and higher risk.
+Business acquisition deals	Buying part or all of a small business.
+Revenue-share deals	Investing in a company in exchange for a percentage of future revenue.
+Litigation finance	Funding lawsuits in exchange for a share of potential settlement proceeds.
+Music royalties	Buying rights to earn royalties from songs/catalogs.
+Film/media financing	Funding movies, shows, or content projects.
+Franchise investments	Investing in franchise locations or operators.
+Infrastructure funds	Roads, ports, energy grids, telecom towers, etc.
+Farmland / agriculture funds	Exposure to agricultural production without buying land directly.
+Timber funds	Investing in forests/timber production.
+Carbon credits	Exposure to emissions credits or environmental markets.
+
+FINRA groups many products beyond stocks and bonds under “alternative and emerging products” and warns that risks vary heavily by product, so disclosure documents and suitability matter a lot.
+
+Luxury / collectible investments
+
+These are more speculative, but they match the “bourgeois minimal” luxury vibe.
+
+Investment Type	Notes
+Fine art	Paintings, sculptures, blue-chip artists, fractional art platforms.
+Classic cars	Ferrari, Porsche, Mercedes, rare BMW M cars, etc.
+Rare whisky	Limited bottles, casks, collectible distilleries.
+Fine wine	Bordeaux, Burgundy, Champagne, investment-grade bottles.
+Jewelry	High-end signed pieces, diamonds, rare gemstones.
+Designer handbags	Hermès Birkin/Kelly, Chanel classics, limited releases.
+Sneakers	Rare Jordans, Nike collabs, limited drops.
+Sports cards	Graded rookie cards, rare historic cards.
+Pokémon / trading cards	Sealed boxes, graded rare cards.
+Rare books/manuscripts	First editions, signed copies, historic documents.
+Coins	Gold coins, rare numismatic coins, sovereign coins.
+Stamps	Very niche, but still a collectible market.
+Vintage furniture/design	Mid-century, Italian design, collectible chairs/lighting.
+Luxury pens	Montblanc limited editions, rare writing instruments.
+
+Important: collectibles can look rich, but they are often illiquid, hard to price, expensive to insure/store, and full of fake/scam risk. They’re not as clean as stocks or ETFs.
+
+Digital / modern investments
+Investment Type	Notes
+Bitcoin	The main crypto asset. High volatility.
+Ethereum	Crypto network asset, also high volatility.
+Crypto ETFs	Exposure to crypto through traditional brokerage accounts.
+Stablecoin yield	Risky; depends heavily on platform, custody, and regulation.
+Tokenized assets	Real-world assets represented on-chain. Emerging and risky.
+Domain names	Buying valuable domains and reselling later.
+Digital businesses	Websites, apps, newsletters, SaaS tools.
+YouTube channels / content assets	Buying monetized digital media properties.
+Apps / micro-SaaS	Buying small software businesses.
+
+Crypto assets can be extremely volatile and investor education bodies warn that people can lose some or all of their money.
+
+Business-style investments
+
+These are great for an “opportunities” platform.
+
+Investment Type	What it means
+Small business equity	Buying a stake in a local/private business.
+Silent partnership	You provide capital, someone else operates.
+Franchise location funding	You help finance a new location.
+Equipment financing	Funding machines, trucks, medical equipment, restaurant equipment, etc.
+Inventory financing	Funding inventory for a business in exchange for return.
+Merchant cash advances	Risky lending to small businesses based on future sales.
+Invoice factoring	Buying unpaid invoices at a discount.
+E-commerce brand acquisition	Buying Shopify/Amazon brands.
+Car rental fleet investment	Funding vehicles for rental businesses.
+Vending machines / ATMs	Cash-flowing physical assets.
+Laundromats / car washes	Operating-business investments, not passive unless structured well.
+
+For your app, this category is honestly very interesting because it feels like “deals”, not just boring investing.
+
+Commodities and hard assets
+Investment Type	Notes
+Gold	Classic store-of-value asset.
+Silver	More industrial and volatile than gold.
+Platinum / palladium	Precious metals with industrial demand.
+Oil / gas exposure	Through stocks, ETFs, futures, or private deals.
+Uranium	Energy/nuclear exposure.
+Copper	Infrastructure/electrification theme.
+Agricultural commodities	Wheat, corn, soybeans, coffee, cocoa, etc.
+Energy royalties	Income from oil/gas/mineral rights.
+
+These can be invested in directly, through funds, through commodity-linked products, or through related companies.
+
+Best categories for your app
+
+For Vertica / Invesops, I would focus on these because they sound premium and opportunity-driven:
+
+Private business deals
+Startup/angel opportunities
+Private credit
+Revenue-share investments
+Luxury collectibles
+Digital business acquisitions
+Franchise opportunities
+Alternative income assets
+Private funds
+Curated public-market themes
+
+The app should not feel like “buy stocks here.” That already exists. The stronger angle is:
+
+A curated marketplace for private, alternative, and luxury investment opportunities.
+
+That is much more premium.
