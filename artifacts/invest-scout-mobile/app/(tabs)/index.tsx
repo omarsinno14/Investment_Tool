@@ -52,42 +52,54 @@ function FeedCard({ item, colors }: { item: FeedItem; colors: ReturnType<typeof 
   const authorName = item.createdByUser?.profile?.name ?? item.author?.name;
   return (
     <Pressable
-      style={({ pressed }) => [{ padding: 16, marginHorizontal: 16, marginVertical: 2, opacity: pressed ? 0.8 : 1 }]}
+      style={({ pressed }) => [{
+        padding: 16, marginHorizontal: 12, marginVertical: 4,
+        backgroundColor: colors.card,
+        borderRadius: colors.radius,
+        borderWidth: 1, borderColor: colors.border,
+        opacity: pressed ? 0.85 : 1,
+      }]}
       onPress={() => {
         if (isOpp) router.push(`/opportunity/${item.id}`);
         else router.push(`/forum/${item.id}`);
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, backgroundColor: isOpp ? "#171717" : "#F4F4F5" }}>
-          <Feather name={isOpp ? "trending-up" : "message-square"} size={11} color={isOpp ? "#FAFAFA" : "#71717A"} />
-          <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: isOpp ? "#FAFAFA" : "#71717A" }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <View style={{
+          flexDirection: "row", alignItems: "center", gap: 4,
+          paddingHorizontal: 9, paddingVertical: 4, borderRadius: 20,
+          backgroundColor: isOpp ? colors.primary : colors.muted,
+        }}>
+          <Feather name={isOpp ? "trending-up" : "message-square"} size={11} color={isOpp ? colors.primaryForeground : colors.mutedForeground} />
+          <Text style={{ fontSize: 11, fontFamily: "Inter_600SemiBold", color: isOpp ? colors.primaryForeground : colors.mutedForeground }}>
             {isOpp ? "Deal" : "Forum"}
           </Text>
         </View>
-        <Text style={{ fontSize: 12, color: "#A1A1AA", fontFamily: "Inter_400Regular" }}>{timeAgo(item.fetchedAt ?? item.createdAt)}</Text>
+        <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>{timeAgo(item.fetchedAt ?? item.createdAt)}</Text>
       </View>
-      <Text style={{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#171717", lineHeight: 22, marginBottom: 6 }} numberOfLines={2}>
+      <Text style={{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: colors.foreground, lineHeight: 22, marginBottom: 6 }} numberOfLines={2}>
         {item.title}
       </Text>
       {(item.summary ?? item.body) ? (
-        <Text style={{ fontSize: 14, color: "#71717A", fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 8 }} numberOfLines={2}>
+        <Text style={{ fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular", lineHeight: 20, marginBottom: 10 }} numberOfLines={2}>
           {item.summary ?? item.body}
         </Text>
       ) : null}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        {authorName ? <Text style={{ fontSize: 12, color: "#A1A1AA", fontFamily: "Inter_500Medium" }}>{authorName}</Text> : <View />}
+        {authorName ? <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_500Medium" }}>{authorName}</Text> : <View />}
         {isOpp && item.askAmount ? (
-          <Text style={{ fontSize: 13, color: "#171717", fontFamily: "Inter_600SemiBold" }}>
-            {item.askCurrency ?? "USD"} {Number(item.askAmount).toLocaleString()}
-          </Text>
+          <View style={{ paddingHorizontal: 10, paddingVertical: 4, backgroundColor: colors.muted, borderRadius: 20 }}>
+            <Text style={{ fontSize: 12, color: colors.foreground, fontFamily: "Inter_600SemiBold" }}>
+              {item.askCurrency ?? "USD"} {Number(item.askAmount).toLocaleString()}
+            </Text>
+          </View>
         ) : null}
         {!isOpp && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <Feather name="heart" size={13} color="#A1A1AA" />
-            <Text style={{ fontSize: 12, color: "#A1A1AA", fontFamily: "Inter_400Regular" }}>{item._count?.reactions ?? 0}</Text>
-            <Feather name="message-circle" size={13} color="#A1A1AA" style={{ marginLeft: 8 }} />
-            <Text style={{ fontSize: 12, color: "#A1A1AA", fontFamily: "Inter_400Regular" }}>{item._count?.comments ?? 0}</Text>
+            <Feather name="heart" size={13} color={colors.mutedForeground} />
+            <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>{item._count?.reactions ?? 0}</Text>
+            <Feather name="message-circle" size={13} color={colors.mutedForeground} style={{ marginLeft: 8 }} />
+            <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>{item._count?.comments ?? 0}</Text>
           </View>
         )}
       </View>

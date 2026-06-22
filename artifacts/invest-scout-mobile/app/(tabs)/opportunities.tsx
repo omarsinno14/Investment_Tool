@@ -97,8 +97,8 @@ function OppCard({ item, colors }: { item: Opp; colors: ReturnType<typeof useCol
     >
       {isBoosted && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6 }}>
-          <Feather name="zap" size={10} color={colors.warning ?? "#F59E0B"} />
-          <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: colors.warning ?? "#F59E0B" }}>Featured</Text>
+          <Feather name="zap" size={10} color={colors.bronze} />
+          <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: colors.bronze }}>Featured</Text>
         </View>
       )}
       <Text style={{ fontSize: 16, fontFamily: "Inter_600SemiBold", color: colors.foreground, lineHeight: 22, marginBottom: 6 }} numberOfLines={2}>

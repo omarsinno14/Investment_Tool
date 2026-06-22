@@ -1,0 +1,263 @@
+Bourgeois Minimal Palette
+Color Role	Color Name	Hex	Use For
+Primary dark	Espresso Black	#15110D	Main headers, navigation bar, logo text, premium dark sections
+Main background	Cashmere Beige	#F4EFE6	App background, page background, empty space
+Border / divider	Soft Taupe	#D6C7B3	Card borders, separators, subtle lines, input borders
+Premium accent	Muted Bronze	#A7793D	Premium badges, highlights, icons, selected states
+Wealth accent	Olive Wealth	#4F5D3B	Primary buttons, positive investment signals, opportunity tags
+Card surface	Cream Card	#FFFDF8	Deal cards, post cards, profile cards, input boxes
+Muted text	Dusty Gray	#A8A29E	Secondary text, timestamps, metadata, inactive states
+How to use each color
+1. Espresso Black — #15110D
+
+Use this as your luxury anchor color.
+
+Best for:
+
+Top navigation
+Logo text
+Main headings
+Footer
+Dark premium sections
+Important text
+
+Avoid using pure black #000000. Espresso Black is softer and more premium.
+
+Example:
+
+--primary-dark: #15110D;
+
+Use it for:
+
+.navbar {
+  background: #15110D;
+  color: #F4EFE6;
+}
+2. Cashmere Beige — #F4EFE6
+
+Use this as the main app background.
+
+This is what makes the app feel clean, expensive, soft, and not harsh.
+
+Best for:
+
+Overall screen background
+Dashboard background
+Feed background
+Profile page background
+Search page background
+
+Example:
+
+body {
+  background: #F4EFE6;
+}
+
+This should probably be your default background color.
+
+3. Cream Card — #FFFDF8
+
+Use this for anything that sits on top of the background.
+
+Best for:
+
+Investment opportunity cards
+Social posts
+Deal previews
+User profile cards
+Search boxes
+Modal backgrounds
+Input fields
+
+Example:
+
+.card {
+  background: #FFFDF8;
+  border: 1px solid #D6C7B3;
+}
+
+The difference between #F4EFE6 and #FFFDF8 is subtle, but that’s exactly what makes it look premium.
+
+4. Soft Taupe — #D6C7B3
+
+Use this for structure without making the UI look busy.
+
+Best for:
+
+Borders
+Card outlines
+Dividers
+Input borders
+Table lines
+Disabled button borders
+
+Example:
+
+.card {
+  border: 1px solid #D6C7B3;
+}
+
+Do not overuse thick lines. Keep borders thin and soft.
+
+5. Muted Bronze — #A7793D
+
+Use this as the luxury accent.
+
+Best for:
+
+Premium badges
+“Featured Opportunity”
+“Verified Investor”
+Small icons
+Selected tabs
+Progress highlights
+Gold-like details
+
+Example:
+
+.badge-premium {
+  background: #A7793D;
+  color: #FFFDF8;
+}
+
+Use bronze sparingly. This is your “expensive detail” color, not your main color.
+
+Good examples:
+
+“Premium”
+“Exclusive”
+“Verified”
+“Top Deal”
+“Early Access”
+
+Bad use:
+
+Huge bronze backgrounds everywhere
+Every button bronze
+Too many gold icons
+
+That would make it look cheap fast.
+
+6. Olive Wealth — #4F5D3B
+
+Use this as your main action and money/opportunity color.
+
+Best for:
+
+Primary buttons
+“View Opportunity”
+“Invest”
+“Follow Deal”
+Positive returns
+Opportunity score
+Growth indicators
+
+Example:
+
+.primary-button {
+  background: #4F5D3B;
+  color: #FFFDF8;
+}
+
+This should be your main CTA color. It says “money” without screaming neon green.
+
+7. Dusty Gray — #A8A29E
+
+Use this for quiet secondary information.
+
+Best for:
+
+Timestamps
+Subtitles
+Captions
+Metadata
+Inactive tabs
+Placeholder text
+Small helper text
+
+Example:
+
+.muted-text {
+  color: #A8A29E;
+}
+
+Use this instead of harsh gray. It keeps the interface soft.
+
+Recommended app usage
+Main app theme
+:root {
+  --espresso-black: #15110D;
+  --cashmere-beige: #F4EFE6;
+  --soft-taupe: #D6C7B3;
+  --muted-bronze: #A7793D;
+  --olive-wealth: #4F5D3B;
+  --cream-card: #FFFDF8;
+  --dusty-gray: #A8A29E;
+}
+UI mapping for your app
+Background
+
+Use:
+
+background: #F4EFE6;
+Cards
+
+Use:
+
+background: #FFFDF8;
+border: 1px solid #D6C7B3;
+Main text
+
+Use:
+
+color: #15110D;
+Secondary text
+
+Use:
+
+color: #A8A29E;
+Main button
+
+Use:
+
+background: #4F5D3B;
+color: #FFFDF8;
+Premium badge
+
+Use:
+
+background: #A7793D;
+color: #FFFDF8;
+Navigation bar
+
+Use:
+
+background: #15110D;
+color: #F4EFE6;
+Best visual formula
+
+For most screens, use this ratio:
+
+70% Cashmere Beige / Cream
+20% Espresso Black / Olive
+10% Bronze accent
+
+That keeps it clean and premium.
+
+Example design direction
+
+Your app should feel like:
+
+A private investment club, not Robinhood.
+A luxury opportunity feed, not a noisy trading app.
+Calm wealth, not crypto casino.
+
+For your brand, I would use:
+
+Logo: Espresso Black #15110D
+Background: Cashmere Beige #F4EFE6
+Cards: Cream Card #FFFDF8
+Buttons: Olive Wealth #4F5D3B
+Premium details: Muted Bronze #A7793D
+Borders: Soft Taupe #D6C7B3
+Subtext: Dusty Gray #A8A29E
