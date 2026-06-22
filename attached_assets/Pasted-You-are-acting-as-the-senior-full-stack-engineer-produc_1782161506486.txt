@@ -1,0 +1,611 @@
+You are acting as the senior full-stack engineer, product designer, QA lead, and technical product manager for Vertica.
+
+Vertica is a premium “Bourgeois Minimal” investment opportunity scouting and social platform. It should feel like a private investment club, not a noisy trading app. Users should be able to discover curated investment opportunities, save and compare deals, discuss with other investors, build a profile/reputation, track portfolio/watchlist items, receive alerts, and access premium/private opportunities.
+
+Current app structure:
+
+* Web app: React + Vite + TypeScript + Tailwind + shadcn/ui
+* Mobile app: Expo / React Native
+* Backend: Express + Prisma + PostgreSQL
+* Auth: session-based with email/password
+* Existing areas: opportunities, feed, forums, hubs, messages, portfolio/cashflow, news, admin, verification, ads
+* Current palette: Bourgeois Minimal
+
+  * Espresso Black: #15110D
+  * Cashmere Beige: #F4EFE6
+  * Soft Taupe: #D6C7B3
+  * Muted Bronze: #A7793D
+  * Olive Wealth: #4F5D3B
+  * Cream Card: #FFFDF8
+  * Dusty Gray: #A8A29E
+
+Your job is to inspect the entire codebase first, then improve the product end-to-end. Do not make random cosmetic changes only. Think like a real production app.
+
+PHASE 1 — STABILIZE THE APP
+
+First, audit and fix all runtime issues:
+
+1. Fix any web white-screen issue.
+2. Fix the mobile/Expo 404 issue and routing/subdomain confusion.
+3. Make sure web, mobile, and API each start correctly.
+4. Add or improve health checks:
+
+   * /api/health
+   * /api/version
+   * database connection status
+5. Add proper error boundaries in the web app.
+6. Add proper error states in the mobile app.
+7. Add loading skeletons so no screen looks blank.
+8. Add clear environment variable validation.
+9. Create or update .env.example.
+10. Make API errors visible and useful in the UI.
+11. Remove dead code, duplicate code, broken routes, and unused placeholders where appropriate.
+12. Ensure all navigation links point to valid routes.
+13. Ensure protected routes redirect correctly.
+14. Make sure the seed/demo data works reliably.
+
+Before building new features, confirm:
+
+* Web app loads
+* Mobile app loads
+* API responds
+* Auth works
+* Main navigation works
+* Admin navigation works
+
+PHASE 2 — PRODUCT CLARITY
+
+Refine the app around this core positioning:
+
+“Vertica is a curated investment opportunity network where users discover, save, discuss, compare, and track premium investment opportunities.”
+
+Make sure the app does not feel like a generic finance dashboard. It should feel like:
+
+* private investment club
+* premium opportunity feed
+* curated deal room
+* clean luxury fintech
+* serious but modern social network
+
+Update text/microcopy across the app to reflect this positioning.
+
+PHASE 3 — UI / DESIGN SYSTEM
+
+Create or improve a centralized design system using the Bourgeois Minimal palette.
+
+Use:
+
+* Espresso Black #15110D for navigation, headings, premium dark surfaces
+* Cashmere Beige #F4EFE6 for main app background
+* Cream Card #FFFDF8 for cards, inputs, modals
+* Soft Taupe #D6C7B3 for borders and dividers
+* Muted Bronze #A7793D for premium badges, featured states, highlights
+* Olive Wealth #4F5D3B for primary CTAs and positive opportunity signals
+* Dusty Gray #A8A29E for secondary text and inactive states
+
+Improve:
+
+1. Buttons
+2. Cards
+3. Badges
+4. Tabs
+5. Forms
+6. Navigation
+7. Modals
+8. Tables
+9. Empty states
+10. Loading skeletons
+11. Error screens
+12. Mobile spacing
+13. Typography hierarchy
+14. Responsive behavior
+
+The UI should be calm, expensive, clean, and consistent. Avoid harsh black/white. Avoid neon green. Avoid crypto-casino styling.
+
+PHASE 4 — OPPORTUNITY / DEAL SYSTEM
+
+The opportunity system is the heart of Vertica. Improve it heavily.
+
+Each opportunity should support:
+
+1. Title
+2. Description
+3. Asset category
+4. Deal type
+5. Minimum investment
+6. Currency
+7. Expected/projected return
+8. Risk level
+9. Time horizon
+10. Location
+11. Deal status: open, closing soon, closed, waitlist, under review
+12. Verification status: Vertica Verified, Community Submitted, Sponsored, Unverified
+13. Deal owner / company
+14. Tags
+15. Documents / links
+16. Discussion thread
+17. Number of saves
+18. Number of interested users
+19. Similar opportunities
+20. Created date / closing date
+21. Report button
+22. Save button
+23. Interested button
+24. Invested/logged button
+25. Deal score or opportunity score
+
+Add or improve categories:
+
+* Startups
+* Private businesses
+* Private credit
+* Revenue-share deals
+* Franchise opportunities
+* Funds
+* Luxury collectibles
+* Classic cars
+* Fine art
+* Wine / whisky
+* Jewelry
+* Digital businesses
+* SaaS acquisitions
+* E-commerce brands
+* Equipment financing
+* Real estate funds
+* Farmland/agriculture
+* Energy projects
+* Precious metals
+* Crypto/digital assets
+* High-yield cash products
+* Public-market themes
+
+Improve the deal card design:
+
+* Category badge
+* Risk badge
+* Minimum investment
+* Projected return
+* Time horizon
+* Verification badge
+* Save/interested actions
+* Premium featured styling
+* Clear CTA
+
+Improve the opportunity detail page:
+
+* Hero section
+* Key metrics
+* Risk disclosure
+* Documents section
+* Discussion
+* Related deals
+* Similar users interested
+* Report button
+* Not financial advice disclaimer
+
+Important: projected returns must never look guaranteed. Use wording like “projected,” “target,” or “estimated,” never “guaranteed return.”
+
+PHASE 5 — TRUST, SAFETY, AND COMPLIANCE
+
+Because this is an investing app, add serious trust and safety.
+
+Add/improve:
+
+1. Risk disclosure banners
+2. “Not financial advice” disclaimers
+3. Report user/post/deal
+4. Admin moderation queue
+5. Deal verification workflow
+6. User verification workflow
+7. Company/deal poster verification
+8. Suspicious activity flags
+9. Anti-scam warnings
+10. Community guidelines
+11. Terms of Service page
+12. Privacy Policy page
+13. Risk Disclosure page
+14. Advertiser Terms page
+15. Subscription Terms page
+16. Audit logs for admin actions
+
+Make sure the platform is positioned as discovery, education, tracking, community, and lead generation unless real legal/regulatory infrastructure exists.
+
+Do not build actual investment money movement, escrow, brokerage, securities execution, or guaranteed-return functionality. If adding payments, payments should be for subscriptions, ads, verification fees, sponsored listings, or platform access only.
+
+PHASE 6 — PAYMENTS AND MONETIZATION
+
+There is currently no real payment processing. Add a production-ready monetization layer.
+
+Use Stripe for web payments. For mobile, use Stripe where appropriate or prepare for RevenueCat/in-app subscriptions if needed.
+
+Implement:
+
+1. Pricing page
+2. Subscription tiers
+3. Stripe Checkout
+4. Stripe Customer Portal
+5. Stripe webhook handling
+6. User subscription status in DB
+7. Premium feature gating
+8. Payment history page
+9. Admin revenue dashboard
+10. Sponsored opportunity billing
+11. Advertiser billing
+12. Verification fee option if appropriate
+13. Failed payment handling
+14. Receipt/invoice access
+
+Suggested plans:
+Free:
+
+* Browse public opportunities
+* Save limited opportunities
+* Join public forums
+* Basic profile
+
+Vertica Plus:
+
+* Unlimited saved opportunities
+* Advanced filters
+* Deal alerts
+* Portfolio/watchlist tools
+* Premium news personalization
+* Private discussions
+
+Vertica Elite:
+
+* Premium opportunity rooms
+* Early access opportunities
+* Verified investor badge request
+* Advanced analytics
+* Exportable reports
+* Private hubs
+
+Business / Deal Poster:
+
+* Post opportunities
+* Sponsored placement
+* Lead dashboard
+* Investor interest tracking
+* Company verification request
+
+Do not process actual investment transactions. Monetization is for platform access, visibility, ads, subscriptions, and lead generation.
+
+PHASE 7 — SOCIAL AND COMMUNITY
+
+Improve the social layer so the app becomes sticky.
+
+Add/improve:
+
+1. Investor profiles
+2. Founder/company profiles
+3. Follow system
+4. Follow requests for private profiles
+5. Deal-specific comments
+6. Forum discussions
+7. Private hubs
+8. Public hubs
+9. Real-time DMs
+10. Persistent group chats in the database
+11. Mentions using @username
+12. Notifications for replies/messages/follows
+13. Bookmarks
+14. Reactions
+15. Reputation score
+16. User badges:
+
+* Verified Investor
+* Founder
+* Analyst
+* Top Contributor
+* Premium Member
+* Deal Poster
+
+17. Blocking and reporting
+18. Moderation tools
+
+Replace 8-second message polling with WebSockets or Server-Sent Events if feasible. If not feasible, improve polling and make it efficient.
+
+PHASE 8 — PORTFOLIO, WATCHLIST, AND FINANCE
+
+Improve the finance tools and make them useful for retention.
+
+Add/improve:
+
+1. Portfolio dashboard
+2. Manual asset tracking
+3. Watchlist for opportunities
+4. Saved opportunities
+5. Net worth tracking
+6. Cashflow tracking
+7. Asset allocation charts
+8. Liability tracking
+9. Investment journal
+10. Goal tracking
+11. Export to PDF/CSV
+12. Mobile charts
+13. Mobile portfolio CRUD
+14. Portfolio snapshots over time
+15. Risk concentration view
+16. Passive income goal tracker
+
+Allow users to track:
+
+* Cash
+* Stocks
+* ETFs
+* Crypto
+* Private deals
+* Real estate
+* Vehicles
+* Watches
+* Art
+* Businesses
+* Debt
+* Other assets
+
+PHASE 9 — SEARCH AND DISCOVERY
+
+Build serious discovery.
+
+Add/improve:
+
+1. Global search across opportunities, users, hubs, posts, and news
+2. Advanced opportunity filters:
+
+   * Category
+   * Risk level
+   * Minimum investment
+   * Currency
+   * Location
+   * Time horizon
+   * Expected return
+   * Verification status
+   * Deal status
+3. Sorting:
+
+   * Newest
+   * Trending
+   * Closing soon
+   * Most saved
+   * Highest interest
+4. Saved searches
+5. Deal alerts
+6. Personalized recommendations based on interests
+7. Similar opportunities
+8. Trending opportunities
+9. Trending discussions
+10. Suggested users to follow
+
+PHASE 10 — NOTIFICATIONS
+
+Create a unified notification system.
+
+Add:
+
+1. In-app notification center
+2. Push notifications
+3. Email notifications
+4. Notification preferences
+5. Deal alert notifications
+6. DM notifications
+7. Follow notifications
+8. Comment/reply notifications
+9. Verification status notifications
+10. Payment/subscription notifications
+11. Weekly digest
+
+Notification types:
+
+* New opportunity matching your interests
+* Saved deal updated
+* Deal closing soon
+* New message
+* New follower
+* Reply to your post
+* Comment on your deal
+* Verification approved/rejected
+* Subscription payment succeeded/failed
+* Premium opportunity added
+
+PHASE 11 — EMAIL SYSTEM
+
+Replace the dev-token email stub with a real email provider.
+
+Use Resend, Postmark, SendGrid, or AWS SES.
+
+Implement:
+
+1. Email verification
+2. Forgot password
+3. Password reset
+4. Welcome email
+5. Deal alert email
+6. Weekly digest
+7. Payment receipt email
+8. Verification status email
+9. Admin notification email
+10. Support request email
+
+Make sure emails are branded using the Bourgeois Minimal style.
+
+PHASE 12 — ADMIN PANEL
+
+Turn the admin panel into a real command center.
+
+Add/improve:
+
+1. User management
+2. Admin roles
+3. Ban/suspend users
+4. Verify users
+5. Review company verification
+6. Review deal verification
+7. Approve/reject opportunities
+8. Reports/moderation queue
+9. Ad management
+10. Sponsored listing management
+11. Subscription/revenue dashboard
+12. Payment event logs
+13. Platform analytics
+14. Deal analytics
+15. User engagement analytics
+16. Email/newsletter tools
+17. Audit logs
+18. Seed/demo data tools
+
+Analytics should include:
+
+* Daily active users
+* Monthly active users
+* New signups
+* Verified users
+* Premium users
+* Revenue
+* Churn
+* Saved deals
+* Interested clicks
+* Messages sent
+* Posts created
+* Most popular categories
+* Most reported users/deals
+
+PHASE 13 — MOBILE PARITY
+
+Improve the mobile app so it does not feel like a weaker companion.
+
+Add/improve:
+
+1. Fix Expo/mobile routing
+2. Mobile login/register
+3. Mobile feed
+4. Mobile deal detail
+5. Mobile save/interested actions
+6. Mobile messages
+7. Mobile notifications
+8. Mobile profile editing
+9. Mobile portfolio CRUD
+10. Mobile charts
+11. Mobile calculators
+12. Mobile settings
+13. Mobile subscription status
+14. Mobile premium gating
+15. Native loading/error states
+16. Better haptics
+17. Better tab navigation
+18. Better spacing and typography
+
+PHASE 14 — NEWS AND CONTENT
+
+Improve financial content.
+
+Add:
+
+1. Personalized headlines based on interests
+2. Saved articles
+3. Trending market themes
+4. Weekly opportunity digest
+5. Admin-curated insights
+6. AI summary placeholder if appropriate
+7. Source labels
+8. Clear timestamps
+9. Country/category filters
+
+Do not let RSS content dominate the app. It should support opportunity discovery, not replace it.
+
+PHASE 15 — SECURITY
+
+Audit security.
+
+Add/improve:
+
+1. Password hashing with bcrypt already exists; verify correct usage
+2. Rate limiting on auth routes
+3. CSRF protection if needed for session cookies
+4. Secure cookie settings
+5. Input validation with Zod or similar
+6. Server-side authorization checks
+7. File upload validation
+8. Role-based admin protection
+9. SQL injection protection through Prisma
+10. XSS-safe rendering
+11. API request size limits
+12. Audit logs
+13. Brute-force login protection
+14. Session expiration
+15. Logout from all devices if feasible
+
+PHASE 16 — QA AND TESTING
+
+Add a launch-readiness checklist and test the app.
+
+Manually test:
+
+1. Register
+2. Email verification
+3. Login/logout
+4. Forgot password
+5. Create/edit profile
+6. Select interests
+7. Browse opportunities
+8. Filter opportunities
+9. Save opportunity
+10. Mark very interested
+11. Create opportunity
+12. View opportunity detail
+13. Comment/discuss
+14. Report opportunity
+15. Send message
+16. Create forum post
+17. Join hub
+18. Create hub post
+19. Add portfolio item
+20. View charts
+21. Subscribe to premium
+22. Cancel subscription
+23. Admin login
+24. Admin verify user
+25. Admin approve/reject deal
+26. Admin manage ads
+27. Mobile login
+28. Mobile feed
+29. Mobile deals
+30. Mobile messages
+31. Mobile profile
+32. Mobile notifications
+
+Add automated tests where practical:
+
+* API route tests
+* Auth tests
+* Payment webhook tests
+* Critical frontend component tests
+* Smoke tests for web routes
+
+PHASE 17 — FINAL DELIVERABLES
+
+After making improvements, provide a final report with:
+
+1. What was broken
+2. What was fixed
+3. What was added
+4. What was improved
+5. What still needs manual setup
+6. Required environment variables
+7. How to run web/mobile/API
+8. How to test payments
+9. How to seed demo data
+10. Remaining risks
+11. Recommended next priorities
+
+Do not stop at a partial implementation without explaining exactly what remains.
+
+Important constraints:
+
+* Preserve the Bourgeois Minimal brand.
+* Keep the app clean, premium, and serious.
+* Do not create actual securities trading, brokerage, escrow, or investment money movement.
+* Do not imply returns are guaranteed.
+* Do not make placeholder buttons that do nothing unless clearly marked.
+* Do not leave white screens or broken mobile routing.
+* Prioritize stability, clarity, payments, trust, and the opportunity system first.
