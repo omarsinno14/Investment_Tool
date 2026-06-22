@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ScreenError } from "@/components/ScreenError";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiFetch } from "@/lib/api";
@@ -69,14 +70,25 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const styles = makeStyles(colors);
 
-  useEffect(() => {
-    apiFetch("/api/user/profile").then((r) => r.json()).then((d) => {
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await apiFetch("/api/user/profile");
+      const d = await r.json();
       setProfile(d.profile ?? d.user ?? {});
-    }).catch(() => {}).finally(() => setLoading(false));
+    } catch {
+      setError("Couldn't load your profile");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { loadProfile(); }, [loadProfile]);
 
   async function handleLogout() {
     await logout();
@@ -103,6 +115,8 @@ export default function ProfileScreen() {
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.scrollContent}>
         {loading ? (
           <View style={styles.center}><ActivityIndicator size="small" color={colors.primary} /></View>
+        ) : error ? (
+          <View style={styles.errorWrap}><ScreenError message={error} onRetry={loadProfile} /></View>
         ) : (
           <>
             <View style={styles.profileCard}>
@@ -176,6 +190,7 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
     headerBtn: { padding: 4 },
     scrollContent: { paddingBottom: 100 },
     center: { paddingTop: 40, alignItems: "center" },
+    errorWrap: { minHeight: 360 },
     profileCard: { alignItems: "center", paddingVertical: 32, paddingHorizontal: 24, gap: 8 },
     avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center", marginBottom: 8 },
     avatarText: { color: colors.primaryForeground, fontSize: 28, fontFamily: "Inter_700Bold" },

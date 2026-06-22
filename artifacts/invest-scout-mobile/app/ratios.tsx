@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 
+import { ScreenError } from "@/components/ScreenError";
 import { useColors } from "@/hooks/useColors";
 import { apiFetch } from "@/lib/api";
 
@@ -26,16 +27,19 @@ export default function RatiosScreen() {
   const [ratios, setRatios] = useState<Ratio[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const styles = makeStyles(colors);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
+    setError(null);
     try {
       const res = await apiFetch("/api/user/ratios");
       const data = await res.json().catch(() => ({ ratios: [] }));
       setRatios(data.ratios ?? []);
     } catch {
+      setError("Couldn't load your ratios");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -45,6 +49,7 @@ export default function RatiosScreen() {
   useEffect(() => { load(); }, [load]);
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  if (error) return <ScreenError message={error} onRetry={load} />;
 
   return (
     <FlatList

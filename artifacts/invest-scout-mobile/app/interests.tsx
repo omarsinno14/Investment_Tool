@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 
+import { ScreenError } from "@/components/ScreenError";
 import { useColors } from "@/hooks/useColors";
 import { apiFetch } from "@/lib/api";
 
@@ -24,16 +25,27 @@ export default function InterestsScreen() {
   const colors = useColors();
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const styles = makeStyles(colors);
 
-  useEffect(() => {
-    apiFetch("/api/user/interests").then((r) => r.json()).then((d) => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await apiFetch("/api/user/interests");
+      const d = await r.json();
       setSelected(d.interests ?? []);
-    }).catch(() => {}).finally(() => setLoading(false));
+    } catch {
+      setError("Couldn't load your interests");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   function toggle(interest: string) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -56,6 +68,7 @@ export default function InterestsScreen() {
   }
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  if (error) return <ScreenError message={error} onRetry={load} />;
 
   return (
     <View style={styles.root}>

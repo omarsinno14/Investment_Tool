@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ScreenError } from "@/components/ScreenError";
 import { useColors } from "@/hooks/useColors";
 import { apiFetch } from "@/lib/api";
 
@@ -135,6 +136,7 @@ export default function HubDiscoverScreen() {
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"all" | "mine" | "featured">("all");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -142,6 +144,7 @@ export default function HubDiscoverScreen() {
   const styles = makeStyles(colors);
 
   const loadHubs = useCallback(async (q = "") => {
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (q) params.set("q", q);
@@ -151,6 +154,7 @@ export default function HubDiscoverScreen() {
       setHubs(data.hubs ?? []);
     } catch {
       setHubs([]);
+      setError("Couldn't load hubs");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -229,6 +233,8 @@ export default function HubDiscoverScreen() {
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
+      ) : error ? (
+        <ScreenError message={error} onRetry={() => loadHubs(query)} />
       ) : (
         <FlatList
           data={displayed}

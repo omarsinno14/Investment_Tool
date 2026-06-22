@@ -32,3 +32,14 @@ In a multi-artifact repl where the web app owns `router="path"` paths=["/"] on e
 A reported "web is white" / "mobile is 404" in the canvas can be a stale iframe, NOT a server fault. The canvas iframe does NOT auto-reload when a workflow restarts; it keeps showing the last frame (e.g. a mid-edit broken bundle, or a pre-restart Expo 404).
 **Why:** screenshots/curl from the agent hit fresh sessions and pass (200 + render), while the user's cached iframe still shows the old broken state.
 **How to apply:** verify health first (curl localhost:80/<path> and the Expo domain → expect 200; screenshot logged-out AND reproduce logged-in via runTest since some crashes are auth-only). If healthy, restart the workflow then re-call presentArtifact for each artifact to force the iframe to reload. Expo web also needs a first-load Metro bundle (~10-30s) which can transiently error.
+
+## Phase 1 (Stabilize) status — DONE
+**Operational endpoints** are plain Express JSON (NOT codegen): GET /api/health (db $queryRaw SELECT 1 + uptime + version, 503 if db down), /api/version, /api/healthz (liveness). In routes/health.ts.
+- Centralized env validation: lib/env.ts validateEnv() called first in index.ts (which then dynamic-imports ./app so validation runs before scattered throws). Required: DATABASE_URL, SESSION_SECRET, PORT. .env.example at repo ROOT.
+- Web ErrorBoundary: components/app/ErrorBoundary.tsx wraps <App/> in main.tsx. Web errors also surface via sonner toasts; no broken nav links (all wouter routes covered).
+- Mobile: top-level ErrorBoundary already in app/_layout.tsx. Added reusable components/ScreenError.tsx (message+onRetry) and wired it into 12 screens that previously swallowed errors (profile, dashboard, conversation/[id], portfolio, cashflow, goals, journal, ratios, interests, follow-requests, hubs/discover, users). Mobile uses apiFetch + useState (NOT react-query hooks despite QueryClient being present).
+- expo-notifications ~0.32.17 INSTALLED via `npx expo install` (SDK 54). useNotificationSetup in app/_layout.tsx dynamic-imports it (web-guarded). Needed for Phase 10/13 push.
+- Fixed useColors.ts cast (radius broke Record cast). Full `pnpm run typecheck` GREEN across all packages.
+
+## Seed data
+- prisma/seed.ts (run `npx tsx prisma/seed.ts`) seeds FEATURED_HUBS + WORLD_COUNTRIES; POST /api/admin/seed-hubs (ADMIN-only, idempotent) seeds ~27 INVESTMENT_HUBS. DB currently: 4 users, 202 hubs, **only 1 opportunity** → Phase 4 must seed realistic opportunities (the deal system is the product heart).

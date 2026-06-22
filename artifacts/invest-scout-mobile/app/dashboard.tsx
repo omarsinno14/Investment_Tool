@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 
+import { ScreenError } from "@/components/ScreenError";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiFetch } from "@/lib/api";
@@ -45,11 +46,13 @@ export default function DashboardScreen() {
   const [data, setData] = useState<DashboardData>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const styles = makeStyles(colors);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
+    setError(null);
     try {
       const [profileRes, interestsRes, oppsRes, headlinesRes] = await Promise.all([
         apiFetch("/api/user/profile"),
@@ -68,6 +71,7 @@ export default function DashboardScreen() {
         headlineCount: headlines.total ?? headlines.opportunities?.length ?? 0,
       });
     } catch {
+      setError("Couldn't load your dashboard");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -93,6 +97,8 @@ export default function DashboardScreen() {
 
       {loading ? (
         <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 20 }} />
+      ) : error ? (
+        <View style={styles.errorWrap}><ScreenError message={error} onRetry={load} /></View>
       ) : (
         <>
           <View style={styles.statsRow}>
@@ -144,6 +150,7 @@ function makeStyles(colors: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20, gap: 20, paddingBottom: 60 },
+    errorWrap: { minHeight: 360 },
     greeting: { gap: 4 },
     greetingText: { fontSize: 24, fontFamily: "Inter_700Bold", color: colors.foreground, letterSpacing: -0.4 },
     greetingSubtext: { fontSize: 14, color: colors.mutedForeground, fontFamily: "Inter_400Regular", lineHeight: 20 },

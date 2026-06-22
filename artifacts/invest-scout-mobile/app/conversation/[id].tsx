@@ -14,6 +14,7 @@ import {
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ScreenError } from "@/components/ScreenError";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { apiFetch } from "@/lib/api";
@@ -32,6 +33,7 @@ export default function ConversationScreen() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const flatRef = useRef<FlatList>(null);
@@ -39,10 +41,17 @@ export default function ConversationScreen() {
   const styles = makeStyles(colors);
 
   const load = useCallback(async () => {
-    const res = await apiFetch(`/api/user/conversations/${id}/messages`);
-    const data = await res.json().catch(() => ({ messages: [] }));
-    setMessages((data.messages ?? []).reverse());
-    setLoading(false);
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiFetch(`/api/user/conversations/${id}/messages`);
+      const data = await res.json().catch(() => ({ messages: [] }));
+      setMessages((data.messages ?? []).reverse());
+    } catch {
+      setError("Couldn't load this conversation");
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
@@ -67,6 +76,7 @@ export default function ConversationScreen() {
   }
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  if (error) return <ScreenError message={error} onRetry={load} />;
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior="padding" keyboardVerticalOffset={0}>

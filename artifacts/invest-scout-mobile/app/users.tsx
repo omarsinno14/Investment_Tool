@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 
+import { ScreenError } from "@/components/ScreenError";
 import { useColors } from "@/hooks/useColors";
 import { apiFetch } from "@/lib/api";
 
@@ -28,18 +29,21 @@ export default function UsersScreen() {
   const [results, setResults] = useState<UserResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const styles = makeStyles(colors);
 
   const search = useCallback(async (q: string) => {
-    if (!q.trim()) { setResults([]); setSearched(false); return; }
+    if (!q.trim()) { setResults([]); setSearched(false); setError(null); return; }
     setLoading(true);
     setSearched(true);
+    setError(null);
     try {
       const res = await apiFetch(`/api/users/search?q=${encodeURIComponent(q.trim())}`);
       const data = await res.json().catch(() => ({ users: [] }));
       setResults(data.users ?? []);
     } catch {
+      setError("Couldn't load search results");
     } finally {
       setLoading(false);
     }
@@ -48,7 +52,7 @@ export default function UsersScreen() {
   function onChangeText(text: string) {
     setQuery(text);
     if (text.length >= 2) search(text);
-    else { setResults([]); setSearched(false); }
+    else { setResults([]); setSearched(false); setError(null); }
   }
 
   return (
@@ -74,6 +78,8 @@ export default function UsersScreen() {
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="small" color={colors.primary} /></View>
+      ) : error ? (
+        <ScreenError message={error} onRetry={() => search(query)} />
       ) : (
         <FlatList
           data={results}

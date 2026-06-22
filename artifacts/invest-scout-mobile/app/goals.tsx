@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 
+import { ScreenError } from "@/components/ScreenError";
 import { useColors } from "@/hooks/useColors";
 import { apiFetch } from "@/lib/api";
 
@@ -37,16 +38,19 @@ export default function GoalsScreen() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const styles = makeStyles(colors);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
+    setError(null);
     try {
       const res = await apiFetch("/api/user/goals");
       const data = await res.json().catch(() => ({ goals: [] }));
       setGoals(data.goals ?? []);
     } catch {
+      setError("Couldn't load your goals");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -56,6 +60,7 @@ export default function GoalsScreen() {
   useEffect(() => { load(); }, [load]);
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  if (error) return <ScreenError message={error} onRetry={load} />;
 
   return (
     <FlatList
