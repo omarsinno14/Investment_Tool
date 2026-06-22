@@ -23,6 +23,11 @@ Use shadcn semantic tokens mapped to these (bg-background/text-foreground/bg-pri
 ## Admin
 - Seeded admin: admin@vertica.app. Admin endpoints under /api/admin/* are ADMIN-role gated. role is exposed at top level of /api/user/profile.
 
+## Expo .expo-subdomain preview broken in path-routed multi-artifact repl
+In a multi-artifact repl where the web app owns `router="path"` paths=["/"] on externalPort 80 and Expo is a separate path artifact (paths=["/mobile"], externalPort 3000), `$REPLIT_EXPO_DEV_DOMAIN` serves the WEB app (Vite, ~70KB) for ALL paths, never Metro. The canvas mobile preview + screenshot tool both load `$REPLIT_EXPO_DEV_DOMAIN`, so they show the web app or the dead `exp://` link.
+**Why:** the `.expo` subdomain resolves to the root/default service (web at "/") and ignores path routing; the edge port→domain mapping does not honor 18547→3000 here. Metro is healthy — it IS reachable and renders at `$REPLIT_DEV_DOMAIN/mobile` (main domain, path-routed): shell + entry.bundle both 200.
+**How to apply:** Do NOT keep restarting the expo workflow or re-registering the artifact — both were tried and neither refreshes the edge mapping. To view/verify the mobile app use `$REPLIT_DEV_DOMAIN/mobile`. Refreshing the edge port→domain mapping appears to need a full repl/environment restart (not a workflow restart), which the user/platform must trigger.
+
 ## Stale canvas preview iframes (white screen / 404 false alarms)
 A reported "web is white" / "mobile is 404" in the canvas can be a stale iframe, NOT a server fault. The canvas iframe does NOT auto-reload when a workflow restarts; it keeps showing the last frame (e.g. a mid-edit broken bundle, or a pre-restart Expo 404).
 **Why:** screenshots/curl from the agent hit fresh sessions and pass (200 + render), while the user's cached iframe still shows the old broken state.
