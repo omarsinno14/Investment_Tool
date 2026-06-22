@@ -15,6 +15,7 @@ import followRouter from "./follow";
 import conversationsRouter from "./conversations";
 import reportsRouter from "./reports";
 import pushTokensRouter from "./pushTokens";
+import headlinesRouter from "./headlines";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(followRouter);
 router.use(conversationsRouter);
 router.use(reportsRouter);
 router.use(pushTokensRouter);
+router.use(headlinesRouter);
 
 export default router;
