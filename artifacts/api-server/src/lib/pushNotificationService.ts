@@ -62,6 +62,8 @@ export async function notifyMatchingUsers(opportunity: {
       },
       where: {
         user: {
+          // Respect the per-user opportunity notification preference.
+          profile: { notifyOpportunities: { not: false } },
           interests: {
             some: {
               value: { in: oppTagsLower, mode: "insensitive" },

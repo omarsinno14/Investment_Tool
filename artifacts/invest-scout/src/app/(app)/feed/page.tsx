@@ -235,7 +235,7 @@ export default function FeedPage() {
       setOpportunities((prev) => [data.opportunity, ...prev]);
       setOppForm({ title: "", summary: "", tags: "", askAmount: "", askCurrency: "USD", expectedRoiPercent: "" });
       setCreateOpen(false);
-      toast.success("Opportunity posted!");
+      toast.success("Deal shared with the club");
     } catch (e: any) { toast.error(e?.message ?? "Unable to post"); }
     finally { setPosting(false); }
   }
@@ -255,7 +255,7 @@ export default function FeedPage() {
       setForums((prev) => [data.post, ...prev]);
       setForumForm({ title: "", body: "", tags: "" });
       setCreateOpen(false);
-      toast.success("Discussion published!");
+      toast.success("Posted to the room");
     } catch (e: any) { toast.error(e?.message ?? "Unable to post"); }
     finally { setPosting(false); }
   }
@@ -265,8 +265,8 @@ export default function FeedPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Feed</h1>
-          <p className="text-sm text-muted-foreground">Opportunities, discussions, and investors — all in one place.</p>
+          <h1 className="text-2xl font-bold tracking-tight">The Floor</h1>
+          <p className="text-sm text-muted-foreground">Curated deals, member discussions, and the investors behind them.</p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <Button variant="outline" size="sm" onClick={loadInitial} disabled={loading}>
@@ -281,7 +281,7 @@ export default function FeedPage() {
             </DialogTrigger>
             <DialogContent className="max-w-xl">
               <DialogHeader>
-                <DialogTitle>Create</DialogTitle>
+                <DialogTitle>Share with the club</DialogTitle>
               </DialogHeader>
               <Tabs value={createTab} onValueChange={(v) => setCreateTab(v as any)}>
                 <TabsList className="grid w-full grid-cols-2">
@@ -296,8 +296,8 @@ export default function FeedPage() {
                 </TabsList>
 
                 <TabsContent value="opportunity" className="space-y-3 pt-4">
-                  <Input placeholder="Opportunity title *" value={oppForm.title} onChange={(e) => setOppForm({ ...oppForm, title: e.target.value })} />
-                  <Textarea placeholder="Short summary of the deal" value={oppForm.summary} onChange={(e) => setOppForm({ ...oppForm, summary: e.target.value })} rows={3} />
+                  <Input placeholder="Deal title *" value={oppForm.title} onChange={(e) => setOppForm({ ...oppForm, title: e.target.value })} />
+                  <Textarea placeholder="The thesis — what's the deal and why now?" value={oppForm.summary} onChange={(e) => setOppForm({ ...oppForm, summary: e.target.value })} rows={3} />
                   <Input placeholder="Tags (comma-separated)" value={oppForm.tags} onChange={(e) => setOppForm({ ...oppForm, tags: e.target.value })} />
                   <div className="grid grid-cols-3 gap-3">
                     <div className="col-span-2">
@@ -317,13 +317,13 @@ export default function FeedPage() {
                   <Input placeholder="Expected ROI %" type="number" value={oppForm.expectedRoiPercent} onChange={(e) => setOppForm({ ...oppForm, expectedRoiPercent: e.target.value })} />
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                    <Button onClick={submitOpportunity} disabled={posting}>{posting ? "Posting…" : "Post opportunity"}</Button>
+                    <Button onClick={submitOpportunity} disabled={posting}>{posting ? "Posting…" : "Share deal"}</Button>
                   </DialogFooter>
                 </TabsContent>
 
                 <TabsContent value="forum" className="space-y-3 pt-4">
-                  <Input placeholder="Discussion title *" value={forumForm.title} onChange={(e) => setForumForm({ ...forumForm, title: e.target.value })} />
-                  <Textarea placeholder="Share your thoughts, question, or insight *" value={forumForm.body} onChange={(e) => setForumForm({ ...forumForm, body: e.target.value })} rows={4} />
+                  <Input placeholder="What's on your mind? *" value={forumForm.title} onChange={(e) => setForumForm({ ...forumForm, title: e.target.value })} />
+                  <Textarea placeholder="Share an insight, ask the room, or open a debate *" value={forumForm.body} onChange={(e) => setForumForm({ ...forumForm, body: e.target.value })} rows={4} />
                   <Input placeholder="Tags (comma-separated)" value={forumForm.tags} onChange={(e) => setForumForm({ ...forumForm, tags: e.target.value })} />
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
@@ -386,14 +386,14 @@ export default function FeedPage() {
                 <TrendingUp className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="font-semibold">No opportunities yet</p>
+                <p className="font-semibold">No deals on the floor yet</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {oppQuery ? "Try a different search term." : "Set your interests to see matched deals, or post the first opportunity."}
+                  {oppQuery ? "No deals match that search. Try another term." : "Tell us what you invest in to surface matched deals — or be the first to bring one to the club."}
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button asChild size="sm" variant="outline"><Link href="/interests">Set interests</Link></Button>
-                <Button size="sm" onClick={() => { setCreateTab("opportunity"); setCreateOpen(true); }}>Post opportunity</Button>
+                <Button asChild size="sm" variant="outline"><Link href="/interests">Set your focus</Link></Button>
+                <Button size="sm" onClick={() => { setCreateTab("opportunity"); setCreateOpen(true); }}>Share a deal</Button>
               </div>
             </div>
           ) : (
@@ -437,10 +437,10 @@ export default function FeedPage() {
                 <MessageSquare className="h-6 w-6 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold">No discussions yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Start the conversation.</p>
+                <p className="font-semibold">The room is quiet</p>
+                <p className="text-sm text-muted-foreground mt-1">Open the first conversation and set the tone.</p>
               </div>
-              <Button size="sm" onClick={() => { setCreateTab("forum"); setCreateOpen(true); }}>Start a discussion</Button>
+              <Button size="sm" onClick={() => { setCreateTab("forum"); setCreateOpen(true); }}>Start a thread</Button>
             </div>
           ) : (
             <div ref={forumListRef}>
@@ -479,7 +479,7 @@ export default function FeedPage() {
           {!peopleLoading && !peopleQuery.trim() && (
             <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed bg-muted/20 py-12 text-center">
               <Users className="h-8 w-8 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Type a name or username to discover investors</p>
+              <p className="text-sm text-muted-foreground">Search by name or username to find members worth knowing</p>
             </div>
           )}
 

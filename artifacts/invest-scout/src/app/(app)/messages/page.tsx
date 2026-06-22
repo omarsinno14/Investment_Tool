@@ -628,8 +628,8 @@ export default function MessagesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Messages</h1>
-          <p className="text-sm text-muted-foreground">Private conversations with smooth, IG-style chat.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Private Wire</h1>
+          <p className="text-sm text-muted-foreground">Direct, members-only conversations — deal talk stays between you.</p>
         </div>
       </div>
 

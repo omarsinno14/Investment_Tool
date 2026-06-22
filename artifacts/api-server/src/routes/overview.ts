@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
+import { computeAutoBadges } from "../lib/badges.js";
 
 const router = Router();
 
@@ -64,10 +65,13 @@ router.get("/user/overview", async (req, res) => {
 
     if (!user) return res.status(404).json({ error: "User not found" });
 
+    const badges = await computeAutoBadges(prisma, userId);
+
     return res.json({
       user,
       opportunities,
       forumPosts,
+      badges,
       publicPreview: isPublic,
     });
   } catch (e) {

@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { MoreHorizontal, RefreshCcw, Search } from "lucide-react";
+import { MoreHorizontal, RefreshCcw, Search, X } from "lucide-react";
+import { Link } from "wouter";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
 import { SUPPORTED_CURRENCIES, useCurrency } from "@/components/app/CurrencyProvider";
 import { Button } from "@/components/ui/button";
@@ -18,6 +20,35 @@ import { INDUSTRIES_BY_SECTOR, SECTORS } from "@/lib/interests";
 import { NAV_BADGE_KEYS, markNavSeen } from "@/lib/nav-badges";
 
 type Opportunity = any;
+
+type SortValue =
+  | "NEWEST"
+  | "OLDEST"
+  | "PRICE_LOW"
+  | "PRICE_HIGH"
+  | "TRENDING"
+  | "CLOSING_SOON"
+  | "MOST_SAVED"
+  | "HIGHEST_INTEREST";
+
+const SERVER_SORTS: Record<string, string> = {
+  NEWEST: "newest",
+  TRENDING: "trending",
+  CLOSING_SOON: "closingSoon",
+  MOST_SAVED: "mostSaved",
+  HIGHEST_INTEREST: "highestInterest",
+};
+
+const RISK_OPTIONS = [
+  "EXTREMELY_LOW",
+  "LOW",
+  "MEDIUM",
+  "MEDIUM_HIGH",
+  "HIGH",
+  "EXTREMELY_HIGH",
+];
+
+const STATUS_OPTIONS = ["DRAFT", "OPEN", "CLOSING_SOON", "FUNDED", "CLOSED"];
 
 function toDateValue(o: any) {
   const d = o.publishedAt ?? o.fetchedAt;
@@ -69,13 +100,26 @@ export default function OpportunitiesPage() {
   const [maxAsk, setMaxAsk] = useState("");
   const [benefitFilter, setBenefitFilter] = useState("");
   const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED">("ALL");
-  const [sort, setSort] = useState<"NEWEST" | "OLDEST" | "PRICE_LOW" | "PRICE_HIGH">("NEWEST");
+  const [sort, setSort] = useState<SortValue>("NEWEST");
   const [showStats, setShowStats] = useState(true);
   const [postOpen, setPostOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [viewerId, setViewerId] = useState<string | null>(null);
   const [myPostsOnly, setMyPostsOnly] = useState(false);
   const { currency, convert, format } = useCurrency();
+
+  // Server-side deal filters
+  const [dealCategory, setDealCategory] = useState("");
+  const [riskLevel, setRiskLevel] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [minReturn, setMinReturn] = useState("");
+  const [horizon, setHorizon] = useState("");
+
+  // Saved searches + suggested members
+  const [savedSearches, setSavedSearches] = useState<any[]>([]);
+  const [suggested, setSuggested] = useState<any[]>([]);
+  const [savingSearch, setSavingSearch] = useState(false);
+  const [followingId, setFollowingId] = useState<string | null>(null);
 
   const [posting, setPosting] = useState(false);
   const [postForm, setPostForm] = useState({
@@ -127,10 +171,25 @@ export default function OpportunitiesPage() {
     }
   }, [industryOptions, industryFilter]);
 
+  function buildServerParams() {
+    const params = new URLSearchParams();
+    params.set("type", "community");
+    const qy = query.trim();
+    if (qy) params.set("q", qy);
+    if (dealCategory.trim()) params.set("category", dealCategory.trim());
+    if (riskLevel !== "All") params.set("risk", riskLevel);
+    if (statusFilter !== "All") params.set("status", statusFilter);
+    if (minReturn.trim()) params.set("minReturn", minReturn.trim());
+    if (horizon.trim()) params.set("horizon", horizon.trim());
+    const serverSort = SERVER_SORTS[sort];
+    if (serverSort) params.set("sort", serverSort);
+    return params;
+  }
+
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch("/api/opportunities?type=community", {
+      const res = await fetch(`/api/opportunities?${buildServerParams().toString()}`, {
         cache: "no-store",
         credentials: "include",
       });
@@ -197,7 +256,7 @@ export default function OpportunitiesPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to post");
 
-      toast.success("Opportunity posted to the feed");
+      toast.success("Deal added to the room");
       setPostForm({
         title: "",
         summary: "",
@@ -227,11 +286,120 @@ export default function OpportunitiesPage() {
     }
   }
 
+  async function loadSavedSearches() {
+    try {
+      const res = await fetch("/api/user/saved-searches", { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      setSavedSearches(data.savedSearches ?? []);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function loadSuggested() {
+    try {
+      const res = await fetch("/api/user/suggested-follows", { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      setSuggested(data.users ?? []);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function saveCurrentSearch() {
+    const name = window.prompt("Name this search");
+    if (!name || !name.trim()) return;
+    setSavingSearch(true);
+    try {
+      const filters = {
+        query: query.trim(),
+        dealCategory: dealCategory.trim(),
+        riskLevel,
+        statusFilter,
+        minReturn: minReturn.trim(),
+        horizon: horizon.trim(),
+        sort,
+      };
+      const res = await fetch("/api/user/saved-searches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: name.trim(), filters }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to save search");
+      toast.success("Search saved");
+      await loadSavedSearches();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to save search");
+    } finally {
+      setSavingSearch(false);
+    }
+  }
+
+  function applySavedSearch(saved: any) {
+    const f = saved?.filters ?? {};
+    setQuery(typeof f.query === "string" ? f.query : "");
+    setDealCategory(typeof f.dealCategory === "string" ? f.dealCategory : "");
+    setRiskLevel(typeof f.riskLevel === "string" ? f.riskLevel : "All");
+    setStatusFilter(typeof f.statusFilter === "string" ? f.statusFilter : "All");
+    setMinReturn(typeof f.minReturn === "string" ? f.minReturn : "");
+    setHorizon(typeof f.horizon === "string" ? f.horizon : "");
+    setSort((f.sort as SortValue) ?? "NEWEST");
+  }
+
+  async function deleteSavedSearch(id: string) {
+    try {
+      const res = await fetch(`/api/user/saved-searches/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      setSavedSearches((prev) => prev.filter((s) => s.id !== id));
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to remove saved search");
+    }
+  }
+
+  async function followSuggested(targetId: string) {
+    setFollowingId(targetId);
+    try {
+      const res = await fetch("/api/user/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId: targetId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to follow");
+      setSuggested((prev) => prev.filter((u) => u.id !== targetId));
+      toast.success(data.followRequestStatus === "PENDING" ? "Follow request sent" : "Following");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to follow member");
+    } finally {
+      setFollowingId(null);
+    }
+  }
+
   useEffect(() => {
     markNavSeen(NAV_BADGE_KEYS.opportunities);
-    load();
+    loadSavedSearches();
+    loadSuggested();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      load();
+    }, 300);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, dealCategory, riskLevel, statusFilter, minReturn, horizon, sort]);
 
   useEffect(() => {
     const stored = localStorage.getItem(draftKey);
@@ -334,9 +502,13 @@ export default function OpportunitiesPage() {
         const bAmount = Number(b.askAmount ?? Number.MAX_SAFE_INTEGER);
         return aAmount - bAmount;
       }
-      const aAmount = Number(a.askAmount ?? 0);
-      const bAmount = Number(b.askAmount ?? 0);
-      return bAmount - aAmount;
+      if (sort === "PRICE_HIGH") {
+        const aAmount = Number(a.askAmount ?? 0);
+        const bAmount = Number(b.askAmount ?? 0);
+        return bAmount - aAmount;
+      }
+      // Server-handled sorts (TRENDING, CLOSING_SOON, MOST_SAVED, HIGHEST_INTEREST) keep server order
+      return 0;
     });
 
     return list;
@@ -397,17 +569,18 @@ export default function OpportunitiesPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Opportunities Marketplace</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">The Deal Room</h1>
+          <p className="text-sm text-muted-foreground">Member-sourced opportunities, curated and open for diligence.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <Dialog open={postOpen} onOpenChange={setPostOpen}>
             <DialogTrigger asChild>
-              <Button>Post an opportunity</Button>
+              <Button>Bring a deal</Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Post an opportunity</DialogTitle>
+                <DialogTitle>Bring a deal to the room</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <div className="space-y-2 md:col-span-2">
@@ -560,7 +733,7 @@ export default function OpportunitiesPage() {
                     Close
                   </Button>
                   <Button onClick={submitPost} disabled={posting}>
-                    {posting ? "Publishing..." : "Publish to feed"}
+                    {posting ? "Publishing..." : "Publish to the room"}
                   </Button>
                 </div>
               </DialogFooter>
@@ -698,6 +871,10 @@ export default function OpportunitiesPage() {
                       <SelectItem value="OLDEST">Oldest</SelectItem>
                       <SelectItem value="PRICE_LOW">Price: Low to high</SelectItem>
                       <SelectItem value="PRICE_HIGH">Price: High to low</SelectItem>
+                      <SelectItem value="TRENDING">Trending</SelectItem>
+                      <SelectItem value="CLOSING_SOON">Closing soon</SelectItem>
+                      <SelectItem value="MOST_SAVED">Most saved</SelectItem>
+                      <SelectItem value="HIGHEST_INTEREST">Most interest</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -876,9 +1053,45 @@ export default function OpportunitiesPage() {
                   <SelectItem value="OLDEST">Oldest</SelectItem>
                       <SelectItem value="PRICE_LOW">Price: Low to high</SelectItem>
                       <SelectItem value="PRICE_HIGH">Price: High to low</SelectItem>
+                  <SelectItem value="TRENDING">Trending</SelectItem>
+                  <SelectItem value="CLOSING_SOON">Closing soon</SelectItem>
+                  <SelectItem value="MOST_SAVED">Most saved</SelectItem>
+                  <SelectItem value="HIGHEST_INTEREST">Most interest</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Button variant="outline" size="sm" onClick={saveCurrentSearch} disabled={savingSearch}>
+                {savingSearch ? "Saving..." : "Save this search"}
+              </Button>
             </div>
+
+            {savedSearches.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-muted-foreground">Saved:</span>
+                {savedSearches.map((s) => (
+                  <span
+                    key={s.id}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm"
+                  >
+                    <button
+                      type="button"
+                      className="font-medium hover:underline"
+                      onClick={() => applySavedSearch(s)}
+                    >
+                      {s.name}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${s.name}`}
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => deleteSavedSearch(s.id)}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* List */}
@@ -917,11 +1130,11 @@ export default function OpportunitiesPage() {
               {filtered.length === 0 && (
                 <Card>
                   <CardContent className="space-y-2 py-10 text-center">
-                    <div className="text-lg font-semibold">No listings yet</div>
-                    <div className="text-muted-foreground">Pick more interests, then run ingestion to pull fresh opportunities.</div>
+                    <div className="text-lg font-semibold">Nothing matches your criteria</div>
+                    <div className="text-muted-foreground">Sharpen your investing focus and we'll surface deals that fit your mandate.</div>
                     <div className="pt-2">
                       <Button asChild>
-                        <a href="/interests">Go to Interests</a>
+                        <a href="/interests">Set your focus</a>
                       </Button>
                     </div>
                   </CardContent>
@@ -933,6 +1146,41 @@ export default function OpportunitiesPage() {
 
         {/* Insights sidebar */}
         <div className="hidden space-y-4 lg:block">
+          {suggested.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Suggested members</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {suggested.slice(0, 6).map((u) => (
+                  <div key={u.id} className="flex items-center gap-3">
+                    <Link href={`/users/${u.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={u.profile?.imageUrl ?? undefined} />
+                        <AvatarFallback>
+                          {(u.profile?.name ?? u.email ?? "?").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">{u.profile?.name ?? u.email}</div>
+                        {u.profile?.username && (
+                          <div className="truncate text-xs text-muted-foreground">@{u.profile.username}</div>
+                        )}
+                      </div>
+                    </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => followSuggested(u.id)}
+                      disabled={followingId === u.id}
+                    >
+                      {followingId === u.id ? "..." : "Follow"}
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Insights</CardTitle>

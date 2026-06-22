@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
 import { containsProfanity } from "../lib/profanity.js";
+import { notifyUser } from "../lib/notify.js";
 
 const router = Router();
 
@@ -103,6 +104,18 @@ router.post("/user/messages", async (req, res) => {
     });
 
     await prisma.conversation.update({ where: { id: conversation.id }, data: { lastMessageAt: new Date() } });
+
+    await notifyUser(prisma, {
+      recipientId: toUserId,
+      actorId: userId,
+      type: "MESSAGE",
+      title: "New message",
+      body: String(body).slice(0, 140),
+      link: "/messages",
+      targetType: "MESSAGE",
+      targetId: message.id,
+      data: { fromUserId: userId, conversationId: conversation.id },
+    });
 
     return res.json({ message });
   } catch (e) {

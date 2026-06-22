@@ -187,10 +187,10 @@ export default function HeadlinesPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Rss className="h-5 w-5 text-accent" />
-            <h1 className="text-2xl font-bold tracking-tight">News</h1>
+            <h1 className="text-2xl font-bold tracking-tight">The Briefing</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Live investment headlines from {sources.length} sources{total > 0 ? ` · ${total} articles` : ""}.
+            Market intel curated from {sources.length} sources{total > 0 ? ` · ${total} stories` : ""}.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
@@ -242,12 +242,12 @@ export default function HeadlinesPage() {
             <Rss className="h-6 w-6 text-muted-foreground" />
           </div>
           <div>
-            <p className="font-semibold">No headlines found</p>
+            <p className="font-semibold">No stories found</p>
             <p className="text-sm text-muted-foreground mt-1">
-              {query ? "Try a different search term." : "Pull down to refresh or set interests to personalise."}
+              {query ? "Nothing matches that search. Try another term." : "Refresh, or define your mandate to tailor the briefing."}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={load}>Refresh feed</Button>
+          <Button variant="outline" size="sm" onClick={load}>Refresh the briefing</Button>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

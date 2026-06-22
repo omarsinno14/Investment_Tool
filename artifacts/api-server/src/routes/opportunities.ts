@@ -13,11 +13,138 @@ function requireAuth(req: any, res: any): string | null {
   return req.session.userId as string;
 }
 
+const RISK_LEVELS = new Set([
+  "EXTREMELY_LOW",
+  "LOW",
+  "MEDIUM",
+  "MEDIUM_HIGH",
+  "HIGH",
+  "EXTREMELY_HIGH",
+]);
+const DEAL_STATUSES = new Set(["DRAFT", "OPEN", "CLOSING_SOON", "FUNDED", "CLOSED"]);
+const VERIFICATION_STATUSES = new Set(["PENDING", "APPROVED", "REJECTED"]);
+
+const createdByUserSelect = {
+  id: true,
+  profile: {
+    select: { name: true, username: true, imageUrl: true, identityVerified: true },
+  },
+} as const;
+
+/** Build the structured deal fields from a request body (validating enums, ignoring unknown). */
+function buildDealFields(body: any): Record<string, any> {
+  const data: Record<string, any> = {};
+
+  if (body.dealType !== undefined) {
+    data.dealType = body.dealType ? String(body.dealType) : null;
+  }
+  if (body.companyName !== undefined) {
+    data.companyName = body.companyName ? String(body.companyName) : null;
+  }
+  if (body.minInvestment !== undefined) {
+    data.minInvestment =
+      body.minInvestment === null || body.minInvestment === ""
+        ? null
+        : Number(body.minInvestment);
+  }
+  if (body.riskLevel !== undefined) {
+    if (body.riskLevel === null || body.riskLevel === "") data.riskLevel = null;
+    else if (RISK_LEVELS.has(String(body.riskLevel))) data.riskLevel = String(body.riskLevel);
+  }
+  if (body.dealStatus !== undefined) {
+    if (DEAL_STATUSES.has(String(body.dealStatus))) data.dealStatus = String(body.dealStatus);
+  }
+  if (body.dealVerification !== undefined) {
+    if (VERIFICATION_STATUSES.has(String(body.dealVerification)))
+      data.dealVerification = String(body.dealVerification);
+  }
+  if (body.closingDate !== undefined) {
+    data.closingDate = body.closingDate ? new Date(body.closingDate) : null;
+  }
+  if (body.dealScore !== undefined) {
+    data.dealScore =
+      body.dealScore === null || body.dealScore === "" ? null : Number(body.dealScore);
+  }
+  if (body.documentUrls !== undefined) {
+    data.documentUrls = Array.isArray(body.documentUrls)
+      ? body.documentUrls.map((u: any) => String(u)).filter(Boolean)
+      : [];
+  }
+  if (body.expectedRoiDurationMonths !== undefined) {
+    data.expectedRoiDurationMonths =
+      body.expectedRoiDurationMonths === null || body.expectedRoiDurationMonths === ""
+        ? null
+        : Number(body.expectedRoiDurationMonths);
+  }
+  if (body.categories !== undefined) {
+    data.categories = Array.isArray(body.categories)
+      ? body.categories.map((c: any) => String(c)).filter(Boolean)
+      : typeof body.categories === "string"
+      ? body.categories.split(",").map((c: string) => c.trim()).filter(Boolean)
+      : [];
+  }
+  if (body.locationName !== undefined) {
+    data.locationName = body.locationName ? String(body.locationName) : null;
+  }
+  if (body.locationMapUrl !== undefined) {
+    data.locationMapUrl = body.locationMapUrl ? String(body.locationMapUrl) : null;
+  }
+  if (body.imageUrl !== undefined) {
+    data.imageUrl = body.imageUrl ? String(body.imageUrl) : null;
+  }
+  if (body.imageUrls !== undefined) {
+    data.imageUrls = Array.isArray(body.imageUrls)
+      ? body.imageUrls.map((u: any) => String(u)).filter(Boolean)
+      : [];
+  }
+
+  return data;
+}
+
+/** Compute savesCount / interestedCount per opportunity for a set of ids. */
+async function computeActionCounts(opportunityIds: string[]) {
+  const map = new Map<string, { savesCount: number; interestedCount: number }>();
+  for (const id of opportunityIds) map.set(id, { savesCount: 0, interestedCount: 0 });
+  if (opportunityIds.length === 0) return map;
+
+  const grouped = await prisma.opportunityAction.groupBy({
+    by: ["opportunityId", "state"],
+    where: { opportunityId: { in: opportunityIds } },
+    _count: { _all: true },
+  });
+
+  for (const row of grouped) {
+    const entry = map.get(row.opportunityId);
+    if (!entry) continue;
+    const count = row._count._all;
+    if (row.state === "SAVED") entry.savesCount += count;
+    else if (row.state === "VERY_INTERESTED" || row.state === "INVESTED")
+      entry.interestedCount += count;
+  }
+  return map;
+}
+
 router.get("/opportunities", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
   try {
-    const { q, type, tab, limit: limitStr, cursor } = req.query as Record<string, string>;
+    const {
+      q,
+      type,
+      tab,
+      limit: limitStr,
+      cursor,
+      category,
+      risk,
+      minInvestment,
+      currency,
+      location,
+      horizon,
+      minReturn,
+      verification,
+      status,
+      sort,
+    } = req.query as Record<string, string>;
     const limit = Math.min(Number(limitStr) || 20, 50);
     const search = (q ?? "").trim().toLowerCase();
 
@@ -25,41 +152,137 @@ router.get("/opportunities", async (req, res) => {
     if (type === "headlines") where.createdByUserId = null;
     else if (type === "community") where.createdByUserId = { not: null };
 
+    const andConditions: any[] = [];
+
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { tags: { has: search } },
-      ];
+      andConditions.push({
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { summary: { contains: search, mode: "insensitive" } },
+          { companyName: { contains: search, mode: "insensitive" } },
+          { tags: { has: search } },
+        ],
+      });
     }
 
+    const categoryVal = (category ?? "").trim();
+    if (categoryVal && categoryVal !== "All") {
+      andConditions.push({ categories: { has: categoryVal } });
+    }
+
+    const riskVal = (risk ?? "").trim();
+    if (riskVal && RISK_LEVELS.has(riskVal)) {
+      andConditions.push({ riskLevel: riskVal });
+    }
+
+    if (minInvestment !== undefined && String(minInvestment).trim() !== "") {
+      const v = Number(minInvestment);
+      if (Number.isFinite(v)) {
+        andConditions.push({ OR: [{ minInvestment: { lte: v } }, { minInvestment: null }] });
+      }
+    }
+
+    const currencyVal = (currency ?? "").trim();
+    if (currencyVal && currencyVal !== "All") {
+      andConditions.push({ askCurrency: currencyVal });
+    }
+
+    const locationVal = (location ?? "").trim();
+    if (locationVal) {
+      andConditions.push({ locationName: { contains: locationVal, mode: "insensitive" } });
+    }
+
+    if (horizon !== undefined && String(horizon).trim() !== "") {
+      const v = Number(horizon);
+      if (Number.isFinite(v)) {
+        andConditions.push({ expectedRoiDurationMonths: { lte: v } });
+      }
+    }
+
+    if (minReturn !== undefined && String(minReturn).trim() !== "") {
+      const v = Number(minReturn);
+      if (Number.isFinite(v)) {
+        andConditions.push({ expectedRoiPercent: { gte: v } });
+      }
+    }
+
+    const verificationVal = (verification ?? "").trim();
+    if (verificationVal && VERIFICATION_STATUSES.has(verificationVal)) {
+      andConditions.push({ dealVerification: verificationVal });
+    }
+
+    const statusVal = (status ?? "").trim();
+    if (statusVal && DEAL_STATUSES.has(statusVal)) {
+      andConditions.push({ dealStatus: statusVal });
+    }
+
+    if (andConditions.length) where.AND = andConditions;
+
+    const sortVal = (sort ?? "").trim();
+    let orderBy: any;
+    switch (sortVal) {
+      case "closingSoon":
+        orderBy = [{ closingDate: "asc" }, { fetchedAt: "desc" }];
+        break;
+      case "trending":
+        orderBy = [{ boostedAt: "desc" }, { fetchedAt: "desc" }];
+        break;
+      case "newest":
+        orderBy = [{ fetchedAt: "desc" }];
+        break;
+      default:
+        orderBy =
+          tab === "trending"
+            ? [{ boostedAt: "desc" }, { fetchedAt: "desc" }]
+            : [{ fetchedAt: "desc" }];
+    }
+
+    // Count-based sorts (mostSaved/highestInterest) rank by aggregates that are not
+    // DB columns, so they cannot be combined with cursor pagination (the cursor order
+    // would differ from the returned order, causing duplicates/gaps across pages).
+    // For these we fetch a bounded window, sort in memory, and return a single page.
+    const isCountSort = sortVal === "mostSaved" || sortVal === "highestInterest";
+    const COUNT_SORT_WINDOW = 100;
     const cursorObj = cursor ? { id: cursor } : undefined;
 
     const items = await prisma.opportunity.findMany({
       where,
-      orderBy:
-        tab === "trending"
-          ? [{ boostedAt: "desc" }, { fetchedAt: "desc" }]
-          : [{ fetchedAt: "desc" }],
-      take: limit + 1,
-      cursor: cursorObj,
-      skip: cursorObj ? 1 : 0,
+      orderBy,
+      take: isCountSort ? COUNT_SORT_WINDOW : limit + 1,
+      cursor: isCountSort ? undefined : cursorObj,
+      skip: isCountSort ? 0 : cursorObj ? 1 : 0,
       include: {
-        createdByUser: {
-          select: {
-            id: true,
-            email: true,
-            profile: { select: { name: true, username: true, imageUrl: true } },
-          },
-        },
+        createdByUser: { select: createdByUserSelect },
         actions: { where: { userId }, take: 1 },
       },
     });
 
-    const hasMore = items.length > limit;
+    const hasMore = !isCountSort && items.length > limit;
     const data = hasMore ? items.slice(0, -1) : items;
     const nextCursor = hasMore ? data[data.length - 1]?.id : null;
 
-    return res.json({ opportunities: data, nextCursor, viewerId: userId });
+    const countsMap = await computeActionCounts(data.map((o) => o.id));
+
+    let opportunities = data.map((o) => {
+      const counts = countsMap.get(o.id) ?? { savesCount: 0, interestedCount: 0 };
+      const viewerState = o.actions[0]?.state ?? "NONE";
+      return {
+        ...o,
+        savesCount: counts.savesCount,
+        interestedCount: counts.interestedCount,
+        viewerState,
+      };
+    });
+
+    if (sortVal === "mostSaved") {
+      opportunities.sort((a, b) => b.savesCount - a.savesCount);
+      opportunities = opportunities.slice(0, limit);
+    } else if (sortVal === "highestInterest") {
+      opportunities.sort((a, b) => b.interestedCount - a.interestedCount);
+      opportunities = opportunities.slice(0, limit);
+    }
+
+    return res.json({ opportunities, nextCursor, viewerId: userId });
   } catch (e) {
     logger.error({ err: e }, "Opportunities GET error");
     return res.status(500).json({ error: "Failed to load opportunities" });
@@ -73,18 +296,67 @@ router.get("/opportunities/:id", async (req, res) => {
     const opp = await prisma.opportunity.findUnique({
       where: { id: req.params.id },
       include: {
-        createdByUser: {
-          select: {
-            id: true,
-            email: true,
-            profile: { select: { name: true, username: true, imageUrl: true } },
-          },
-        },
+        createdByUser: { select: createdByUserSelect },
         actions: { where: { userId }, take: 1 },
       },
     });
     if (!opp) return res.status(404).json({ error: "Not found" });
-    return res.json({ opportunity: opp });
+
+    const countsMap = await computeActionCounts([opp.id]);
+    const counts = countsMap.get(opp.id) ?? { savesCount: 0, interestedCount: 0 };
+    const viewerState = opp.actions[0]?.state ?? "NONE";
+
+    // Interested users (VERY_INTERESTED or INVESTED)
+    const interestedActions = await prisma.opportunityAction.findMany({
+      where: { opportunityId: opp.id, state: { in: ["VERY_INTERESTED", "INVESTED"] } },
+      take: 50,
+      orderBy: { updatedAt: "desc" },
+      select: {
+        user: {
+          select: { id: true, profile: { select: { name: true, imageUrl: true } } },
+        },
+      },
+    });
+    const interestedUsers = interestedActions.map((a) => ({
+      id: a.user.id,
+      displayName: a.user.profile?.name ?? null,
+      avatarUrl: a.user.profile?.imageUrl ?? null,
+    }));
+
+    // Related opportunities sharing any category/tag
+    const relatedMatchers: any[] = [];
+    if (opp.categories.length) relatedMatchers.push({ categories: { hasSome: opp.categories } });
+    if (opp.tags.length) relatedMatchers.push({ tags: { hasSome: opp.tags } });
+
+    let relatedOpportunities: any[] = [];
+    if (relatedMatchers.length) {
+      relatedOpportunities = await prisma.opportunity.findMany({
+        where: { id: { not: opp.id }, OR: relatedMatchers },
+        take: 6,
+        orderBy: [{ boostedAt: "desc" }, { fetchedAt: "desc" }],
+        select: {
+          id: true,
+          title: true,
+          companyName: true,
+          minInvestment: true,
+          expectedRoiPercent: true,
+          riskLevel: true,
+          dealStatus: true,
+          imageUrl: true,
+        },
+      });
+    }
+
+    const opportunity = {
+      ...opp,
+      savesCount: counts.savesCount,
+      interestedCount: counts.interestedCount,
+      viewerState,
+      interestedUsers,
+      relatedOpportunities,
+    };
+
+    return res.json({ opportunity });
   } catch (e) {
     logger.error({ err: e }, "Opportunity GET error");
     return res.status(500).json({ error: "Failed to load opportunity" });
@@ -121,6 +393,7 @@ router.post("/opportunities", async (req, res) => {
         createdByUserId: userId,
         publishedAt: new Date(),
         fetchedAt: new Date(),
+        ...buildDealFields(body),
       },
     });
 
@@ -180,6 +453,7 @@ router.post("/user/opportunities", async (req, res) => {
       data: {
         title: body.title,
         summary: body.summary ?? null,
+        details: body.details ?? null,
         askAmount: body.askAmount ? Number(body.askAmount) : null,
         askCurrency: body.askCurrency ?? "USD",
         expectedRoiPercent: body.expectedRoiPercent ? Number(body.expectedRoiPercent) : null,
@@ -187,6 +461,7 @@ router.post("/user/opportunities", async (req, res) => {
         createdByUserId: userId,
         publishedAt: new Date(),
         fetchedAt: new Date(),
+        ...buildDealFields(body),
       },
     });
 
@@ -235,6 +510,7 @@ router.patch("/opportunities/:id", async (req, res) => {
         ...(tags !== undefined && {
           tags: Array.isArray(tags) ? tags : typeof tags === "string" ? tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
         }),
+        ...buildDealFields(req.body ?? {}),
       },
     });
     return res.json({ opportunity: updated });

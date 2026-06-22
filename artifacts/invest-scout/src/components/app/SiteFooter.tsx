@@ -1,6 +1,7 @@
 
 
 import { useState } from "react";
+import { Link } from "wouter";
 import { toast } from "sonner";
 import { SUPPORTED_CURRENCIES } from "@/components/app/CurrencyProvider";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,16 @@ export function SiteFooter() {
           endorse or encourage any specific investment. Vertica is not liable for investment decisions made
           based on content here. Always do your own research.
         </span>
+      </div>
+      <div className="border-t">
+        <nav className="mx-auto flex w-full max-w-6xl flex-wrap gap-x-5 gap-y-2 px-4 py-4 text-xs text-muted-foreground">
+          <Link href="/legal/terms" className="hover:text-foreground">Terms of Service</Link>
+          <Link href="/legal/privacy" className="hover:text-foreground">Privacy Policy</Link>
+          <Link href="/legal/risk-disclosure" className="hover:text-foreground">Risk Disclosure</Link>
+          <Link href="/legal/advertiser-terms" className="hover:text-foreground">Advertiser Terms</Link>
+          <Link href="/legal/subscription-terms" className="hover:text-foreground">Subscription Terms</Link>
+          <Link href="/legal/community-guidelines" className="hover:text-foreground">Community Guidelines</Link>
+        </nav>
       </div>
     </footer>
   );

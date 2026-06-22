@@ -175,10 +175,10 @@ export default function DashboardPage() {
                     <Rss className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">No news yet</p>
-                    <p className="text-xs text-muted-foreground mt-1">Add interests to get personalised headlines.</p>
+                    <p className="font-medium text-sm">No headlines yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Define your mandate to get a briefing tuned to you.</p>
                   </div>
-                  <Button asChild size="sm" variant="outline"><Link href="/interests">Set interests</Link></Button>
+                  <Button asChild size="sm" variant="outline"><Link href="/interests">Set your focus</Link></Button>
                 </div>
               ) : (
                 headlines.map((h: any, idx) => (
@@ -210,7 +210,7 @@ export default function DashboardPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm font-semibold">Opportunities</CardTitle>
+                <CardTitle className="text-sm font-semibold">Deals for you</CardTitle>
               </div>
               <Button asChild variant="ghost" size="sm" className="text-xs">
                 <Link href="/opportunities">View all <ArrowRight className="ml-1 h-3 w-3" /></Link>
@@ -233,10 +233,10 @@ export default function DashboardPage() {
                     <TrendingUp className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">No opportunities yet</p>
-                    <p className="text-xs text-muted-foreground mt-1">Set your interests to see matched deals.</p>
+                    <p className="font-medium text-sm">No deals matched yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Tell us your mandate and we'll surface deals that fit.</p>
                   </div>
-                  <Button asChild size="sm"><Link href="/interests">Pick interests</Link></Button>
+                  <Button asChild size="sm"><Link href="/interests">Set your focus</Link></Button>
                 </div>
               ) : (
                 communityOpps.slice(0, 6).map((o: any) => (
@@ -266,16 +266,16 @@ export default function DashboardPage() {
           {/* Onboarding */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Getting started</CardTitle>
+              <CardTitle className="text-sm font-semibold">Set up your seat</CardTitle>
               <p className="text-xs text-muted-foreground">{setupPct}% complete</p>
             </CardHeader>
             <CardContent className="space-y-4">
               {loading ? <Skeleton className="h-1.5 w-full rounded-full" /> : <Progress value={setupPct} className="h-1.5" />}
               <div className="space-y-2 text-sm">
                 {[
-                  { label: "Set interests", done: focus.total > 0, href: "/interests" },
-                  { label: "Complete profile", done: Boolean(profile?.name), href: "/settings" },
-                  { label: "Explore opportunities", done: communityOpps.length > 0, href: "/opportunities" },
+                  { label: "Define your mandate", done: focus.total > 0, href: "/interests" },
+                  { label: "Complete your profile", done: Boolean(profile?.name), href: "/settings" },
+                  { label: "Browse the deal room", done: communityOpps.length > 0, href: "/opportunities" },
                 ].map((item) => (
                   <Link key={item.label} href={item.href}>
                     <div className={`flex items-center justify-between rounded-lg px-3 py-2 transition-colors ${item.done ? "text-muted-foreground" : "hover:bg-muted/40 cursor-pointer"}`}>
@@ -296,7 +296,7 @@ export default function DashboardPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-sm font-semibold">Your interests</CardTitle>
+                <CardTitle className="text-sm font-semibold">Your mandate</CardTitle>
               </div>
               <Button asChild variant="ghost" size="sm" className="text-xs">
                 <Link href="/interests">Edit</Link>
@@ -309,9 +309,9 @@ export default function DashboardPage() {
                 </div>
               ) : focus.total === 0 ? (
                 <div className="text-center py-6">
-                  <p className="text-xs text-muted-foreground">No interests set yet.</p>
+                  <p className="text-xs text-muted-foreground">You haven't defined a mandate yet.</p>
                   <Button asChild size="sm" variant="outline" className="mt-3">
-                    <Link href="/interests">Add interests</Link>
+                    <Link href="/interests">Define your mandate</Link>
                   </Button>
                 </div>
               ) : (

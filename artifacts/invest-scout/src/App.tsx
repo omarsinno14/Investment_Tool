@@ -17,6 +17,7 @@ import DashboardPage from "@/app/(app)/dashboard/page";
 import FeedPage from "@/app/(app)/feed/page";
 import OpportunitiesPage from "@/app/(app)/opportunities/page";
 import OpportunityDetailPage from "@/app/(app)/opportunities/[id]/page";
+import SearchPage from "@/app/(app)/search/page";
 import HeadlinesPage from "@/app/(app)/headlines/page";
 import ForumsPage from "@/app/(app)/forums/page";
 import ForumDetailPage from "@/app/(app)/forums/[id]/page";
@@ -39,6 +40,13 @@ import ToolDetailPage from "@/app/(app)/tools/[slug]/page";
 import RatiosPage from "@/app/(app)/ratios/page";
 import FollowRequestsPage from "@/app/(app)/follow-requests/page";
 
+import TermsPage from "@/app/legal/terms/page";
+import PrivacyPage from "@/app/legal/privacy/page";
+import RiskDisclosurePage from "@/app/legal/risk-disclosure/page";
+import AdvertiserTermsPage from "@/app/legal/advertiser-terms/page";
+import SubscriptionTermsPage from "@/app/legal/subscription-terms/page";
+import CommunityGuidelinesPage from "@/app/legal/community-guidelines/page";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -56,12 +64,20 @@ function AppRoutes() {
       <Route path="/register" component={RegisterPage} />
       <Route path="/admin/login" component={AdminLoginPage} />
       <Route path="/admin/signup" component={AdminSignupPage} />
+
+      <Route path="/legal/terms" component={TermsPage} />
+      <Route path="/legal/privacy" component={PrivacyPage} />
+      <Route path="/legal/risk-disclosure" component={RiskDisclosurePage} />
+      <Route path="/legal/advertiser-terms" component={AdvertiserTermsPage} />
+      <Route path="/legal/subscription-terms" component={SubscriptionTermsPage} />
+      <Route path="/legal/community-guidelines" component={CommunityGuidelinesPage} />
       <Route path="/admin" component={() => <AppShell><AdminPage /></AppShell>} />
 
       <Route path="/dashboard" component={() => <AppShell><DashboardPage /></AppShell>} />
       <Route path="/feed" component={() => <AppShell><FeedPage /></AppShell>} />
       <Route path="/opportunities" component={() => <AppShell><OpportunitiesPage /></AppShell>} />
       <Route path="/opportunities/:id" component={() => <AppShell><OpportunityDetailPage /></AppShell>} />
+      <Route path="/search" component={() => <AppShell><SearchPage /></AppShell>} />
       <Route path="/headlines" component={() => <AppShell><HeadlinesPage /></AppShell>} />
       <Route path="/forums" component={() => <AppShell><ForumsPage /></AppShell>} />
       <Route path="/forums/:id" component={() => <AppShell><ForumDetailPage /></AppShell>} />

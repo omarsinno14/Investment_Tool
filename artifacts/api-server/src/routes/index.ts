@@ -21,6 +21,11 @@ import overviewRouter from "./overview";
 import adminSeedRouter from "./adminSeed";
 import adminRouter from "./admin";
 import userAccountRouter from "./userAccount";
+import opportunityCommentsRouter from "./opportunityComments";
+import portfolioAssetsRouter from "./portfolioAssets";
+import searchRouter from "./search";
+import savedSearchesRouter from "./savedSearches";
+import discoveryRouter from "./discovery";
 
 const router: IRouter = Router();
 
@@ -46,5 +51,10 @@ router.use(overviewRouter);
 router.use(adminSeedRouter);
 router.use(adminRouter);
 router.use(userAccountRouter);
+router.use("/opportunities", opportunityCommentsRouter);
+router.use("/user/assets", portfolioAssetsRouter);
+router.use("/search", searchRouter);
+router.use("/user/saved-searches", savedSearchesRouter);
+router.use(discoveryRouter);
 
 export default router;

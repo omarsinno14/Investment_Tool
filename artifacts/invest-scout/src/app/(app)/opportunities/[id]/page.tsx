@@ -1,5 +1,3 @@
-
-
 import { Link } from "wouter";
 import { useParams, useLocation } from "wouter";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -16,6 +14,20 @@ import {
   Tags,
   Timer,
   RotateCcw,
+  ShieldCheck,
+  TrendingUp,
+  MapPin,
+  Clock3,
+  FileText,
+  AlertTriangle,
+  Info,
+  Flag,
+  Users,
+  MessageSquare,
+  Send,
+  Trash2,
+  Loader2,
+  Award
 } from "lucide-react";
 
 import { useCurrency } from "@/components/app/CurrencyProvider";
@@ -31,6 +43,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SUPPORTED_CURRENCIES } from "@/components/app/CurrencyProvider";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
 import { ShareButton } from "@/components/app/ShareButton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type ActionState = "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
 
@@ -76,12 +90,48 @@ type Opportunity = {
   boostedUntil?: string | null;
   boostedBudget?: number | null;
   boostedCurrency?: string | null;
+  
+  // New structured fields
+  dealType?: string | null;
+  companyName?: string | null;
+  minInvestment?: number | null;
+  riskLevel?: 'EXTREMELY_LOW'|'LOW'|'MEDIUM'|'MEDIUM_HIGH'|'HIGH'|'EXTREMELY_HIGH' | null;
+  dealStatus?: 'DRAFT'|'OPEN'|'CLOSING_SOON'|'FUNDED'|'CLOSED';
+  dealVerification?: 'PENDING'|'APPROVED'|'REJECTED';
+  closingDate?: string | null;
+  dealScore?: number | null;
+  documentUrls?: string[];
+  
+  savesCount?: number;
+  interestedCount?: number;
+  viewerState?: 'NONE'|'SAVED'|'VERY_INTERESTED'|'INVESTED';
 };
 
 type ApiResponse = {
   viewerId: string;
   opportunity: Opportunity;
-  related: Opportunity[];
+  relatedOpportunities?: Opportunity[];
+  interestedUsers?: { id: string; displayName?: string | null; avatarUrl?: string | null }[];
+};
+
+type CommentAuthor = {
+  id: string;
+  name?: string | null;
+  username?: string | null;
+  imageUrl?: string | null;
+  reputation?: number | null;
+};
+
+type CommentNode = {
+  id: string;
+  opportunityId: string;
+  parentId?: string | null;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  author: CommentAuthor;
+  canDelete: boolean;
+  replies: CommentNode[];
 };
 
 function formatDate(d?: string | null) {
@@ -90,16 +140,167 @@ function formatDate(d?: string | null) {
   if (Number.isNaN(dt.getTime())) return "—";
   return dt.toLocaleDateString(undefined, {
     year: "numeric",
-    month: "short",
+    month: "long",
     day: "numeric",
   });
 }
 
-function StatRow({ label, value }: { label: string; value: string | number }) {
+function getRiskLabel(risk: Opportunity['riskLevel']) {
+  switch(risk) {
+    case 'EXTREMELY_LOW': return 'Extremely Low Risk';
+    case 'LOW': return 'Low Risk';
+    case 'MEDIUM': return 'Medium Risk';
+    case 'MEDIUM_HIGH': return 'Medium-High Risk';
+    case 'HIGH': return 'High Risk';
+    case 'EXTREMELY_HIGH': return 'Extremely High Risk';
+    default: return 'Unrated';
+  }
+}
+
+function getStatusLabel(status: Opportunity['dealStatus']) {
+  switch(status) {
+    case 'DRAFT': return 'Draft';
+    case 'OPEN': return 'Open';
+    case 'CLOSING_SOON': return 'Closing Soon';
+    case 'FUNDED': return 'Funded';
+    case 'CLOSED': return 'Closed';
+    default: return 'Unknown';
+  }
+}
+
+function getInitials(name?: string | null) {
+  if (!name) return "?";
+  return name.slice(0, 2).toUpperCase();
+}
+
+function StatCard({ label, value, icon, accent = false }: { label: string; value: ReactNode; icon?: ReactNode; accent?: boolean }) {
   return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-foreground">{value}</span>
+    <div className={`p-5 rounded-xl border ${accent ? 'border-accent/30 bg-accent/5' : 'border-border/50 bg-card'} flex flex-col gap-1.5`}>
+      <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+        {icon && <span className={accent ? "text-accent" : "text-muted-foreground/70"}>{icon}</span>}
+        {label}
+      </div>
+      <div className={`text-xl font-bold tracking-tight ${accent ? 'text-accent' : 'text-foreground'}`}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function commentAuthorName(author: CommentAuthor) {
+  return author.name || author.username || "Member";
+}
+
+function CommentItem({
+  comment,
+  onDelete,
+  replyTo,
+  setReplyTo,
+  replyBody,
+  setReplyBody,
+  onSubmitReply,
+  postingReply,
+  isReply = false,
+}: {
+  comment: CommentNode;
+  onDelete: (id: string) => void;
+  replyTo: string | null;
+  setReplyTo: (id: string | null) => void;
+  replyBody: string;
+  setReplyBody: (v: string) => void;
+  onSubmitReply: (parentId: string) => void;
+  postingReply: boolean;
+  isReply?: boolean;
+}) {
+  const author = comment.author;
+  const name = commentAuthorName(author);
+  const reputation = author.reputation ?? 0;
+  return (
+    <div className={`flex gap-3 ${isReply ? "" : "rounded-2xl border border-border/50 bg-card p-4"}`}>
+      <Link href={author.id ? `/users/${author.id}` : "#"}>
+        <Avatar className="h-9 w-9 border border-border">
+          <AvatarImage src={author.imageUrl ?? ""} />
+          <AvatarFallback className="bg-muted text-muted-foreground text-xs">{getInitials(name)}</AvatarFallback>
+        </Avatar>
+      </Link>
+      <div className="flex-1 min-w-0 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <Link href={author.id ? `/users/${author.id}` : "#"} className="font-semibold text-sm hover:underline">
+            {name}
+          </Link>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Award className="h-3 w-3" /> {reputation}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Reputation: {reputation}</TooltipContent>
+          </Tooltip>
+          <span className="text-xs text-muted-foreground">{formatDate(comment.createdAt)}</span>
+        </div>
+        <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words">{comment.body}</p>
+        <div className="flex items-center gap-3 pt-0.5">
+          {!isReply && (
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
+            >
+              Reply
+            </button>
+          )}
+          {comment.canDelete && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+              onClick={() => onDelete(comment.id)}
+            >
+              <Trash2 className="h-3 w-3" /> Delete
+            </button>
+          )}
+        </div>
+
+        {replyTo === comment.id && !isReply && (
+          <div className="mt-2 space-y-2">
+            <Textarea
+              placeholder={`Reply to ${name}...`}
+              value={replyBody}
+              onChange={(e) => setReplyBody(e.target.value)}
+              rows={2}
+              maxLength={2000}
+              className="resize-none"
+            />
+            <div className="flex items-center justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => { setReplyTo(null); setReplyBody(""); }}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={() => onSubmitReply(comment.id)} disabled={postingReply || !replyBody.trim()}>
+                {postingReply ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                Reply
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {comment.replies && comment.replies.length > 0 && (
+          <div className="mt-3 space-y-3 border-l border-border/60 pl-4">
+            {comment.replies.map((reply) => (
+              <CommentItem
+                key={reply.id}
+                comment={reply}
+                onDelete={onDelete}
+                replyTo={replyTo}
+                setReplyTo={setReplyTo}
+                replyBody={replyBody}
+                setReplyBody={setReplyBody}
+                onSubmitReply={onSubmitReply}
+                postingReply={postingReply}
+                isReply
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -112,80 +313,30 @@ export default function OpportunityDetailPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [investAmt, setInvestAmt] = useState<string>("");
-  const [replyBody, setReplyBody] = useState("");
-  const [replySending, setReplySending] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [boostOpen, setBoostOpen] = useState(false);
-  const [boostForm, setBoostForm] = useState({
-    budget: "",
-    currency: "USD",
-    days: "7",
-  });
-  const [imageIndex, setImageIndex] = useState(0);
-  const [viewStats, setViewStats] = useState<any>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
-  const [editForm, setEditForm] = useState({
-    title: "",
-    summary: "",
-    details: "",
-    askAmount: "",
-    askCurrency: "USD",
-    expectedRoiPercent: "",
-    expectedRoiDurationMonths: "",
-    benefits: "",
-    tags: "",
-    locationName: "",
-    locationMapUrl: "",
-    contactEmail: "",
-    contactPhone: "",
-    contactUsername: "",
-  });
+
+  const [comments, setComments] = useState<CommentNode[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [commentBody, setCommentBody] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyBody, setReplyBody] = useState("");
+  const [postingReply, setPostingReply] = useState(false);
 
   const opportunity = data?.opportunity;
-  const state = opportunity?.action?.state ?? "NONE";
+  const state = opportunity?.viewerState ?? opportunity?.action?.state ?? "NONE";
   const viewerId = data?.viewerId ?? null;
   const isOwner = Boolean(viewerId && opportunity?.createdByUser?.id && viewerId === opportunity.createdByUser.id);
   const isSponsored = opportunity?.boostedUntil
     ? new Date(opportunity.boostedUntil).getTime() > Date.now()
     : false;
 
-  const chips = useMemo(() => {
-    if (!opportunity) return [] as { label: string; values: string[]; icon: ReactNode }[];
-    return [
-      { label: "Categories", values: opportunity.categories ?? [], icon: <Layers className="h-4 w-4" /> },
-      { label: "Countries", values: opportunity.countries ?? [], icon: <Globe2 className="h-4 w-4" /> },
-      { label: "Sectors", values: opportunity.sectors ?? [], icon: <Layers className="h-4 w-4" /> },
-      { label: "Industries", values: opportunity.industries ?? [], icon: <Layers className="h-4 w-4" /> },
-      { label: "Keywords", values: opportunity.keywords ?? [], icon: <Tags className="h-4 w-4" /> },
-      { label: "Tags", values: opportunity.tags ?? [], icon: <Tags className="h-4 w-4" /> },
-    ];
-  }, [opportunity]);
-
-  const freshness = useMemo(() => {
-    if (!opportunity) return "—";
-    const ts = opportunity.publishedAt ?? opportunity.fetchedAt;
-    return ts ? new Date(ts).toLocaleString() : "—";
-  }, [opportunity]);
-
-  const posterName =
-    opportunity?.createdByUser?.profile?.username ||
-    opportunity?.createdByUser?.profile?.name ||
-    opportunity?.createdByUser?.email ||
-    null;
-
   const images = (opportunity?.imageUrls?.length
     ? opportunity?.imageUrls
     : opportunity?.imageUrl
       ? [opportunity.imageUrl]
       : []) as string[];
-
-  useEffect(() => {
-    if (imageIndex >= images.length) {
-      setImageIndex(0);
-    }
-  }, [imageIndex, images.length]);
 
   async function load() {
     const id = params?.id;
@@ -205,30 +356,6 @@ export default function OpportunityDetailPage() {
 
       const data: ApiResponse = await res.json();
       setData(data);
-      setInvestAmt(
-        data.opportunity.action?.investedAmt != null
-          ? String(data.opportunity.action.investedAmt)
-          : ""
-      );
-      setEditForm({
-        title: data.opportunity.title ?? "",
-        summary: data.opportunity.summary ?? "",
-        details: data.opportunity.details ?? "",
-        askAmount: data.opportunity.askAmount != null ? String(data.opportunity.askAmount) : "",
-        askCurrency: data.opportunity.askCurrency ?? "USD",
-        expectedRoiPercent:
-          data.opportunity.expectedRoiPercent != null ? String(data.opportunity.expectedRoiPercent) : "",
-        expectedRoiDurationMonths:
-          data.opportunity.expectedRoiDurationMonths != null ? String(data.opportunity.expectedRoiDurationMonths) : "",
-        benefits: data.opportunity.benefits ?? "",
-        tags: (data.opportunity.tags ?? []).join(", "),
-        locationName: data.opportunity.locationName ?? "",
-        locationMapUrl: data.opportunity.locationMapUrl ?? "",
-        contactEmail: data.opportunity.contactEmail ?? "",
-        contactPhone: data.opportunity.contactPhone ?? "",
-        contactUsername: data.opportunity.contactUsername ?? "",
-      });
-      setBoostForm((prev) => ({ ...prev, currency: data.opportunity.askCurrency ?? prev.currency }));
     } catch (e) {
       console.error(e);
       toast.error("Failed to load opportunity");
@@ -237,24 +364,88 @@ export default function OpportunityDetailPage() {
     }
   }
 
+  async function loadComments() {
+    const id = params?.id;
+    if (!id) return;
+    setCommentsLoading(true);
+    try {
+      const res = await fetch(`/api/opportunities/${id}/comments`, { cache: "no-store", credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      const body = await res.json();
+      setComments(Array.isArray(body.comments) ? body.comments : []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCommentsLoading(false);
+    }
+  }
+
   useEffect(() => {
     load();
+    loadComments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params?.id]);
 
-  useEffect(() => {
-    if (!opportunity || !isOwner) return;
-    (async () => {
-      try {
-        const res = await fetch(`/api/opportunities/${opportunity.id}/views`, { credentials: "include" });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data?.error ?? "Failed to load views");
-        setViewStats(data);
-      } catch (e) {
-        console.error(e);
-      }
-    })();
-  }, [opportunity, isOwner]);
+  async function postComment(text: string, parentId?: string) {
+    const id = params?.id;
+    if (!id) return false;
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+    try {
+      const res = await fetch(`/api/opportunities/${id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ body: trimmed, parentId: parentId ?? undefined }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? "Failed to post comment");
+      await loadComments();
+      return true;
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "Could not post comment");
+      return false;
+    }
+  }
+
+  async function submitComment() {
+    if (!commentBody.trim()) return;
+    setPostingComment(true);
+    const ok = await postComment(commentBody);
+    if (ok) setCommentBody("");
+    setPostingComment(false);
+  }
+
+  async function submitReply(parentId: string) {
+    if (!replyBody.trim()) return;
+    setPostingReply(true);
+    const ok = await postComment(replyBody, parentId);
+    if (ok) {
+      setReplyBody("");
+      setReplyTo(null);
+    }
+    setPostingReply(false);
+  }
+
+  async function deleteComment(commentId: string) {
+    const id = params?.id;
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/opportunities/${id}/comments/${commentId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? "Failed to delete");
+      await loadComments();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message ?? "Could not delete comment");
+    }
+  }
+
+  const commentCount = comments.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0);
 
   async function updateAction(nextState: ActionState, amount?: number) {
     if (!opportunity) return;
@@ -293,126 +484,6 @@ export default function OpportunityDetailPage() {
     }
   }
 
-  async function saveEdits() {
-    if (!opportunity) return;
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/user/opportunities/${opportunity.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.error ?? "Failed to update");
-      toast.success("Opportunity updated");
-      setEditOpen(false);
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to update opportunity");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function toggleArchive() {
-    if (!opportunity) return;
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/user/opportunities/${opportunity.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ archived: !opportunity.archivedAt }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.error ?? "Failed to update");
-      toast.success(opportunity.archivedAt ? "Opportunity restored" : "Opportunity archived");
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to update opportunity");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function deleteOpportunity() {
-    if (!opportunity) return;
-    if (!window.confirm("Delete this opportunity? This cannot be undone.")) return;
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/user/opportunities/${opportunity.id}`, { method: "DELETE" });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.error ?? "Failed to delete");
-      toast.success("Opportunity deleted");
-      navigate("/opportunities");
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to delete opportunity");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function repostOpportunity() {
-    if (!opportunity) return;
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/user/opportunities/${opportunity.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repost: true }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.error ?? "Failed to repost");
-      toast.success("Opportunity reposted");
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to repost opportunity");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function boostOpportunity() {
-    if (!opportunity) return;
-    const budget = Number(boostForm.budget);
-    const days = Number(boostForm.days);
-    if (!Number.isFinite(budget) || budget <= 0) {
-      toast.error("Enter a valid boost budget");
-      return;
-    }
-    if (!Number.isFinite(days) || days <= 0) {
-      toast.error("Enter a valid duration");
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/user/opportunities/${opportunity.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          boost: {
-            budget,
-            currency: boostForm.currency,
-            days,
-          },
-        }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.error ?? "Failed to boost");
-      toast.success("Boost activated");
-      setBoostOpen(false);
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to boost opportunity");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function submitReport() {
     try {
       const res = await fetch("/api/reports", {
@@ -436,68 +507,24 @@ export default function OpportunityDetailPage() {
     }
   }
 
-  async function sendReply() {
-    if (!opportunity) return;
-    const identifier =
-      opportunity.createdByUser?.profile?.username || opportunity.createdByUser?.email || "";
-    if (!identifier) {
-      toast.error("No recipient available");
-      return;
-    }
-    if (!replyBody.trim()) {
-      toast.error("Write a message first");
-      return;
-    }
-    setReplySending(true);
-    try {
-      const res = await fetch("/api/user/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          identifier,
-          body: replyBody,
-          opportunityId: opportunity.id,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.error ?? "Message failed");
-      }
-      toast.success("Message sent");
-      setReplyBody("");
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to send message");
-    } finally {
-      setReplySending(false);
-    }
-  }
-
-  function handleInvested() {
-    const num = Number(investAmt);
-    if (!Number.isFinite(num) || num < 0) {
-      toast.error("Enter a valid amount");
-      return;
-    }
-    void updateAction("INVESTED", num);
-  }
-
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-          <Skeleton className="h-[420px]" />
-          <Skeleton className="h-[240px]" />
+      <div className="space-y-8 max-w-5xl mx-auto">
+        <Skeleton className="h-10 w-24" />
+        <Skeleton className="h-[400px] w-full rounded-2xl" />
+        <div className="grid gap-6 md:grid-cols-3">
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
         </div>
+        <Skeleton className="h-64 rounded-xl" />
       </div>
     );
   }
 
   if (!opportunity) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 max-w-5xl mx-auto">
         <div className="flex items-center gap-3 text-muted-foreground">
           <ArrowLeft className="h-4 w-4" />
           <Button variant="outline" asChild>
@@ -505,561 +532,401 @@ export default function OpportunityDetailPage() {
           </Button>
         </div>
         <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            Opportunity not found.
+          <CardContent className="py-20 text-center text-muted-foreground flex flex-col items-center">
+            <Globe2 className="h-12 w-12 mb-4 opacity-20" />
+            <div className="text-lg font-medium text-foreground">Opportunity not found</div>
+            <p className="mt-2 max-w-md mx-auto">This deal may have been removed or you might not have permission to view it.</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  const minInvest = opportunity.minInvestment ?? opportunity.askAmount;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Button variant="ghost" size="sm" className="px-0" asChild>
-              <Link href="/opportunities" className="inline-flex items-center gap-2">
-                <ArrowLeft className="h-4 w-4" /> Back to feed
-              </Link>
-            </Button>
-            <Separator orientation="vertical" className="h-4" />
-            <span className="flex items-center gap-2">
-              <Timer className="h-4 w-4" /> Updated {freshness}
+    <div className="space-y-8 max-w-5xl mx-auto pb-16">
+      {/* Navigation */}
+      <div className="flex items-center gap-3 text-sm">
+        <Button variant="ghost" size="sm" className="px-0 text-muted-foreground hover:text-foreground transition-colors" asChild>
+          <Link href="/opportunities" className="inline-flex items-center gap-1.5">
+            <ArrowLeft className="h-4 w-4" /> Back to Deal Room
+          </Link>
+        </Button>
+      </div>
+
+      {/* Hero Section */}
+      <div className="relative overflow-hidden rounded-[2rem] border border-border shadow-sm bg-card">
+        {images.length > 0 ? (
+          <div className="aspect-[21/9] w-full bg-muted">
+            <img src={images[0]} alt={opportunity.title} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
+          </div>
+        ) : (
+          <div className="aspect-[21/9] w-full bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center">
+            <Globe2 className="h-24 w-24 text-muted-foreground/20" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+          </div>
+        )}
+        
+        <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10 flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2 items-center">
+            {opportunity.dealStatus && (
+              <Badge className="bg-foreground text-background font-bold uppercase tracking-widest text-[11px] px-3 py-1">
+                {getStatusLabel(opportunity.dealStatus)}
+              </Badge>
+            )}
+            {opportunity.dealVerification === 'APPROVED' && (
+              <Badge className="bg-accent text-accent-foreground font-semibold flex items-center gap-1.5 px-3 py-1 shadow-md">
+                <ShieldCheck className="h-3.5 w-3.5" /> Vertica Verified
+              </Badge>
+            )}
+            {opportunity.dealType && (
+              <Badge variant="secondary" className="px-3 py-1 font-medium bg-background/80 backdrop-blur-md">
+                {opportunity.dealType}
+              </Badge>
+            )}
+            {isSponsored && <Badge className="bg-primary text-primary-foreground px-3 py-1">Sponsored</Badge>}
+          </div>
+          
+          <div>
+            {opportunity.companyName && (
+              <h2 className="text-accent font-bold uppercase tracking-widest text-sm mb-2">{opportunity.companyName}</h2>
+            )}
+            <h1 className="text-3xl md:text-5xl font-bold leading-tight tracking-tight text-foreground max-w-3xl">
+              {opportunity.title}
+            </h1>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-4 text-sm text-foreground/80 font-medium mt-2">
+            {opportunity.locationName && (
+              <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full"><MapPin className="h-4 w-4" />{opportunity.locationName}</span>
+            )}
+            {opportunity.closingDate && opportunity.dealStatus === 'CLOSING_SOON' && (
+              <span className="flex items-center gap-1.5 bg-destructive/10 text-destructive px-3 py-1.5 rounded-full"><Clock3 className="h-4 w-4" />Closes {formatDate(opportunity.closingDate)}</span>
+            )}
+            <span className="flex items-center gap-1.5 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
+              <Timer className="h-4 w-4" /> Listed {formatDate(opportunity.publishedAt ?? opportunity.fetchedAt)}
             </span>
           </div>
-          <h1 className="text-3xl font-semibold leading-tight tracking-tight">
-            {opportunity.title}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            {typeof opportunity.matchScore === "number" && (
-              <Badge variant="secondary">Match {opportunity.matchScore}%</Badge>
-            )}
-            {isSponsored && <Badge variant="secondary">Sponsored</Badge>}
-            {opportunity.source && <Badge variant="secondary">{opportunity.source}</Badge>}
-            <Badge variant="outline">{formatDate(opportunity.publishedAt ?? opportunity.fetchedAt)}</Badge>
-            {state !== "NONE" && <Badge className="bg-primary text-primary-foreground">{state}</Badge>}
-          </div>
         </div>
+      </div>
 
-        <div className="flex flex-wrap gap-2">
-          {isOwner && (
-            <>
-              <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" disabled={busy}>Edit</Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Edit opportunity</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="md:col-span-2 space-y-1">
-                      <span className="text-sm font-medium">Title</span>
-                      <Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
-                    </div>
-                    <div className="md:col-span-2 space-y-1">
-                      <span className="text-sm font-medium">Summary</span>
-                      <Textarea
-                        value={editForm.summary}
-                        onChange={(e) => setEditForm({ ...editForm, summary: e.target.value })}
-                        rows={3}
-                      />
-                    </div>
-                    <div className="md:col-span-2 space-y-1">
-                      <span className="text-sm font-medium">Details</span>
-                      <Textarea
-                        value={editForm.details}
-                        onChange={(e) => setEditForm({ ...editForm, details: e.target.value })}
-                        rows={4}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-sm font-medium">Ask amount</span>
-                      <Input
-                        value={editForm.askAmount}
-                        onChange={(e) => setEditForm({ ...editForm, askAmount: e.target.value })}
-                        type="number"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-sm font-medium">Currency</span>
-                      <Select
-                        value={editForm.askCurrency}
-                        onValueChange={(value) => setEditForm({ ...editForm, askCurrency: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SUPPORTED_CURRENCIES.map((code) => (
-                            <SelectItem key={code} value={code}>
-                              {code}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-sm font-medium">Benefits</span>
-                      <Input value={editForm.benefits} onChange={(e) => setEditForm({ ...editForm, benefits: e.target.value })} />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-sm font-medium">Expected ROI (%)</span>
-                      <Input
-                        value={editForm.expectedRoiPercent}
-                        onChange={(e) => setEditForm({ ...editForm, expectedRoiPercent: e.target.value })}
-                        type="number"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-sm font-medium">ROI duration (months)</span>
-                      <Input
-                        value={editForm.expectedRoiDurationMonths}
-                        onChange={(e) => setEditForm({ ...editForm, expectedRoiDurationMonths: e.target.value })}
-                        type="number"
-                      />
-                    </div>
-                    <div className="space-y-1 md:col-span-2">
-                      <span className="text-sm font-medium">Tags (comma-separated)</span>
-                      <Input value={editForm.tags} onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })} />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-sm font-medium">Location</span>
-                      <Input
-                        value={editForm.locationName}
-                        onChange={(e) => setEditForm({ ...editForm, locationName: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-sm font-medium">Map link</span>
-                      <Input
-                        value={editForm.locationMapUrl}
-                        onChange={(e) => setEditForm({ ...editForm, locationMapUrl: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-sm font-medium">Contact email</span>
-                      <Input
-                        value={editForm.contactEmail}
-                        onChange={(e) => setEditForm({ ...editForm, contactEmail: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-sm font-medium">Contact phone</span>
-                      <Input
-                        value={editForm.contactPhone}
-                        onChange={(e) => setEditForm({ ...editForm, contactPhone: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1 md:col-span-2">
-                      <span className="text-sm font-medium">Contact username</span>
-                      <Input
-                        value={editForm.contactUsername}
-                        onChange={(e) => setEditForm({ ...editForm, contactUsername: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-                    <Button onClick={saveEdits} disabled={busy}>Save changes</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Button variant="outline" onClick={toggleArchive} disabled={busy}>
-                {opportunity.archivedAt ? "Restore" : "Archive"}
-              </Button>
-              <Button variant="outline" onClick={repostOpportunity} disabled={busy}>
-                Repost
-              </Button>
-              <Dialog open={boostOpen} onOpenChange={setBoostOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" disabled={busy}>
-                    Boost
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Boost this opportunity</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3 text-sm">
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <Input
-                        type="number"
-                        placeholder="Boost budget"
-                        value={boostForm.budget}
-                        onChange={(e) => setBoostForm({ ...boostForm, budget: e.target.value })}
-                      />
-                      <Select
-                        value={boostForm.currency}
-                        onValueChange={(value) => setBoostForm({ ...boostForm, currency: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SUPPORTED_CURRENCIES.map((code) => (
-                            <SelectItem key={code} value={code}>
-                              {code}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Input
-                      type="number"
-                      placeholder="Duration (days)"
-                      value={boostForm.days}
-                      onChange={(e) => setBoostForm({ ...boostForm, days: e.target.value })}
-                    />
-                    <div className="text-xs text-muted-foreground">
-                      Pricing is aligned to Instagram-style boosts. Sponsored posts prioritize matching audiences.
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setBoostOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={boostOpportunity} disabled={busy}>
-                      Activate boost
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Button variant="destructive" onClick={deleteOpportunity} disabled={busy}>
-                Delete
-              </Button>
-            </>
-          )}
-          {opportunity.url && (
-            <Button variant="outline" asChild>
-              <a href={opportunity.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2">
-                Open source <ArrowUpRight className="h-4 w-4" />
-              </a>
-            </Button>
-          )}
-          <ShareButton title={opportunity.title} text={opportunity.summary ?? undefined} variant="outline" size="default" />
-          {!isOwner && (
-            <Dialog open={reportOpen} onOpenChange={setReportOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">Report scam</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Report this opportunity</DialogTitle>
-                </DialogHeader>
-                <Textarea
-                  value={reportReason}
-                  onChange={(e) => setReportReason(e.target.value)}
-                  placeholder="Tell us why this looks like a scam..."
-                  rows={4}
-                />
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setReportOpen(false)}>Cancel</Button>
-                  <Button onClick={submitReport} disabled={!reportReason.trim()}>
-                    Submit report
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
-          <Button variant="secondary" onClick={() => updateAction("SAVED")} disabled={busy}>
-            <Bookmark className="h-4 w-4 mr-2" /> Save
+      {/* Action Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-card border rounded-2xl shadow-sm">
+        <div className="flex items-center gap-4 text-sm font-medium">
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-muted-foreground" />
+            <span className="text-foreground">{(opportunity.savesCount ?? 0) + (opportunity.interestedCount ?? 0)}</span>
+            <span className="text-muted-foreground">Observing</span>
+          </div>
+          <Separator orientation="vertical" className="h-5" />
+          <ShareButton 
+            title={opportunity.title} 
+            text={`Check out this opportunity on Vertica: ${opportunity.title}`} 
+            url={window.location.href}
+            variant="ghost"
+          />
+        </div>
+        
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <Button 
+            size="lg" 
+            variant={state === "SAVED" ? "default" : "outline"} 
+            className={`flex-1 md:flex-none transition-all rounded-xl ${state === "SAVED" ? "bg-primary hover:bg-primary/90" : ""}`}
+            disabled={busy} 
+            onClick={() => updateAction(state === "SAVED" ? "NONE" : "SAVED")}
+          >
+            <Bookmark className={`mr-2 h-5 w-5 ${state === "SAVED" ? "fill-current" : ""}`} />
+            {state === "SAVED" ? "Saved" : "Save Deal"}
           </Button>
-          <Button variant="secondary" onClick={() => updateAction("VERY_INTERESTED")} disabled={busy}>
-            <Star className="h-4 w-4 mr-2" /> Interested
+          <Button 
+            size="lg" 
+            variant={state === "VERY_INTERESTED" ? "default" : "default"} 
+            className={`flex-1 md:flex-none transition-all rounded-xl shadow-md ${state === "VERY_INTERESTED" ? "bg-primary hover:bg-primary/90" : "bg-accent hover:bg-accent/90 text-accent-foreground"}`}
+            disabled={busy} 
+            onClick={() => updateAction(state === "VERY_INTERESTED" ? "NONE" : "VERY_INTERESTED")}
+          >
+            <Star className={`mr-2 h-5 w-5 ${state === "VERY_INTERESTED" ? "fill-current" : ""}`} />
+            {state === "VERY_INTERESTED" ? "Interested" : "Express Interest"}
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Opportunity brief</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-base text-muted-foreground leading-relaxed">
-              {opportunity.details || opportunity.summary || "No summary provided yet."}
-            </p>
+      {/* Key Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard 
+          label="Min. Investment" 
+          value={minInvest != null ? `From ${format(minInvest, { fromCurrency: opportunity.askCurrency ?? "USD", maximumFractionDigits: 0 })}` : "N/A"} 
+          icon={<Banknote className="h-4 w-4" />}
+          accent={true}
+        />
+        <StatCard 
+          label="Projected Return" 
+          value={opportunity.expectedRoiPercent != null ? `${opportunity.expectedRoiPercent}%` : "TBD"} 
+          icon={<TrendingUp className="h-4 w-4" />}
+        />
+        <StatCard 
+          label="Time Horizon" 
+          value={opportunity.expectedRoiDurationMonths != null ? `${opportunity.expectedRoiDurationMonths} Months` : "Flexible"} 
+          icon={<Clock3 className="h-4 w-4" />}
+        />
+        <StatCard 
+          label="Risk Profile" 
+          value={getRiskLabel(opportunity.riskLevel)} 
+          icon={<AlertTriangle className="h-4 w-4" />}
+        />
+      </div>
 
-            {images.length > 0 && (
-              <div className="space-y-3">
-                <div className="relative overflow-hidden rounded-lg border bg-muted/20">
-                  <img src={images[imageIndex]} alt={opportunity.title} className="h-64 w-full object-cover" />
-                  {images.length > 1 && (
-                    <div className="absolute inset-x-0 bottom-3 flex items-center justify-between px-3">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() =>
-                          setImageIndex((prev) => (prev - 1 + images.length) % images.length)
-                        }
-                      >
-                        Prev
-                      </Button>
-                      <div className="rounded-full bg-background/80 px-3 py-1 text-xs text-muted-foreground">
-                        {imageIndex + 1} / {images.length}
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setImageIndex((prev) => (prev + 1) % images.length)}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                {images.length > 1 && (
-                  <div className="flex flex-wrap gap-2">
-                    {images.map((src, idx) => (
-                      <button
-                        key={src}
-                        type="button"
-                        onClick={() => setImageIndex(idx)}
-                        className={`overflow-hidden rounded-md border ${idx === imageIndex ? "ring-2 ring-primary" : ""}`}
-                      >
-                        <img src={src} alt={`${opportunity.title} ${idx + 1}`} className="h-16 w-24 object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <StatRow label="Published" value={formatDate(opportunity.publishedAt)} />
-              <StatRow label="Fetched" value={formatDate(opportunity.fetchedAt)} />
-              <StatRow label="Source" value={opportunity.source || "—"} />
-              <StatRow label="Status" value={state} />
-              {opportunity.askAmount != null && (
-                <StatRow
-                  label="Ask amount"
-                  value={format(opportunity.askAmount, { fromCurrency: opportunity.askCurrency ?? "USD" })}
-                />
-              )}
-              {opportunity.expectedRoiPercent != null && (
-                <StatRow
-                  label="Expected ROI"
-                  value={`${opportunity.expectedRoiPercent}%${opportunity.expectedRoiDurationMonths ? ` / ${opportunity.expectedRoiDurationMonths} months` : ""}`}
-                />
-              )}
-              {opportunity.boostedUntil && (
-                <StatRow
-                  label="Boosted until"
-                  value={new Date(opportunity.boostedUntil).toLocaleDateString()}
-                />
-              )}
-              {opportunity.boostedBudget != null && (
-                <StatRow
-                  label="Boost budget"
-                  value={format(opportunity.boostedBudget, { fromCurrency: opportunity.boostedCurrency ?? "USD" })}
-                />
-              )}
-              {posterName && <StatRow label="Posted by" value={posterName} />}
-            </div>
-
-            <Separator />
-
-            <div className="space-y-4">
-              {chips.map((group) => (
-                <div key={group.label} className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    {group.icon}
-                    {group.label}
-                  </div>
-                  {group.values?.length ? (
-                    <div className="flex flex-wrap gap-2">
-                      {group.values.map((value) => (
-                        <Badge key={`${group.label}-${value}`} variant="secondary">
-                          {value}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No {group.label.toLowerCase()} yet.</p>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {(opportunity.locationName ||
-              opportunity.locationMapUrl ||
-              opportunity.contactEmail ||
-              opportunity.contactPhone ||
-              opportunity.contactUsername ||
-              opportunity.benefits) && (
-              <>
-                <Separator />
-                <div className="space-y-3 text-sm">
-                  <div className="text-sm font-medium">Contact & logistics</div>
-                  {opportunity.locationName && (
-                    <div className="text-muted-foreground">Location: {opportunity.locationName}</div>
-                  )}
-                  {opportunity.locationMapUrl && (
-                    <a
-                      href={opportunity.locationMapUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-primary underline"
-                    >
-                      View map
-                    </a>
-                  )}
-                  {opportunity.benefits && (
-                    <div className="text-muted-foreground">Benefits: {opportunity.benefits}</div>
-                  )}
-                  {(opportunity.contactEmail ||
-                    opportunity.contactPhone ||
-                    opportunity.contactUsername) && (
-                    <div className="space-y-1 text-muted-foreground">
-                      {opportunity.contactEmail && <div>Email: {opportunity.contactEmail}</div>}
-                      {opportunity.contactPhone && <div>Phone: {opportunity.contactPhone}</div>}
-                      {opportunity.contactUsername && <div>Username: {opportunity.contactUsername}</div>}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            <Separator />
-
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Sparkles className="h-4 w-4" /> Next step
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Capture an invested amount or keep it saved to track how this signal evolves over time.
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Executive Summary */}
+          <section className="space-y-4">
+            <h3 className="text-xl font-bold border-b pb-2">Executive Summary</h3>
+            <div className="prose dark:prose-invert max-w-none">
+              <p className="text-lg leading-relaxed text-foreground/90 whitespace-pre-wrap">
+                {opportunity.summary ?? "No summary provided."}
               </p>
+            </div>
+          </section>
 
-              <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-                <Input
-                  type="number"
-                  min="0"
-                  step="100"
-                  className="md:w-48"
-                  value={investAmt}
-                  onChange={(e) => setInvestAmt(e.target.value)}
-                  placeholder="Amount invested"
-                />
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={handleInvested} disabled={busy}>
-                    <Banknote className="h-4 w-4 mr-2" /> Mark invested
-                  </Button>
-                  <Button variant="outline" onClick={() => updateAction("NONE")} disabled={busy}>
-                    <RotateCcw className="h-4 w-4 mr-2" /> Clear state
-                  </Button>
-                </div>
+          {/* Detailed Overview */}
+          {opportunity.details && (
+            <section className="space-y-4">
+              <h3 className="text-xl font-bold border-b pb-2">Detailed Overview</h3>
+              <div className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">
+                {opportunity.details}
+              </div>
+            </section>
+          )}
+
+          {/* Benefits / Highlights */}
+          {opportunity.benefits && (
+            <section className="space-y-4">
+              <h3 className="text-xl font-bold border-b pb-2">Key Highlights</h3>
+              <div className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">
+                {opportunity.benefits}
+              </div>
+            </section>
+          )}
+
+          {/* Documents */}
+          {opportunity.documentUrls && opportunity.documentUrls.length > 0 && (
+            <section className="space-y-4">
+              <h3 className="text-xl font-bold border-b pb-2">Deal Documents</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {opportunity.documentUrls.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 rounded-xl border bg-card hover:bg-accent/5 hover:border-accent/30 transition-colors group">
+                    <div className="p-2.5 rounded-lg bg-primary/10 text-primary group-hover:bg-accent/20 group-hover:text-accent transition-colors">
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">Document {i + 1}</p>
+                      <p className="text-xs text-muted-foreground truncate">View securely</p>
+                    </div>
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Discussion */}
+          <section className="space-y-5 pt-8">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-muted-foreground" /> Discussion
+              </h3>
+              {!commentsLoading && commentCount > 0 && (
+                <span className="text-sm text-muted-foreground">{commentCount} {commentCount === 1 ? "remark" : "remarks"}</span>
+              )}
+            </div>
+
+            {/* Composer */}
+            <div className="space-y-3 rounded-2xl border border-border/50 bg-card p-4">
+              <Textarea
+                placeholder="Share your perspective with fellow members..."
+                value={commentBody}
+                onChange={(e) => setCommentBody(e.target.value)}
+                rows={3}
+                maxLength={2000}
+                className="resize-none"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">{commentBody.length}/2000</span>
+                <Button size="sm" onClick={submitComment} disabled={postingComment || !commentBody.trim()}>
+                  {postingComment ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-2 h-4 w-4" />
+                  )}
+                  Post
+                </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        <div className="space-y-4">
-          {posterName && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Message the poster</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-sm text-muted-foreground">
-                  Send a private reply to {posterName}.
+            {commentsLoading ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading discussion...
                 </div>
-                <Textarea
-                  value={replyBody}
-                  onChange={(e) => setReplyBody(e.target.value)}
-                  placeholder="Write a message..."
-                  rows={3}
-                />
+                <Skeleton className="h-20 w-full rounded-xl bg-muted" />
+                <Skeleton className="h-20 w-full rounded-xl bg-muted" />
+              </div>
+            ) : comments.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border/60 bg-muted/20 py-10 text-center">
+                <p className="text-sm text-muted-foreground">Be the first to weigh in. Considered perspectives are welcome here.</p>
+              </div>
+            ) : (
+              <TooltipProvider delayDuration={150}>
+                <div className="space-y-5">
+                  {comments.map((comment) => (
+                    <CommentItem
+                      key={comment.id}
+                      comment={comment}
+                      onDelete={deleteComment}
+                      replyTo={replyTo}
+                      setReplyTo={setReplyTo}
+                      replyBody={replyBody}
+                      setReplyBody={setReplyBody}
+                      onSubmitReply={submitReply}
+                      postingReply={postingReply}
+                    />
+                  ))}
+                </div>
+              </TooltipProvider>
+            )}
+          </section>
+
+          {/* Related Opportunities */}
+          {data.relatedOpportunities && data.relatedOpportunities.length > 0 && (
+            <section className="space-y-6 pt-8">
+              <h3 className="text-2xl font-bold border-b pb-2">Similar Opportunities</h3>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {data.relatedOpportunities.slice(0, 2).map(opp => (
+                  <OpportunityCard key={opp.id} opp={opp} />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Deal Originator */}
+          <Card className="rounded-2xl overflow-hidden border-border/50">
+            <CardHeader className="bg-muted/30 pb-4 border-b">
+              <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Globe2 className="h-4 w-4" /> Deal Originator
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-14 w-14 border border-border">
+                  <AvatarImage src={opportunity.createdByUser?.profile?.imageUrl ?? ""} />
+                  <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                    {getInitials(opportunity.createdByUser?.profile?.name ?? opportunity.createdByUser?.profile?.username)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-bold text-lg">
+                    {opportunity.createdByUser?.profile?.name || opportunity.createdByUser?.profile?.username || "Anonymous Member"}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Vertica Network Member</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Interested Users */}
+          {data.interestedUsers && data.interestedUsers.length > 0 && (
+            <Card className="rounded-2xl border-border/50">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-sm uppercase tracking-wider">Network Interest</h4>
+                  <Badge variant="secondary">{data.interestedUsers.length}</Badge>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={sendReply} disabled={replySending}>
-                    {replySending ? "Sending..." : "Send message"}
-                  </Button>
-                  {opportunity.contactUsername && (
-                    <Button variant="outline" asChild>
-                      <Link href={`/messages?partner=${encodeURIComponent(opportunity.contactUsername)}`}>Open DM thread</Link>
-                    </Button>
+                  {data.interestedUsers.slice(0, 10).map((u, i) => (
+                    <Avatar key={u.id || i} className="h-10 w-10 border-2 border-background shadow-sm hover:z-10 transition-transform hover:scale-110" title={u.displayName || "Member"}>
+                      <AvatarImage src={u.avatarUrl ?? ""} />
+                      <AvatarFallback className="bg-muted text-muted-foreground text-xs">{getInitials(u.displayName)}</AvatarFallback>
+                    </Avatar>
+                  ))}
+                  {data.interestedUsers.length > 10 && (
+                    <div className="flex items-center justify-center h-10 w-10 rounded-full bg-secondary text-secondary-foreground text-xs font-medium border-2 border-background">
+                      +{data.interestedUsers.length - 10}
+                    </div>
                   )}
                 </div>
               </CardContent>
             </Card>
           )}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Signal snapshot</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <StatRow label="Keywords matched" value={opportunity.keywords?.length ?? 0} />
-              <StatRow label="Countries mentioned" value={opportunity.countries?.length ?? 0} />
-              <StatRow label="Categories tagged" value={opportunity.categories?.length ?? 0} />
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Related signals</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {data?.related?.length ? (
-                data.related.slice(0, 3).map((r) => (
-                  <OpportunityCard key={r.id} opp={r as any} onActionUpdated={load} />
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No related items yet.</p>
-              )}
-          </CardContent>
-        </Card>
-
-        {isOwner && viewStats && (
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">Post insights</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
-              <div>Total views: <span className="font-medium text-foreground">{viewStats.totalViews}</span></div>
-              <div className="space-y-2">
-                <div className="font-medium text-foreground">Views over time</div>
-                <div className="space-y-1">
-                  {(viewStats.timeline ?? []).slice(-10).map((row: any) => (
-                    <div key={row.date} className="flex items-center gap-2">
-                      <div className="w-24">{row.date}</div>
-                      <div className="h-2 flex-1 rounded bg-muted">
-                        <div
-                          className="h-2 rounded bg-primary"
-                          style={{ width: `${Math.min(100, row.count * 10)}%` }}
-                        />
-                      </div>
-                      <div className="w-6 text-right">{row.count}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="font-medium text-foreground">Viewer demographics</div>
-                <div className="grid gap-2 md:grid-cols-2">
-                  <div>
-                    <div className="text-xs uppercase">Age</div>
-                    {(viewStats.demographics?.age ?? []).map((row: any) => (
-                      <div key={row.label} className="flex justify-between">
-                        <span>{row.label}</span>
-                        <span>{row.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase">Country</div>
-                    {(viewStats.demographics?.country ?? []).slice(0, 6).map((row: any) => (
-                      <div key={row.label} className="flex justify-between">
-                        <span>{row.label}</span>
-                        <span>{row.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+          {/* Tags & Classifications */}
+          <Card className="rounded-2xl border-border/50">
+            <CardContent className="p-5 space-y-4">
+              <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Classifications</h4>
+              <div className="flex flex-wrap gap-2">
+                {opportunity.categories?.map(c => (
+                  <Badge key={c} variant="secondary" className="bg-secondary/50">{c}</Badge>
+                ))}
+                {opportunity.sectors?.map(s => (
+                  <Badge key={s} variant="outline">{s}</Badge>
+                ))}
+                {opportunity.tags?.map(t => (
+                  <Badge key={t} variant="outline" className="text-muted-foreground border-border/50">{t}</Badge>
+                ))}
               </div>
             </CardContent>
           </Card>
-        )}
+
+          {/* Report */}
+          <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/5 justify-start">
+                <Flag className="mr-2 h-4 w-4" /> Report this deal
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Report Deal</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <p className="text-sm text-muted-foreground">
+                  If this opportunity violates Vertica guidelines, appears fraudulent, or contains inappropriate content, please describe the issue below.
+                </p>
+                <Textarea 
+                  placeholder="Reason for reporting..." 
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  rows={4}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setReportOpen(false)}>Cancel</Button>
+                <Button variant="destructive" onClick={submitReport} disabled={!reportReason.trim()}>Submit Report</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* Risk Disclosure Block */}
+      <div className="mt-16 p-6 rounded-2xl bg-muted/30 border border-border/50 text-sm text-muted-foreground flex gap-4">
+        <Info className="h-6 w-6 text-muted-foreground shrink-0 mt-0.5" />
+        <div className="space-y-3">
+          <h4 className="font-bold text-foreground">RISK DISCLOSURE & NOT FINANCIAL ADVICE</h4>
+          <p>
+            The information presented regarding this opportunity does not constitute investment advice, financial advice, trading advice, or any other sort of advice and you should not treat any of the platform's content as such. Vertica does not recommend that any asset should be bought, sold, or held by you.
+          </p>
+          <p>
+            All investments carry significant risk, including the potential loss of principal. "Projected", "target", or "estimated" returns are forward-looking statements based on current assumptions and are not guarantees of future performance. Actual results may vary materially.
+          </p>
+          <p>
+            Members must conduct their own independent due diligence and consult with their financial, legal, and tax advisors before making any investment decisions. Vertica Network acts solely as an introduction platform and does not verify all claims made by deal originators.
+          </p>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
+import { notifyUser } from "../lib/notify.js";
 
 const router = Router();
 
@@ -39,10 +40,30 @@ router.post("/user/follow", async (req, res) => {
         create: { followerId: userId, followingId: targetId, status: "PENDING" },
         update: { status: "PENDING" },
       });
+      await notifyUser(prisma, {
+        recipientId: targetId,
+        actorId: userId,
+        type: "FOLLOW_REQUEST",
+        title: "New follow request",
+        link: `/users/${userId}`,
+        targetType: "USER",
+        targetId: userId,
+        data: { fromUserId: userId },
+      });
       return res.json({ following: false, followRequestStatus: "PENDING" });
     }
 
     await prisma.follow.create({ data: { followerId: userId, followingId: targetId } });
+    await notifyUser(prisma, {
+      recipientId: targetId,
+      actorId: userId,
+      type: "FOLLOW_ACCEPTED",
+      title: "You have a new follower",
+      link: `/users/${userId}`,
+      targetType: "USER",
+      targetId: userId,
+      data: { fromUserId: userId },
+    });
     const isFollowedBy = !!(await prisma.follow.findUnique({
       where: { followerId_followingId: { followerId: targetId, followingId: userId } },
     }));
@@ -94,6 +115,16 @@ router.post("/user/follow-requests", async (req, res) => {
         prisma.followRequest.update({ where: { id: requestId }, data: { status: "ACCEPTED" } }),
         prisma.follow.create({ data: { followerId: request.followerId, followingId: userId } }),
       ]);
+      await notifyUser(prisma, {
+        recipientId: request.followerId,
+        actorId: userId,
+        type: "FOLLOW_ACCEPTED",
+        title: "Your follow request was accepted",
+        link: `/users/${userId}`,
+        targetType: "USER",
+        targetId: userId,
+        data: { fromUserId: userId },
+      });
     } else {
       await prisma.followRequest.update({ where: { id: requestId }, data: { status: "DECLINED" } });
     }

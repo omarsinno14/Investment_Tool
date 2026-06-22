@@ -7,6 +7,8 @@ import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
 import { hashPassword } from "../lib/password.js";
 import { requireAdmin } from "../lib/adminGuard.js";
+import { writeAuditLog } from "../lib/auditLog.js";
+import { notifyUser } from "../lib/notify.js";
 
 const router = Router();
 
@@ -162,7 +164,8 @@ router.get("/admin/users/:id", async (req, res) => {
 });
 
 router.post("/admin/users", async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
   try {
     const { email, password, name, username, role } = req.body ?? {};
     if (!email || !password) return res.status(400).json({ error: "email and password required" });
@@ -180,6 +183,13 @@ router.post("/admin/users", async (req, res) => {
         profile: { create: { name: name ?? uname, username: uname, usernameLower: uname.toLowerCase() } },
       },
       select: { id: true, email: true, role: true },
+    });
+    await writeAuditLog(prisma, {
+      actorId: adminId,
+      action: "user.create",
+      targetType: "USER",
+      targetId: user.id,
+      metadata: { email: user.email, role: user.role },
     });
     return res.json({ user });
   } catch (e) {
@@ -249,6 +259,13 @@ router.patch("/admin/users/:id", async (req, res) => {
       data,
       select: { id: true, email: true, role: true, bannedAt: true, restrictedAt: true, deactivatedAt: true },
     });
+    await writeAuditLog(prisma, {
+      actorId: adminId,
+      action: action ? `user.${action}` : "user.update",
+      targetType: "USER",
+      targetId: user.id,
+      metadata: { action: action ?? null, reason: reason ?? null, role: role ?? null },
+    });
     return res.json({ user });
   } catch (e) {
     logger.error({ err: e }, "Admin user PATCH error");
@@ -262,6 +279,12 @@ router.delete("/admin/users/:id", async (req, res) => {
   try {
     if (req.params.id === adminId) return res.status(400).json({ error: "You cannot delete your own account" });
     await prisma.user.delete({ where: { id: req.params.id } });
+    await writeAuditLog(prisma, {
+      actorId: adminId,
+      action: "user.delete",
+      targetType: "USER",
+      targetId: req.params.id,
+    });
     return res.json({ ok: true });
   } catch (e) {
     logger.error({ err: e }, "Admin user DELETE error");
@@ -424,6 +447,13 @@ router.post("/admin/reports/:id/resolve", async (req, res) => {
         reviewedByUserId: adminId,
       },
     });
+    await writeAuditLog(prisma, {
+      actorId: adminId,
+      action: reopen ? "report.reopen" : "report.resolve",
+      targetType: "REPORT",
+      targetId: report.id,
+      metadata: { note: note ?? null, reopen: !!reopen },
+    });
     return res.json({ report });
   } catch (e) {
     logger.error({ err: e }, "Admin report resolve error");
@@ -478,6 +508,13 @@ router.post("/admin/verifications/:id/decide", async (req, res) => {
     if (decision === "APPROVE") {
       await prisma.profile.update({ where: { userId: request.userId }, data: { identityVerified: true } });
     }
+    await writeAuditLog(prisma, {
+      actorId: adminId,
+      action: decision === "APPROVE" ? "verification.approve" : "verification.reject",
+      targetType: "VERIFICATION_REQUEST",
+      targetId: updated.id,
+      metadata: { userId: request.userId, note: note ?? null },
+    });
     return res.json({ request: updated });
   } catch (e) {
     logger.error({ err: e }, "Admin verification decide error");
@@ -502,7 +539,8 @@ router.get("/admin/hubs", async (req, res) => {
 });
 
 router.patch("/admin/hubs/:id", async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
   try {
     const { name, description, isPrivate } = req.body ?? {};
     const data: any = {};
@@ -510,6 +548,13 @@ router.patch("/admin/hubs/:id", async (req, res) => {
     if (description !== undefined) data.description = description;
     if (isPrivate !== undefined) data.isPrivate = !!isPrivate;
     const hub = await prisma.hub.update({ where: { id: req.params.id }, data });
+    await writeAuditLog(prisma, {
+      actorId: adminId,
+      action: "hub.update",
+      targetType: "HUB",
+      targetId: hub.id,
+      metadata: data,
+    });
     return res.json({ hub });
   } catch (e) {
     logger.error({ err: e }, "Admin hub PATCH error");
@@ -518,9 +563,16 @@ router.patch("/admin/hubs/:id", async (req, res) => {
 });
 
 router.delete("/admin/hubs/:id", async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
   try {
     await prisma.hub.delete({ where: { id: req.params.id } });
+    await writeAuditLog(prisma, {
+      actorId: adminId,
+      action: "hub.delete",
+      targetType: "HUB",
+      targetId: req.params.id,
+    });
     return res.json({ ok: true });
   } catch (e) {
     logger.error({ err: e }, "Admin hub DELETE error");
@@ -560,6 +612,13 @@ router.post("/admin/ads", async (req, res) => {
         createdByUserId: adminId,
       },
     });
+    await writeAuditLog(prisma, {
+      actorId: adminId,
+      action: "ad.create",
+      targetType: "ADVERTISEMENT",
+      targetId: ad.id,
+      metadata: { title: ad.title, placement: ad.placement },
+    });
     return res.json({ ad });
   } catch (e) {
     logger.error({ err: e }, "Admin ad POST error");
@@ -568,7 +627,8 @@ router.post("/admin/ads", async (req, res) => {
 });
 
 router.patch("/admin/ads/:id", async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
   try {
     const { title, body, imageUrl, linkUrl, placement, active, startsAt, endsAt } = req.body ?? {};
     const data: any = {};
@@ -581,6 +641,13 @@ router.patch("/admin/ads/:id", async (req, res) => {
     if (startsAt !== undefined) data.startsAt = startsAt ? new Date(startsAt) : null;
     if (endsAt !== undefined) data.endsAt = endsAt ? new Date(endsAt) : null;
     const ad = await prisma.advertisement.update({ where: { id: req.params.id }, data });
+    await writeAuditLog(prisma, {
+      actorId: adminId,
+      action: "ad.update",
+      targetType: "ADVERTISEMENT",
+      targetId: ad.id,
+      metadata: data,
+    });
     return res.json({ ad });
   } catch (e) {
     logger.error({ err: e }, "Admin ad PATCH error");
@@ -589,9 +656,16 @@ router.patch("/admin/ads/:id", async (req, res) => {
 });
 
 router.delete("/admin/ads/:id", async (req, res) => {
-  if (!(await requireAdmin(req, res))) return;
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
   try {
     await prisma.advertisement.delete({ where: { id: req.params.id } });
+    await writeAuditLog(prisma, {
+      actorId: adminId,
+      action: "ad.delete",
+      targetType: "ADVERTISEMENT",
+      targetId: req.params.id,
+    });
     return res.json({ ok: true });
   } catch (e) {
     logger.error({ err: e }, "Admin ad DELETE error");
@@ -636,6 +710,120 @@ router.post("/admin/support/:id/status", async (req, res) => {
   } catch (e) {
     logger.error({ err: e }, "Admin support status error");
     return res.status(500).json({ error: "Failed to update ticket" });
+  }
+});
+
+/* ------------------------------ Audit logs -------------------------------- */
+
+router.get("/admin/audit-logs", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  try {
+    const limitRaw = Number((req.query as Record<string, string>).limit);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 500) : 100;
+    const logs = await prisma.auditLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: {
+        actor: { select: { id: true, profile: { select: { name: true, username: true } } } },
+      },
+    });
+    const result = logs.map((l) => ({
+      id: l.id,
+      actor: l.actor
+        ? { id: l.actor.id, displayName: l.actor.profile?.name ?? l.actor.profile?.username ?? null }
+        : null,
+      action: l.action,
+      targetType: l.targetType,
+      targetId: l.targetId,
+      metadata: l.metadata,
+      createdAt: l.createdAt,
+    }));
+    return res.json({ logs: result });
+  } catch (e) {
+    logger.error({ err: e }, "Admin audit-logs GET error");
+    return res.status(500).json({ error: "Failed to load audit logs" });
+  }
+});
+
+/* --------------------------- Deal verifications --------------------------- */
+
+router.get("/admin/deal-verifications", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  try {
+    const opportunities = await prisma.opportunity.findMany({
+      where: { dealVerification: "PENDING" },
+      orderBy: { fetchedAt: "desc" },
+      take: 200,
+      select: {
+        id: true,
+        title: true,
+        companyName: true,
+        dealType: true,
+        minInvestment: true,
+        publishedAt: true,
+        fetchedAt: true,
+        createdByUser: { select: { id: true, profile: { select: { name: true, username: true } } } },
+      },
+    });
+    const result = opportunities.map((o) => ({
+      id: o.id,
+      title: o.title,
+      companyName: o.companyName,
+      dealType: o.dealType,
+      minInvestment: o.minInvestment,
+      publishedAt: o.publishedAt,
+      createdAt: o.fetchedAt,
+      createdByUser: o.createdByUser
+        ? { id: o.createdByUser.id, displayName: o.createdByUser.profile?.name ?? o.createdByUser.profile?.username ?? null }
+        : null,
+    }));
+    return res.json({ opportunities: result });
+  } catch (e) {
+    logger.error({ err: e }, "Admin deal-verifications GET error");
+    return res.status(500).json({ error: "Failed to load deal verifications" });
+  }
+});
+
+router.post("/admin/opportunities/:id/verify", async (req, res) => {
+  const adminId = await requireAdmin(req, res);
+  if (!adminId) return;
+  try {
+    const { decision } = req.body ?? {};
+    if (decision !== "APPROVED" && decision !== "REJECTED") {
+      return res.status(400).json({ error: "decision must be APPROVED or REJECTED" });
+    }
+    const opportunity = await prisma.opportunity.update({
+      where: { id: req.params.id },
+      data: { dealVerification: decision },
+    });
+    await writeAuditLog(prisma, {
+      actorId: adminId,
+      action: decision === "APPROVED" ? "deal.verify.approve" : "deal.verify.reject",
+      targetType: "OPPORTUNITY",
+      targetId: opportunity.id,
+      metadata: { decision },
+    });
+
+    if (opportunity.createdByUserId) {
+      await notifyUser(prisma, {
+        recipientId: opportunity.createdByUserId,
+        type: "OPPORTUNITY_MATCH",
+        title: decision === "APPROVED" ? "Your deal was approved" : "Your deal was rejected",
+        body:
+          decision === "APPROVED"
+            ? `“${opportunity.title}” has been verified and is now live.`
+            : `“${opportunity.title}” was not approved during verification.`,
+        link: `/opportunities/${opportunity.id}`,
+        targetType: "OPPORTUNITY",
+        targetId: opportunity.id,
+        data: { opportunityId: opportunity.id, decision },
+      });
+    }
+
+    return res.json({ opportunity });
+  } catch (e) {
+    logger.error({ err: e }, "Admin opportunity verify error");
+    return res.status(500).json({ error: "Failed to verify opportunity" });
   }
 });
 

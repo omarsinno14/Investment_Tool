@@ -7,10 +7,12 @@ import {
   BarChart3,
   Building2,
   Clock,
+  FileCheck,
   Flag,
   Globe2,
   LifeBuoy,
   Megaphone,
+  ScrollText,
   Search,
   Shield,
   ShieldCheck,
@@ -60,6 +62,29 @@ async function apiSend(url: string, method: string, body?: unknown) {
 function fmtDate(d?: string | null) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function fmtRelative(d?: string | null) {
+  if (!d) return "—";
+  const then = new Date(d).getTime();
+  if (Number.isNaN(then)) return "—";
+  const diff = Date.now() - then;
+  const sec = Math.round(diff / 1000);
+  if (sec < 60) return "just now";
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.round(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  const mo = Math.round(day / 30);
+  if (mo < 12) return `${mo}mo ago`;
+  return `${Math.round(mo / 12)}y ago`;
+}
+
+function fmtMoney(n?: number | null) {
+  if (n == null) return null;
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 }
 
 /* ------------------------------- types ------------------------------------ */
@@ -797,6 +822,138 @@ function SupportTab() {
   );
 }
 
+/* -------------------------- Deal Verifications ---------------------------- */
+
+type DealVerification = {
+  id: string;
+  title: string;
+  companyName: string;
+  dealType: string;
+  minInvestment: number | null;
+  publishedAt: string | null;
+  createdAt: string;
+  createdByUser: { id: string; displayName: string } | null;
+};
+
+function DealVerificationsTab() {
+  const [items, setItems] = useState<DealVerification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await apiGet<{ opportunities: DealVerification[] }>("/api/admin/deal-verifications");
+      setItems(data.opportunities);
+    } catch {
+      toast.error("Failed to load deal verifications");
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function decide(o: DealVerification, decision: "APPROVED" | "REJECTED") {
+    setPending(o.id);
+    try {
+      await apiSend(`/api/admin/opportunities/${o.id}/verify`, "POST", { decision });
+      toast.success(decision === "APPROVED" ? "Deal approved" : "Deal rejected");
+      setItems((prev) => prev.filter((x) => x.id !== o.id));
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPending(null);
+    }
+  }
+
+  if (loading) return <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}</div>;
+
+  return (
+    <div className="space-y-2">
+      {items.map((o) => {
+        const money = fmtMoney(o.minInvestment);
+        return (
+          <Card key={o.id}>
+            <CardContent className="space-y-2 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <FileCheck className="h-4 w-4 text-primary" />
+                <p className="font-semibold">{o.title}</p>
+                <Badge variant="outline">{o.dealType.replace(/_/g, " ")}</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">{o.companyName}</p>
+              <p className="text-xs text-muted-foreground">
+                Submitted by {o.createdByUser?.displayName ?? "unknown"} · {fmtDate(o.createdAt)}
+                {money && ` · min ${money}`}
+              </p>
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" disabled={pending === o.id} onClick={() => decide(o, "APPROVED")}>
+                  <ShieldCheck className="mr-1 h-3.5 w-3.5" />Approve
+                </Button>
+                <Button size="sm" variant="outline" disabled={pending === o.id} onClick={() => decide(o, "REJECTED")}>
+                  Reject
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+      {items.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No deals pending verification.</p>}
+    </div>
+  );
+}
+
+/* ------------------------------ Audit Log --------------------------------- */
+
+type AuditLog = {
+  id: string;
+  actor: { id: string; displayName: string } | null;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  metadata: unknown;
+  createdAt: string;
+};
+
+function AuditLogTab() {
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiGet<{ logs: AuditLog[] }>("/api/admin/audit-logs?limit=100")
+      .then((d) => setLogs(d.logs))
+      .catch(() => toast.error("Failed to load audit logs"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="space-y-2">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>;
+
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="divide-y">
+          <div className="hidden gap-4 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[1.5fr_1fr_1.5fr_auto]">
+            <span>Action</span>
+            <span>Actor</span>
+            <span>Target</span>
+            <span className="text-right">When</span>
+          </div>
+          {logs.map((l) => (
+            <div key={l.id} className="grid gap-1 px-4 py-3 text-sm sm:grid-cols-[1.5fr_1fr_1.5fr_auto] sm:items-center sm:gap-4">
+              <span className="font-medium">{l.action}</span>
+              <span className="text-muted-foreground">{l.actor?.displayName ?? "system"}</span>
+              <span className="truncate text-muted-foreground">
+                {l.targetType ? `${l.targetType}${l.targetId ? ` · ${l.targetId}` : ""}` : "—"}
+              </span>
+              <span className="text-muted-foreground sm:text-right" title={fmtDate(l.createdAt)}>{fmtRelative(l.createdAt)}</span>
+            </div>
+          ))}
+          {logs.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No audit log entries.</p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ------------------------------- Page ------------------------------------- */
 
 export default function AdminPage() {
@@ -837,6 +994,8 @@ export default function AdminPage() {
           <TabsTrigger value="hubs"><Building2 className="mr-1 h-4 w-4" />Hubs</TabsTrigger>
           <TabsTrigger value="reports"><Flag className="mr-1 h-4 w-4" />Reports</TabsTrigger>
           <TabsTrigger value="verifications"><BadgeCheck className="mr-1 h-4 w-4" />Verify</TabsTrigger>
+          <TabsTrigger value="deals"><FileCheck className="mr-1 h-4 w-4" />Deals</TabsTrigger>
+          <TabsTrigger value="audit"><ScrollText className="mr-1 h-4 w-4" />Audit Log</TabsTrigger>
           <TabsTrigger value="map"><Globe2 className="mr-1 h-4 w-4" />Map</TabsTrigger>
           <TabsTrigger value="ads"><Megaphone className="mr-1 h-4 w-4" />Ads</TabsTrigger>
           <TabsTrigger value="support"><LifeBuoy className="mr-1 h-4 w-4" />Support</TabsTrigger>
@@ -846,6 +1005,8 @@ export default function AdminPage() {
         <TabsContent value="hubs" className="mt-6"><HubsTab /></TabsContent>
         <TabsContent value="reports" className="mt-6"><ReportsTab /></TabsContent>
         <TabsContent value="verifications" className="mt-6"><VerificationsTab /></TabsContent>
+        <TabsContent value="deals" className="mt-6"><DealVerificationsTab /></TabsContent>
+        <TabsContent value="audit" className="mt-6"><AuditLogTab /></TabsContent>
         <TabsContent value="map" className="mt-6"><MapTab /></TabsContent>
         <TabsContent value="ads" className="mt-6"><AdsTab /></TabsContent>
         <TabsContent value="support" className="mt-6"><SupportTab /></TabsContent>

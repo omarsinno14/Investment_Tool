@@ -8,38 +8,57 @@ description: Non-obvious conventions for the Vertica investment-scout pnpm monor
 ## Palette (strict — no other colors)
 Bourgeois Minimal: Espresso Black #15110D, Cashmere Beige #F4EFE6, Soft Taupe #D6C7B3, Muted Bronze #A7793D, Olive Wealth #4F5D3B, Cream Card #FFFDF8, Dusty Gray #A8A29E.
 Use shadcn semantic tokens mapped to these (bg-background/text-foreground/bg-primary/bg-card/text-muted-foreground/border/text-destructive). Never hardcode tailwind colors like text-red-600.
+**Loading rule:** skeletons/loading states must be neutral `bg-muted` — NOT `bg-accent` (Muted Bronze reads as "orange" and is explicitly disallowed for loading). Mobile spinners use olive primary (fine).
+
+## Compliance wording (hard constraint)
+Never "guaranteed returns" — use projected/target/estimated. No real money movement/escrow/brokerage. Payments are only for subscriptions/ads/verification, never investment capital. No emojis in UI.
 
 ## API route gotchas
-**Why:** routes are mounted flat from userAccount.ts, so the `/user` vs `/auth` prefix is per-route, not consistent.
-- Email verification lives under **/api/auth/verify-email/send** and **/api/auth/verify-email/confirm** (NOT /api/user/...). send returns `devToken` in non-prod.
-- Verification (identity docs): GET/POST **/api/user/verification** — POST body `{docType, fileUrls[], note}`, returns request with status PENDING. GET returns `{requests[], identityVerified}`.
-- Heartbeat (AppSession hours tracking): POST **/api/user/heartbeat** body `{platform,sessionId?}` → `{sessionId}`. Web wires this via useHeartbeat hook in AppShell (60s interval, visibility-gated).
-- Support ticket: POST **/api/support** `{subject,message,category}`.
+**Why:** routes are mounted flat (each router defines its own `/auth` vs `/user` prefix per-route), so prefixes are NOT consistent across the app.
+- Registration is **POST /api/register** (routes/register.ts), NOT /api/auth/register. Body requires `email, password, confirmPassword, firstName, lastName, username, dob`. Register does NOT auto-login.
+- Login/session/logout: **/api/auth/login**, **/api/auth/session**, **/api/auth/logout** (routes/auth.ts).
+- Email verification: **/api/auth/verify-email/send** and **/api/auth/verify-email/confirm** (NOT /api/user/...). send returns `devToken` in non-prod.
+- Identity verification (docs): GET/POST **/api/user/verification** — POST `{docType, fileUrls[], note}` → status PENDING. GET → `{requests[], identityVerified}`.
+- Heartbeat (AppSession hours): POST **/api/user/heartbeat** `{platform,sessionId?}` → `{sessionId}`. Web wires via useHeartbeat in AppShell (60s, visibility-gated).
+- Support: POST **/api/support** `{subject,message,category}`.
+
+## Auth transport differences (web vs mobile)
+**Why:** the two clients authenticate differently; mixing them up breaks requests.
+- Web uses plain `fetch` with `credentials: "include"` (session cookie). There is NO apiFetch helper in web.
+- Mobile uses `apiFetch` from `lib/api.ts`. Mobile screens use apiFetch + useState (NOT react-query hooks, despite QueryClient being present).
+
+## Privacy — never leak email in listing/search/feed payloads
+**Why:** broad authenticated listing endpoints (search, discovery/suggested-follows, opportunity feed) are visible to any member; returning `email` exposes every member's address.
+**How to apply:** user-select shapes used by opportunities/search/discovery must select only `id` + profile fields (name/username/imageUrl/identityVerified...), never `email`. Do not search users by email either (enables enumeration). Email is fine only on the viewer's own profile and admin-gated routes.
+
+## Opportunity counts & sorting
+- savesCount/interestedCount are COMPUTED from OpportunityAction (SAVED→saves; VERY_INTERESTED/INVESTED→interested), NOT denormalized columns.
+- DealStatus enum {DRAFT,OPEN,CLOSING_SOON,FUNDED,CLOSED}; dealVerification = VerificationStatus enum.
+- **Cursor pagination cannot be combined with count-based sorts** (mostSaved/highestInterest): counts aren't DB columns, so paginating by DB order then re-sorting in memory causes dupes/gaps. For those sorts, fetch a bounded window, sort in memory, return a single page with nextCursor=null.
+
+## Notifications
+- `lib/notify.ts` `notifyUser` is best-effort and failure-isolated (full try/catch, push best-effort, never throws) and preference-aware. Notification payload detail (link/title/actorId etc.) is stored in `Notification.data` JSON — there are no dedicated columns for those.
 
 ## Profile
-- Main profile GET/POST is **routes/profile.ts** at /api/user/profile (NOT userAccount.ts). POST is a partial-update: each field guarded by `if (body.x !== undefined)`.
+- Main profile GET/POST is **routes/profile.ts** at /api/user/profile (NOT userAccount.ts). POST is partial-update: each field guarded by `if (body.x !== undefined)`.
 - Profile has dateOfBirth(DateTime?)/country/city. Settings must NOT let users self-set emailVerified/phoneVerified/identityVerified — those are server/admin controlled.
 
 ## Admin
-- Seeded admin: admin@vertica.app. Admin endpoints under /api/admin/* are ADMIN-role gated. role is exposed at top level of /api/user/profile.
+- Seeded admin: admin@vertica.app. Admin endpoints under /api/admin/* are ADMIN-role gated. `role` is exposed at top level of /api/user/profile. Admin actions are audit-logged (AuditLog model).
 
-## Expo .expo-subdomain preview broken in path-routed multi-artifact repl
-In a multi-artifact repl where the web app owns `router="path"` paths=["/"] on externalPort 80 and Expo is a separate path artifact (paths=["/mobile"], externalPort 3000), `$REPLIT_EXPO_DEV_DOMAIN` serves the WEB app (Vite, ~70KB) for ALL paths, never Metro. The canvas mobile preview + screenshot tool both load `$REPLIT_EXPO_DEV_DOMAIN`, so they show the web app or the dead `exp://` link.
-**Why:** the `.expo` subdomain resolves to the root/default service (web at "/") and ignores path routing; the edge port→domain mapping does not honor 18547→3000 here. Metro is healthy — it IS reachable and renders at `$REPLIT_DEV_DOMAIN/mobile` (main domain, path-routed): shell + entry.bundle both 200.
-**How to apply:** Do NOT keep restarting the expo workflow or re-registering the artifact — both were tried and neither refreshes the edge mapping. To view/verify the mobile app use `$REPLIT_DEV_DOMAIN/mobile`. Refreshing the edge port→domain mapping appears to need a full repl/environment restart (not a workflow restart), which the user/platform must trigger.
-
-## Stale canvas preview iframes (white screen / 404 false alarms)
-A reported "web is white" / "mobile is 404" in the canvas can be a stale iframe, NOT a server fault. The canvas iframe does NOT auto-reload when a workflow restarts; it keeps showing the last frame (e.g. a mid-edit broken bundle, or a pre-restart Expo 404).
-**Why:** screenshots/curl from the agent hit fresh sessions and pass (200 + render), while the user's cached iframe still shows the old broken state.
-**How to apply:** verify health first (curl localhost:80/<path> and the Expo domain → expect 200; screenshot logged-out AND reproduce logged-in via runTest since some crashes are auth-only). If healthy, restart the workflow then re-call presentArtifact for each artifact to force the iframe to reload. Expo web also needs a first-load Metro bundle (~10-30s) which can transiently error.
-
-## Phase 1 (Stabilize) status — DONE
-**Operational endpoints** are plain Express JSON (NOT codegen): GET /api/health (db $queryRaw SELECT 1 + uptime + version, 503 if db down), /api/version, /api/healthz (liveness). In routes/health.ts.
-- Centralized env validation: lib/env.ts validateEnv() called first in index.ts (which then dynamic-imports ./app so validation runs before scattered throws). Required: DATABASE_URL, SESSION_SECRET, PORT. .env.example at repo ROOT.
-- Web ErrorBoundary: components/app/ErrorBoundary.tsx wraps <App/> in main.tsx. Web errors also surface via sonner toasts; no broken nav links (all wouter routes covered).
-- Mobile: top-level ErrorBoundary already in app/_layout.tsx. Added reusable components/ScreenError.tsx (message+onRetry) and wired it into 12 screens that previously swallowed errors (profile, dashboard, conversation/[id], portfolio, cashflow, goals, journal, ratios, interests, follow-requests, hubs/discover, users). Mobile uses apiFetch + useState (NOT react-query hooks despite QueryClient being present).
-- expo-notifications ~0.32.17 INSTALLED via `npx expo install` (SDK 54). useNotificationSetup in app/_layout.tsx dynamic-imports it (web-guarded). Needed for Phase 10/13 push.
-- Fixed useColors.ts cast (radius broke Record cast). Full `pnpm run typecheck` GREEN across all packages.
+## Operational endpoints (plain Express JSON, NOT codegen)
+GET /api/health (db $queryRaw SELECT 1 + uptime + version, 503 if db down), /api/version, /api/healthz (liveness) — in routes/health.ts. Env validated up front by lib/env.ts validateEnv() in index.ts (which dynamic-imports ./app so validation runs before scattered throws). Required: DATABASE_URL, SESSION_SECRET, PORT. .env.example at repo ROOT.
 
 ## Seed data
-- prisma/seed.ts (run `npx tsx prisma/seed.ts`) seeds FEATURED_HUBS + WORLD_COUNTRIES; POST /api/admin/seed-hubs (ADMIN-only, idempotent) seeds ~27 INVESTMENT_HUBS. DB currently: 4 users, 202 hubs, **only 1 opportunity** → Phase 4 must seed realistic opportunities (the deal system is the product heart).
+- prisma/seed.ts (`npx tsx prisma/seed.ts`) seeds FEATURED_HUBS + WORLD_COUNTRIES; POST /api/admin/seed-hubs (ADMIN-only, idempotent) seeds INVESTMENT_HUBS.
+- prisma/seedOpportunities.ts (`npx tsx`) seeds ~20 realistic deals — the deal system is the product heart, so a near-empty Opportunity table should be re-seeded.
+
+## Expo .expo-subdomain preview broken in path-routed multi-artifact repl
+In a multi-artifact repl where the web app owns `router="path"` paths=["/"] on externalPort 80 and Expo is a separate path artifact (paths=["/mobile"], externalPort 3000), `$REPLIT_EXPO_DEV_DOMAIN` serves the WEB app for ALL paths, never Metro. The canvas mobile preview + screenshot tool both load `$REPLIT_EXPO_DEV_DOMAIN`, so they show the web app or a dead `exp://` link.
+**Why:** the `.expo` subdomain resolves to the root/default service (web at "/") and ignores path routing; the edge port→domain mapping does not honor 18547→3000 here. Metro is healthy and renders at `$REPLIT_DEV_DOMAIN/mobile` (main domain, path-routed).
+**How to apply:** do NOT keep restarting the expo workflow or re-registering the artifact (neither refreshes the edge mapping). To verify mobile use `$REPLIT_DEV_DOMAIN/mobile`. Refreshing the edge mapping needs a full repl/environment restart, which only the user/platform can trigger.
+
+## Stale canvas preview iframes (white screen / 404 false alarms)
+A reported "web is white" / "mobile is 404" in the canvas can be a stale iframe, NOT a server fault. The iframe does NOT auto-reload when a workflow restarts; it keeps the last frame.
+**Why:** agent screenshots/curl hit fresh sessions and pass (200 + render) while the user's cached iframe shows the old broken state.
+**How to apply:** verify health first (curl localhost:80/<path> and the Expo domain → expect 200; reproduce logged-in via runTest since some crashes are auth-only). If healthy, restart the workflow then re-call presentArtifact per artifact to force reload. Expo web also needs a first-load Metro bundle (~10-30s) which can transiently error.

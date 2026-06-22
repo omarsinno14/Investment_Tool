@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useParams } from "wouter";
 import { toast } from "sonner";
-import { BadgeCheck, ShieldCheck } from "lucide-react";
+import { Award, BadgeCheck, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { resolveBadge } from "@/lib/badges";
 
 type UserProfile = {
   id: string;
@@ -31,6 +33,7 @@ type UserProfile = {
     expertiseTags?: string[];
     verifiedExpertiseTags?: string[];
     requiresFollowApproval?: boolean | null;
+    reputation?: number | null;
   } | null;
   interests?: { type: string; value: string }[];
 };
@@ -62,6 +65,7 @@ export default function UserProfilePage() {
     following: 0,
   });
   const [mutuals, setMutuals] = useState<MutualFollower[]>([]);
+  const [badges, setBadges] = useState<string[]>([]);
 
   async function load() {
     try {
@@ -85,6 +89,7 @@ export default function UserProfilePage() {
         following: data.followingCount ?? null,
       });
       setMutuals(data.mutualFollowers ?? []);
+      setBadges(Array.isArray(data.badges) ? data.badges : []);
       setIsBlocked(Boolean(data.isBlocked));
       setIsBlockedBy(Boolean(data.isBlockedBy));
     } catch (e) {
@@ -256,6 +261,29 @@ export default function UserProfilePage() {
                 <div className="text-xs text-muted-foreground mt-1">
                   {counts.followers} followers • {counts.following} following
                 </div>
+              )}
+              <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Award className="h-3.5 w-3.5" />
+                <span className="font-medium text-foreground">{user.profile?.reputation ?? 0}</span> reputation
+              </div>
+              {badges.length > 0 && (
+                <TooltipProvider delayDuration={150}>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {badges.map((key) => {
+                      const badge = resolveBadge(key);
+                      return (
+                        <Tooltip key={key}>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                              <Award className="h-3 w-3" /> {badge.label}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>{badge.description}</TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
+                </TooltipProvider>
               )}
               {mutuals.length > 0 && (
                 <Dialog>

@@ -1,15 +1,20 @@
 
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { toast } from "sonner";
 import { useCurrency, SUPPORTED_CURRENCIES } from "@/components/app/CurrencyProvider";
 import { usePersonalFinance, type PortfolioAsset } from "@/components/app/PersonalFinanceProvider";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 
 const ASSET_TYPES = [
@@ -29,8 +34,503 @@ const ASSET_TYPES = [
 
 const COLORS = ["#3b82f6", "#22c55e", "#f97316", "#8b5cf6", "#0ea5e9", "#eab308", "#ef4444", "#14b8a6", "#f472b6", "#6366f1"];
 
+const CHART_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
+
+const PORTFOLIO_ASSET_TYPES = [
+  { value: "CASH", label: "Cash" },
+  { value: "STOCKS", label: "Stocks" },
+  { value: "ETF", label: "ETF" },
+  { value: "CRYPTO", label: "Crypto" },
+  { value: "PRIVATE_EQUITY", label: "Private Equity" },
+  { value: "REAL_ESTATE", label: "Real Estate" },
+  { value: "VEHICLE", label: "Vehicle" },
+  { value: "WATCH", label: "Watch" },
+  { value: "ART", label: "Art" },
+  { value: "BUSINESS", label: "Business" },
+  { value: "DEBT", label: "Debt" },
+  { value: "OTHER", label: "Other" },
+] as const;
+
+type PortfolioAssetType = (typeof PORTFOLIO_ASSET_TYPES)[number]["value"];
+
+type ManagedAsset = {
+  id: string;
+  name: string;
+  assetType: PortfolioAssetType;
+  currency: string;
+  currentValue: number;
+  costBasis: number | null;
+  quantity: number | null;
+  isLiability: boolean;
+  passiveIncomeMonthly: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AssetSummary = {
+  totalAssets: number;
+  totalLiabilities: number;
+  netWorth: number;
+  allocationByType: { assetType: string; value: number; pct: number }[];
+  totalPassiveIncomeMonthly: number;
+  count: number;
+};
+
+function assetTypeLabel(value: string) {
+  return PORTFOLIO_ASSET_TYPES.find((t) => t.value === value)?.label ?? value;
+}
+
+function emptyAssetForm() {
+  return {
+    name: "",
+    assetType: "CASH" as PortfolioAssetType,
+    currency: "USD",
+    currentValue: "",
+    costBasis: "",
+    quantity: "",
+    isLiability: false,
+    passiveIncomeMonthly: "",
+    notes: "",
+  };
+}
+
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
+}
+
+function AssetsModule() {
+  const { format } = useCurrency();
+  const [assets, setAssets] = useState<ManagedAsset[]>([]);
+  const [summary, setSummary] = useState<AssetSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(emptyAssetForm());
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/user/assets", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      setAssets(data.assets ?? []);
+      setSummary(data.summary ?? null);
+    } catch {
+      toast.error("Could not load your assets");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function openCreate() {
+    setForm(emptyAssetForm());
+    setEditingId(null);
+    setDialogOpen(true);
+  }
+
+  function openEdit(asset: ManagedAsset) {
+    setForm({
+      name: asset.name,
+      assetType: asset.assetType,
+      currency: asset.currency || "USD",
+      currentValue: String(asset.currentValue),
+      costBasis: asset.costBasis != null ? String(asset.costBasis) : "",
+      quantity: asset.quantity != null ? String(asset.quantity) : "",
+      isLiability: asset.isLiability,
+      passiveIncomeMonthly: asset.passiveIncomeMonthly != null ? String(asset.passiveIncomeMonthly) : "",
+      notes: asset.notes ?? "",
+    });
+    setEditingId(asset.id);
+    setDialogOpen(true);
+  }
+
+  function parseOptionalNumber(value: string): number | null {
+    if (value.trim() === "") return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  async function handleSubmit() {
+    if (!form.name.trim()) {
+      toast.error("Add an asset name");
+      return;
+    }
+    const currentValue = Number(form.currentValue);
+    if (!Number.isFinite(currentValue)) {
+      toast.error("Add a valid current value");
+      return;
+    }
+    const payload = {
+      name: form.name.trim(),
+      assetType: form.assetType,
+      currency: form.currency || "USD",
+      currentValue,
+      costBasis: parseOptionalNumber(form.costBasis),
+      quantity: parseOptionalNumber(form.quantity),
+      isLiability: form.isLiability,
+      passiveIncomeMonthly: parseOptionalNumber(form.passiveIncomeMonthly),
+      notes: form.notes.trim() ? form.notes.trim() : null,
+    };
+    setSaving(true);
+    try {
+      const res = await fetch(
+        editingId ? `/api/user/assets/${editingId}` : "/api/user/assets",
+        {
+          method: editingId ? "PATCH" : "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!res.ok) throw new Error("Failed");
+      toast.success(editingId ? "Holding updated" : "Holding added");
+      setDialogOpen(false);
+      setEditingId(null);
+      setForm(emptyAssetForm());
+      await load();
+    } catch {
+      toast.error("Could not save your holding");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      const res = await fetch(`/api/user/assets/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("Holding removed");
+      await load();
+    } catch {
+      toast.error("Could not remove this holding");
+    }
+  }
+
+  function handleExport(fmt: "csv" | "json") {
+    const url = `/api/user/assets/export?format=${fmt}`;
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `portfolio-assets.${fmt}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, ManagedAsset[]>();
+    for (const asset of assets) {
+      const list = map.get(asset.assetType) ?? [];
+      list.push(asset);
+      map.set(asset.assetType, list);
+    }
+    return Array.from(map.entries());
+  }, [assets]);
+
+  const pieData = useMemo(
+    () =>
+      (summary?.allocationByType ?? []).map((slice) => ({
+        name: assetTypeLabel(slice.assetType),
+        value: slice.value,
+        pct: slice.pct,
+      })),
+    [summary]
+  );
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">Holdings ledger</h2>
+          <p className="text-sm text-muted-foreground">
+            A private register of what you own and owe — tracked by hand, kept off the grid.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleExport("csv")}>
+            Export CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleExport("json")}>
+            Export JSON
+          </Button>
+          <Button size="sm" onClick={openCreate}>
+            Add holding
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Net worth</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">{format(summary?.netWorth ?? 0)}</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Total holdings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div className="text-2xl font-semibold">{format(summary?.totalAssets ?? 0)}</div>
+            <div className="text-xs text-muted-foreground">
+              Liabilities {format(summary?.totalLiabilities ?? 0)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Passive income (monthly)</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold">
+            {format(summary?.totalPassiveIncomeMonthly ?? 0)}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle>Allocation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pieData.length === 0 ? (
+              <div className="text-sm text-muted-foreground">Add holdings to see your allocation.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                  >
+                    {pieData.map((entry, idx) => (
+                      <Cell key={entry.name} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number, name: string) => [format(value), name]}
+                    contentStyle={{
+                      background: "var(--popover)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius)",
+                      color: "var(--popover-foreground)",
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Holdings by type</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {grouped.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No holdings recorded yet.</div>
+            ) : (
+              grouped.map(([type, list], groupIdx) => (
+                <div key={type} className="space-y-2">
+                  {groupIdx > 0 && <Separator />}
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="text-sm font-medium">{assetTypeLabel(type)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {list.length} {list.length === 1 ? "holding" : "holdings"}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {list.map((asset) => (
+                      <div
+                        key={asset.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{asset.name}</span>
+                            {asset.isLiability && (
+                              <Badge variant="outline" className="text-muted-foreground">
+                                Liability
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {asset.passiveIncomeMonthly != null
+                              ? `Passive income ${format(asset.passiveIncomeMonthly, { fromCurrency: asset.currency })}/mo`
+                              : asset.notes || asset.currency}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={
+                              asset.isLiability
+                                ? "text-sm font-semibold text-muted-foreground"
+                                : "text-sm font-semibold"
+                            }
+                          >
+                            {asset.isLiability ? "-" : ""}
+                            {format(asset.currentValue, { fromCurrency: asset.currency })}
+                          </span>
+                          <Button size="sm" variant="outline" onClick={() => openEdit(asset)}>
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleDelete(asset.id)}>
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Update holding" : "Add holding"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select
+                  value={form.assetType}
+                  onValueChange={(value) => setForm({ ...form, assetType: value as PortfolioAssetType })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PORTFOLIO_ASSET_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Current value</Label>
+                <Input
+                  type="number"
+                  value={form.currentValue}
+                  onChange={(e) => setForm({ ...form, currentValue: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cost basis</Label>
+                <Input
+                  type="number"
+                  value={form.costBasis}
+                  onChange={(e) => setForm({ ...form, costBasis: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Currency</Label>
+                <Select value={form.currency} onValueChange={(value) => setForm({ ...form, currency: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_CURRENCIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Quantity</Label>
+                <Input
+                  type="number"
+                  value={form.quantity}
+                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Passive income (monthly)</Label>
+                <Input
+                  type="number"
+                  value={form.passiveIncomeMonthly}
+                  onChange={(e) => setForm({ ...form, passiveIncomeMonthly: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="asset-is-liability"
+                checked={form.isLiability}
+                onCheckedChange={(checked) => setForm({ ...form, isLiability: checked === true })}
+              />
+              <Label htmlFor="asset-is-liability" className="cursor-pointer">
+                Track this as a liability
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDialogOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={saving}>
+              {editingId ? "Save changes" : "Add holding"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
 
 function LineChart({ points }: { points: { x: number; y: number }[] }) {
@@ -146,6 +646,17 @@ export default function PortfolioPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Portfolio</h1>
         <p className="text-muted-foreground">
           Log assets, track gains, and watch your net worth trend over time.
+        </p>
+      </div>
+
+      <AssetsModule />
+
+      <Separator />
+
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight">Working ledger</h2>
+        <p className="text-sm text-muted-foreground">
+          Your private worksheet for tracking gains and net-worth snapshots over time.
         </p>
       </div>
 

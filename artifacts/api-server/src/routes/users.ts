@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
+import { computeAutoBadges } from "../lib/badges.js";
 
 const router = Router();
 
@@ -115,7 +116,9 @@ router.get("/users/:id", async (req, res) => {
       prisma.follow.findUnique({ where: { followerId_followingId: { followerId: user.id, followingId: userId } }, select: { id: true } }),
     ]);
 
-    return res.json({ user, isFollowing: !!isFollowing, isFollower: !!isFollower });
+    const badges = await computeAutoBadges(prisma, user.id);
+
+    return res.json({ user, isFollowing: !!isFollowing, isFollower: !!isFollower, badges });
   } catch (e) {
     logger.error({ err: e }, "User GET error");
     return res.status(500).json({ error: "Failed to load user" });

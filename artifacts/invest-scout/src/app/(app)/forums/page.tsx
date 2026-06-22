@@ -174,7 +174,7 @@ export default function ForumsPage() {
       if (!res.ok) throw new Error(data?.error ?? "Failed to create hub");
       setCreateOpen(false);
       setCreateData({ name: "", description: "", isPrivate: false });
-      toast.success("Hub created!");
+      toast.success("Circle created");
       window.location.href = `/hubs/${data.hub.slug}`;
     } catch (e: any) {
       toast.error(e?.message ?? "Unable to create hub");
@@ -187,8 +187,8 @@ export default function ForumsPage() {
 
   const tabs = [
     { key: "discover", label: "Discover", icon: Globe, count: hubs.length },
-    { key: "mine", label: "My Hubs", icon: Hash, count: myHubs.length },
-    { key: "discussions", label: "Discussions", icon: MessageSquare, count: posts.length },
+    { key: "mine", label: "My Circles", icon: Hash, count: myHubs.length },
+    { key: "discussions", label: "Threads", icon: MessageSquare, count: posts.length },
   ] as const;
 
   return (
@@ -198,10 +198,10 @@ export default function ForumsPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Users className="h-5 w-5 text-muted-foreground" />
-            <h1 className="text-2xl font-bold tracking-tight">Community</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Members' Lounge</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            {hubs.length > 0 ? `${hubs.length} hubs · ` : ""}Join communities, share deals, and discuss investments.
+            {hubs.length > 0 ? `${hubs.length} hubs · ` : ""}Private circles where members trade deals, theses, and intel.
           </p>
         </div>
         {role === "ADMIN" && (
@@ -209,28 +209,28 @@ export default function ForumsPage() {
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2 self-start sm:self-auto">
                 <Plus className="h-4 w-4" />
-                Create Hub
+                Create circle
               </Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Create a Hub</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Create a circle</DialogTitle></DialogHeader>
               <div className="space-y-4 pt-2">
                 <div className="space-y-1.5">
-                  <Label>Hub name</Label>
+                  <Label>Circle name</Label>
                   <Input value={createData.name} onChange={(e) => setCreateData((p) => ({ ...p, name: e.target.value }))} placeholder="e.g. East Africa Startups" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Description</Label>
-                  <Textarea value={createData.description} onChange={(e) => setCreateData((p) => ({ ...p, description: e.target.value }))} placeholder="What is this hub about?" rows={3} />
+                  <Textarea value={createData.description} onChange={(e) => setCreateData((p) => ({ ...p, description: e.target.value }))} placeholder="What brings this circle together?" rows={3} />
                 </div>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" className="rounded border" checked={createData.isPrivate} onChange={(e) => setCreateData((p) => ({ ...p, isPrivate: e.target.checked }))} />
-                  Private hub (invite-only)
+                  Private circle (invite-only)
                 </label>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                <Button onClick={createHub}>Create Hub</Button>
+                <Button onClick={createHub}>Create circle</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -261,12 +261,12 @@ export default function ForumsPage() {
         <div className="space-y-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Search hubs by name or topic…" value={hubQuery} onChange={(e) => setHubQuery(e.target.value)} />
+            <Input className="pl-9" placeholder="Search circles by name or topic…" value={hubQuery} onChange={(e) => setHubQuery(e.target.value)} />
           </div>
 
           {featuredHubs.length > 0 && !hubQuery && (
             <div className="space-y-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Featured Communities</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Featured Circles</h2>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {loading ? Array.from({ length: 6 }).map((_, i) => (
                   <Card key={i}><CardContent className="p-4 space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-48" /></CardContent></Card>
@@ -277,7 +277,7 @@ export default function ForumsPage() {
 
           <div className="space-y-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {hubQuery ? `Results for "${hubQuery}"` : "All Hubs"}
+              {hubQuery ? `Results for "${hubQuery}"` : "All Circles"}
             </h2>
             {loading ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -289,8 +289,8 @@ export default function ForumsPage() {
               <div className="flex flex-col items-center gap-3 rounded-xl border bg-card py-12 text-center">
                 <Globe className="h-8 w-8 text-muted-foreground" />
                 <div>
-                  <p className="font-semibold text-sm">No hubs found</p>
-                  <p className="text-xs text-muted-foreground mt-1">Try a different search term.</p>
+                  <p className="font-semibold text-sm">No circles found</p>
+                  <p className="text-xs text-muted-foreground mt-1">No circles match that search. Try another term.</p>
                 </div>
               </div>
             ) : (
@@ -317,10 +317,10 @@ export default function ForumsPage() {
                 <Hash className="h-6 w-6 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold">No hub memberships yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Join hubs to build your investment community.</p>
+                <p className="font-semibold">You haven't joined a circle yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Join a circle to get closer to the deals and people that matter.</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setActiveTab("discover")}>Discover hubs</Button>
+              <Button variant="outline" size="sm" onClick={() => setActiveTab("discover")}>Explore circles</Button>
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -334,11 +334,11 @@ export default function ForumsPage() {
       {activeTab === "discussions" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Recent discussions across all hubs.</p>
+            <p className="text-sm text-muted-foreground">The latest from across every circle.</p>
             <Link href="/forums/new">
               <Button size="sm" variant="outline" className="gap-1.5">
                 <Plus className="h-3.5 w-3.5" />
-                New post
+                New thread
               </Button>
             </Link>
           </div>
@@ -354,8 +354,8 @@ export default function ForumsPage() {
                 <MessageSquare className="h-6 w-6 text-muted-foreground" />
               </div>
               <div>
-                <p className="font-semibold">No discussions yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Start the first discussion in a hub.</p>
+                <p className="font-semibold">No threads yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Open the first thread in a circle and get the room talking.</p>
               </div>
             </div>
           ) : (

@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Link } from "wouter";
-import { BadgeCheck, PlusCircle, ShieldCheck, Settings } from "lucide-react";
+import { Award, BadgeCheck, PlusCircle, ShieldCheck, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { resolveBadge } from "@/lib/badges";
 
 type Profile = {
   name?: string | null;
@@ -26,6 +28,7 @@ type Profile = {
   cvUrl?: string | null;
   expertiseTags?: string[];
   verifiedExpertiseTags?: string[];
+  reputation?: number | null;
 };
 
 type OverviewResponse = {
@@ -37,6 +40,7 @@ type OverviewResponse = {
   };
   opportunities: any[];
   forumPosts: any[];
+  badges?: string[];
   publicPreview: boolean;
 };
 
@@ -75,6 +79,8 @@ export default function MyProfilePage() {
   const displayName = profile.username || profile.name || data?.user.email || "Me";
   const initials = displayName.slice(0, 2).toUpperCase();
   const isVerified = Boolean(profile.emailVerified && profile.phoneVerified);
+  const reputation = profile.reputation ?? 0;
+  const badges = data?.badges ?? [];
 
   const expertise = useMemo(() => {
     const tags = profile.expertiseTags ?? [];
@@ -91,12 +97,12 @@ export default function MyProfilePage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My profile</h1>
           <p className="text-muted-foreground">
-            Preview what others see on your profile and review your public posts.
+            Your standing in the club — see what fellow members see and manage what you've shared.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline"><Link href="/forums"><PlusCircle className="mr-2 h-4 w-4" />New forum discussion</Link></Button>
-          <Button asChild variant="outline"><Link href="/opportunities"><PlusCircle className="mr-2 h-4 w-4" />New opportunity</Link></Button>
+          <Button asChild variant="outline"><Link href="/forums"><PlusCircle className="mr-2 h-4 w-4" />New thread</Link></Button>
+          <Button asChild variant="outline"><Link href="/opportunities"><PlusCircle className="mr-2 h-4 w-4" />Bring a deal</Link></Button>
           <Button variant="outline" onClick={() => setPreview((prev) => !prev)}>
             {preview ? "Switch to full view" : "Preview as non-follower"}
           </Button>
@@ -134,10 +140,33 @@ export default function MyProfilePage() {
               ) : null}
             </div>
             <div className="text-sm text-muted-foreground">{profile.occupation ?? ""}</div>
+            <div className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Award className="h-4 w-4" />
+              <span className="font-medium text-foreground">{reputation}</span> reputation
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {profile.bio && <p className="text-sm text-muted-foreground">{profile.bio}</p>}
+          {badges.length > 0 && (
+            <TooltipProvider delayDuration={150}>
+              <div className="flex flex-wrap gap-2">
+                {badges.map((key) => {
+                  const badge = resolveBadge(key);
+                  return (
+                    <Tooltip key={key}>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                          <Award className="h-3 w-3" /> {badge.label}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{badge.description}</TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            </TooltipProvider>
+          )}
           <div className="grid gap-2 text-sm">
             {profile.phone && <div>Phone: {profile.phone}</div>}
             {!profile.username && data.user.email && <div>Email: {data.user.email}</div>}
@@ -186,7 +215,7 @@ export default function MyProfilePage() {
           {data.opportunities.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
-                No active opportunity posts.
+                You haven't brought any deals to the room yet.
               </CardContent>
             </Card>
           ) : (
@@ -218,7 +247,7 @@ export default function MyProfilePage() {
           {data.forumPosts.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
-                No forum posts to display.
+                You haven't started any threads yet.
               </CardContent>
             </Card>
           ) : (

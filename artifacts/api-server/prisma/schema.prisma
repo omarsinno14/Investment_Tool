@@ -92,6 +92,14 @@ enum VerificationStatus {
   REJECTED
 }
 
+enum DealStatus {
+  DRAFT
+  OPEN
+  CLOSING_SOON
+  FUNDED
+  CLOSED
+}
+
 enum VerificationDocType {
   PASSPORT
   DRIVERS_LICENSE
@@ -173,8 +181,26 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   reviewedReports        Report[]              @relation("ReportReviewer")
   adsCreated             Advertisement[]       @relation("AdCreator")
+  auditLogs              AuditLog[]            @relation("AuditLogActor")
+  opportunityComments    OpportunityComment[]
+  portfolioAssets        PortfolioAsset[]
+  savedSearches          SavedSearch[]
+  earnedBadges           UserBadge[]
 
   @@index([email])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  targetType String
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model Profile {
@@ -218,6 +244,7 @@ model Profile {
   notifyOpportunities         Boolean       @default(true)
   notifyForums                Boolean       @default(true)
   notifyJournal               Boolean       @default(true)
+  reputation                  Int           @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -320,11 +347,101 @@ model Opportunity {
   categories String[]  @default([])
   keywords   String[]  @default([])
 
-  actions OpportunityAction[]
-  views   OpportunityView[]
+  // Structured deal fields (Phase 4)
+  dealType           String?
+  companyName        String?
+  minInvestment      Float?
+  riskLevel          RiskTolerance?
+  dealStatus         DealStatus         @default(OPEN)
+  dealVerification   VerificationStatus @default(PENDING)
+  closingDate        DateTime?
+  dealScore          Float?
+  documentUrls       String[]           @default([])
+
+  actions  OpportunityAction[]
+  views    OpportunityView[]
+  comments OpportunityComment[]
 
   @@index([fetchedAt])
   @@index([createdByUserId, fetchedAt])
+}
+
+model OpportunityComment {
+  id            String              @id @default(cuid())
+  opportunityId String
+  opportunity   Opportunity         @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId      String?
+  parent        OpportunityComment? @relation("OppCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       OpportunityComment[] @relation("OppCommentReplies")
+  body          String
+  archivedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([opportunityId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+enum AssetType {
+  CASH
+  STOCKS
+  ETF
+  CRYPTO
+  PRIVATE_EQUITY
+  REAL_ESTATE
+  VEHICLE
+  WATCH
+  ART
+  BUSINESS
+  DEBT
+  OTHER
+}
+
+model PortfolioAsset {
+  id                   String    @id @default(cuid())
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                 String
+  assetType            AssetType @default(OTHER)
+  currency             String    @default("USD")
+  currentValue         Float     @default(0)
+  costBasis            Float?
+  quantity             Float?
+  isLiability          Boolean   @default(false)
+  passiveIncomeMonthly Float?
+  notes                String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model SavedSearch {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  filters       Json
+  alertsEnabled Boolean   @default(false)
+  lastAlertedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeKey  String
+  awardedAt DateTime @default(now())
+
+  @@unique([userId, badgeKey])
+  @@index([userId])
 }
 
 model AdminSignupRequest {

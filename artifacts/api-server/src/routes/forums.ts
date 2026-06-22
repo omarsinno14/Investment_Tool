@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
 import { containsProfanity } from "../lib/profanity.js";
+import { notifyUser } from "../lib/notify.js";
 
 const router = Router();
 
@@ -141,6 +142,25 @@ router.post("/forums/:id/comments", async (req, res) => {
       data: { postId: req.params.id, userId, body },
       include: { user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } } },
     });
+
+    const post = await prisma.forumPost.findUnique({
+      where: { id: req.params.id },
+      select: { userId: true, title: true },
+    });
+    if (post) {
+      await notifyUser(prisma, {
+        recipientId: post.userId,
+        actorId: userId,
+        type: "FORUM_COMMENT",
+        title: "New comment on your post",
+        body: String(body).slice(0, 140),
+        link: `/forums/${req.params.id}`,
+        targetType: "FORUM_POST",
+        targetId: req.params.id,
+        data: { postId: req.params.id, fromUserId: userId, snippet: String(body).slice(0, 140) },
+      });
+    }
+
     return res.json({ comment });
   } catch (e) {
     logger.error({ err: e }, "Forum comment error");
@@ -174,6 +194,24 @@ router.post("/forums/:id/reactions", async (req, res) => {
       return res.json({ removed: true });
     }
     const reaction = await prisma.forumReaction.create({ data: { postId: req.params.id, userId, type } });
+
+    const post = await prisma.forumPost.findUnique({
+      where: { id: req.params.id },
+      select: { userId: true },
+    });
+    if (post) {
+      await notifyUser(prisma, {
+        recipientId: post.userId,
+        actorId: userId,
+        type: "FORUM_REACTION",
+        title: "Someone reacted to your post",
+        link: `/forums/${req.params.id}`,
+        targetType: "FORUM_POST",
+        targetId: req.params.id,
+        data: { postId: req.params.id, fromUserId: userId, reactionType: type },
+      });
+    }
+
     return res.json({ reaction });
   } catch (e) {
     logger.error({ err: e }, "Forum reactions POST error");
@@ -193,6 +231,24 @@ router.post("/forums/:id/react", async (req, res) => {
       return res.json({ removed: true });
     }
     const reaction = await prisma.forumReaction.create({ data: { postId: req.params.id, userId, type } });
+
+    const post = await prisma.forumPost.findUnique({
+      where: { id: req.params.id },
+      select: { userId: true },
+    });
+    if (post) {
+      await notifyUser(prisma, {
+        recipientId: post.userId,
+        actorId: userId,
+        type: "FORUM_REACTION",
+        title: "Someone reacted to your post",
+        link: `/forums/${req.params.id}`,
+        targetType: "FORUM_POST",
+        targetId: req.params.id,
+        data: { postId: req.params.id, fromUserId: userId, reactionType: type },
+      });
+    }
+
     return res.json({ reaction });
   } catch (e) {
     logger.error({ err: e }, "Forum react error");

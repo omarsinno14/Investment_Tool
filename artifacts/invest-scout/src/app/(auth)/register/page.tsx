@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SiteFooter } from "@/components/app/SiteFooter";
 
-const PASSWORD_HINT = "Min 8 chars, at least 1 uppercase letter, 1 number, and 1 symbol.";
+const PASSWORD_HINT = "Min 8 chars, 1 uppercase, 1 number, 1 symbol.";
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -53,42 +53,89 @@ export default function RegisterPage() {
       return;
     }
 
-    setSuccess("Account created. Check your email to confirm your account before first login.");
+    setSuccess("Application received. Check your email to confirm your identity.");
     setLoading(false);
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="flex flex-1 items-center justify-center px-4 py-10">
-        <div className="w-full max-w-xl">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Create your Vertica account</CardTitle>
+    <div className="min-h-screen flex flex-col bg-background selection:bg-primary selection:text-primary-foreground">
+      <div className="flex flex-1 items-center justify-center p-4 py-12">
+        <div className="w-full max-w-[500px] space-y-8">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-foreground text-background text-2xl font-serif tracking-tight shadow-md">
+              V
+            </div>
+            <div className="space-y-1">
+              <h1 className="text-3xl font-semibold tracking-tight text-foreground">Apply for Access</h1>
+              <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
+                Vertica Membership
+              </p>
+            </div>
+          </div>
+
+          <Card className="border-border/60 shadow-lg bg-card/80 backdrop-blur-sm">
+            <CardHeader className="space-y-1 pb-4">
+              <CardTitle className="text-xl font-medium tracking-tight">Applicant Details</CardTitle>
+              <CardDescription>Submit your information to be considered for membership.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form className="space-y-4" onSubmit={onSubmit}>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2"><Label>First name</Label><Input value={form.firstName} onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))} required /></div>
-                  <div className="space-y-2"><Label>Last name</Label><Input value={form.lastName} onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))} required /></div>
+              <form className="space-y-5" onSubmit={onSubmit}>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">First Name</Label>
+                    <Input className="h-11" value={form.firstName} onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Last Name</Label>
+                    <Input className="h-11" value={form.lastName} onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))} required />
+                  </div>
                 </div>
-                <div className="space-y-2"><Label>Email</Label><Input value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} type="email" required /></div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2"><Label>Username</Label><Input value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} placeholder="letters, numbers, . and _" required /></div>
-                  <div className="space-y-2"><Label>Date of birth (18+)</Label><Input value={form.dob} onChange={(e) => setForm((p) => ({ ...p, dob: e.target.value }))} type="date" required /></div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Email Address</Label>
+                  <Input className="h-11" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} type="email" required />
                 </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2"><Label>Password</Label><Input value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} type="password" required /></div>
-                  <div className="space-y-2"><Label>Confirm password</Label><Input value={form.confirmPassword} onChange={(e) => setForm((p) => ({ ...p, confirmPassword: e.target.value }))} type="password" required /></div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Username</Label>
+                    <Input className="h-11" value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} placeholder="letters, numbers, ._" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Date of Birth</Label>
+                    <Input className="h-11" value={form.dob} onChange={(e) => setForm((p) => ({ ...p, dob: e.target.value }))} type="date" required />
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">{PASSWORD_HINT} Strength: {passwordStrength}/4</p>
-                {err && <p className="text-sm text-red-600">{err}</p>}
-                {success && <p className="text-sm text-green-600">{success}</p>}
-                <Button className="w-full" disabled={loading}>{loading ? "Loading..." : "Create account"}</Button>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Password</Label>
+                    <Input className="h-11" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} type="password" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Confirm Password</Label>
+                    <Input className="h-11" value={form.confirmPassword} onChange={(e) => setForm((p) => ({ ...p, confirmPassword: e.target.value }))} type="password" required />
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{PASSWORD_HINT}</span>
+                  <span className="font-medium text-foreground bg-secondary px-2 py-0.5 rounded-sm">Strength: {passwordStrength}/4</span>
+                </div>
+                
+                {err && <p className="text-sm text-destructive font-medium">{err}</p>}
+                {success && <p className="text-sm text-primary font-medium p-3 bg-primary/10 rounded-md border border-primary/20">{success}</p>}
+                
+                <Button className="w-full h-11 text-base shadow-md mt-2" disabled={loading}>
+                  {loading ? "Submitting..." : "Submit Application"}
+                </Button>
               </form>
 
-              <p className="mt-4 text-sm text-muted-foreground">
-                Already have an account? <Link className="underline" href="/login">Log in</Link>
-              </p>
+              <div className="mt-8 flex justify-center text-sm">
+                <p className="text-muted-foreground">
+                  Already a member?{" "}
+                  <Link className="font-medium text-foreground hover:text-accent transition-colors underline underline-offset-4" href="/login">
+                    Sign in
+                  </Link>
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>
