@@ -61,6 +61,7 @@ function RootLayoutNav() {
           <Stack.Screen name="ratios" options={{ headerShown: true, title: "Ratios", headerBackTitle: "Back" }} />
           <Stack.Screen name="tools/index" options={{ headerShown: true, title: "Tools", headerBackTitle: "Back" }} />
           <Stack.Screen name="tools/[slug]" options={{ headerShown: true, title: "Tool", headerBackTitle: "Back" }} />
+          <Stack.Screen name="hubs/discover" options={{ headerShown: true, title: "Discover Hubs", headerBackTitle: "Back" }} />
           <Stack.Screen name="post-deal" options={{ presentation: "modal", headerShown: false }} />
           <Stack.Screen name="post-discussion" options={{ presentation: "modal", headerShown: false }} />
         </>

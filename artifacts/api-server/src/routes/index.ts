@@ -16,6 +16,8 @@ import conversationsRouter from "./conversations";
 import reportsRouter from "./reports";
 import pushTokensRouter from "./pushTokens";
 import headlinesRouter from "./headlines";
+import blocksRouter from "./blocks";
+import overviewRouter from "./overview";
 
 const router: IRouter = Router();
 
@@ -36,5 +38,7 @@ router.use(conversationsRouter);
 router.use(reportsRouter);
 router.use(pushTokensRouter);
 router.use(headlinesRouter);
+router.use(blocksRouter);
+router.use(overviewRouter);
 
 export default router;

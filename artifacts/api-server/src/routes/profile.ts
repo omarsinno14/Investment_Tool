@@ -34,12 +34,12 @@ router.post("/user/profile", async (req, res) => {
     const body = req.body;
     if (!body) return res.status(400).json({ error: "Invalid payload" });
 
+    // Username validation
     const cleanUsername = typeof body.username === "string" ? body.username.trim() : null;
     const usernameRegex = /^[a-zA-Z0-9._]{3,20}$/;
     if (cleanUsername && !usernameRegex.test(cleanUsername)) {
       return res.status(400).json({ error: "Username must be 3-20 characters with letters, numbers, underscores, or dots." });
     }
-
     const usernameLower = cleanUsername ? cleanUsername.toLowerCase() : null;
     if (usernameLower) {
       const existing = await prisma.profile.findFirst({
@@ -50,24 +50,55 @@ router.post("/user/profile", async (req, res) => {
     }
 
     const existing = await prisma.profile.findUnique({ where: { userId } });
-    const profileData: any = {};
-    if (body.name !== undefined) profileData.name = body.name ?? null;
-    if (body.username !== undefined) {
-      profileData.username = cleanUsername || null;
-      profileData.usernameLower = usernameLower;
-    }
-    if (body.bio !== undefined) profileData.bio = body.bio ?? null;
-    if (body.occupation !== undefined) profileData.occupation = body.occupation ?? null;
-    if (body.websiteUrl !== undefined) profileData.websiteUrl = body.websiteUrl ?? null;
-    if (body.age !== undefined) profileData.age = body.age ? Number(body.age) : null;
-    if (body.currency !== undefined) profileData.currency = body.currency ?? null;
-    if (body.riskTolerance !== undefined) profileData.riskTolerance = body.riskTolerance;
+    const d: any = {};
+
+    // Basic info
+    if (body.name !== undefined) d.name = body.name ?? null;
+    if (body.username !== undefined) { d.username = cleanUsername || null; d.usernameLower = usernameLower; }
+    if (body.bio !== undefined) d.bio = body.bio ?? null;
+    if (body.occupation !== undefined) d.occupation = body.occupation ?? null;
+    if (body.websiteUrl !== undefined) d.websiteUrl = body.websiteUrl ?? null;
+    if (body.age !== undefined) d.age = body.age ? Number(body.age) : null;
+    if (body.currency !== undefined) d.currency = body.currency ?? null;
+    if (body.riskTolerance !== undefined) d.riskTolerance = body.riskTolerance;
+    if (body.phone !== undefined) d.phone = body.phone ?? null;
+    if (body.familySituation !== undefined) d.familySituation = body.familySituation ?? null;
+    if (body.netWorth !== undefined) d.netWorth = body.netWorth ? Number(body.netWorth) : null;
+    if (body.investAmount !== undefined) d.investAmount = body.investAmount ? Number(body.investAmount) : null;
+    if (body.layoutPreference !== undefined) d.layoutPreference = body.layoutPreference ?? null;
+    if (body.imageUrl !== undefined) d.imageUrl = body.imageUrl ?? null;
+    if (body.coverPhotoUrl !== undefined) d.coverPhotoUrl = body.coverPhotoUrl ?? null;
+    if (body.cvUrl !== undefined) d.cvUrl = body.cvUrl ?? null;
+
+    // Verification flags
+    if (body.emailVerified !== undefined) d.emailVerified = Boolean(body.emailVerified);
+    if (body.phoneVerified !== undefined) d.phoneVerified = Boolean(body.phoneVerified);
+    if (body.identityVerified !== undefined) d.identityVerified = Boolean(body.identityVerified);
+
+    // Arrays
+    if (body.expertiseTags !== undefined) d.expertiseTags = Array.isArray(body.expertiseTags) ? body.expertiseTags : [];
+    if (body.verifiedExpertiseTags !== undefined) d.verifiedExpertiseTags = Array.isArray(body.verifiedExpertiseTags) ? body.verifiedExpertiseTags : [];
+
+    // Privacy flags
+    if (body.hideAgeFromNonFollowers !== undefined) d.hideAgeFromNonFollowers = Boolean(body.hideAgeFromNonFollowers);
+    if (body.hideContactFromNonFollowers !== undefined) d.hideContactFromNonFollowers = Boolean(body.hideContactFromNonFollowers);
+    if (body.hidePhotoFromNonFollowers !== undefined) d.hidePhotoFromNonFollowers = Boolean(body.hidePhotoFromNonFollowers);
+    if (body.hidePostsFromNonFollowers !== undefined) d.hidePostsFromNonFollowers = Boolean(body.hidePostsFromNonFollowers);
+    if (body.hideFollowerCount !== undefined) d.hideFollowerCount = Boolean(body.hideFollowerCount);
+    if (body.requiresFollowApproval !== undefined) d.requiresFollowApproval = Boolean(body.requiresFollowApproval);
+
+    // Notification prefs
+    if (body.notifyMessages !== undefined) d.notifyMessages = Boolean(body.notifyMessages);
+    if (body.notifyFollows !== undefined) d.notifyFollows = Boolean(body.notifyFollows);
+    if (body.notifyOpportunities !== undefined) d.notifyOpportunities = Boolean(body.notifyOpportunities);
+    if (body.notifyForums !== undefined) d.notifyForums = Boolean(body.notifyForums);
+    if (body.notifyJournal !== undefined) d.notifyJournal = Boolean(body.notifyJournal);
 
     let profile;
     if (existing) {
-      profile = await prisma.profile.update({ where: { userId }, data: profileData });
+      profile = await prisma.profile.update({ where: { userId }, data: d });
     } else {
-      profile = await prisma.profile.create({ data: { userId, ...profileData } });
+      profile = await prisma.profile.create({ data: { userId, ...d } });
     }
     return res.json({ profile });
   } catch (e) {
