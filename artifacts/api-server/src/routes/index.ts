@@ -19,6 +19,8 @@ import headlinesRouter from "./headlines";
 import blocksRouter from "./blocks";
 import overviewRouter from "./overview";
 import adminSeedRouter from "./adminSeed";
+import adminRouter from "./admin";
+import userAccountRouter from "./userAccount";
 
 const router: IRouter = Router();
 
@@ -42,5 +44,7 @@ router.use(headlinesRouter);
 router.use(blocksRouter);
 router.use(overviewRouter);
 router.use(adminSeedRouter);
+router.use(adminRouter);
+router.use(userAccountRouter);
 
 export default router;

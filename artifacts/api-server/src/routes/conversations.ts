@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
+import { containsProfanity } from "../lib/profanity.js";
 
 const router = Router();
 
@@ -144,6 +145,9 @@ router.post("/user/conversations/:id/messages", async (req, res) => {
 
     const { body, opportunityId } = req.body ?? {};
     if (!body?.trim()) return res.status(400).json({ error: "body required" });
+    if (containsProfanity(body)) {
+      return res.status(400).json({ error: "Your message contains language that isn't allowed. Please revise it." });
+    }
 
     const others = await prisma.conversationParticipant.findMany({
       where: { conversationId, userId: { not: userId } },

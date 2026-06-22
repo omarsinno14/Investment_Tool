@@ -66,6 +66,7 @@ router.post("/register", async (req, res) => {
             username,
             usernameLower,
             age,
+            dateOfBirth: new Date(parsed.data.dob),
           },
         },
       },

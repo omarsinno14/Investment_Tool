@@ -6,6 +6,7 @@ import { MobileNav } from "@/components/app/MobileNav";
 import { SiteFooter } from "@/components/app/SiteFooter";
 import { OverflowGuard } from "@/components/app/OverflowGuard";
 import { ScrollToTopButton } from "@/components/app/ScrollToTopButton";
+import { useHeartbeat } from "@/components/app/useHeartbeat";
 import { Link } from "wouter";
 
 type LayoutPreference = "TOP" | "SIDEBAR";
@@ -27,6 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const mainRef = useRef<HTMLDivElement | null>(null);
   const [location, navigate] = useLocation();
   const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
+  useHeartbeat();
 
   useEffect(() => {
     let active = true;

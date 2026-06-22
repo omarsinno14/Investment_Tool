@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, RefreshCcw, Search, Rss, Clock } from "lucide-react";
+import { ExternalLink, RefreshCcw, Search, Rss, Clock, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,14 +31,38 @@ function timeAgo(d?: string) {
 
 function HeadlineCard({ item }: { item: HeadlineItem }) {
   const tags = [...(item.countryTags ?? []), ...(item.tags ?? [])].slice(0, 3);
+
+  async function handleShare(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const shareUrl = item.url ?? "";
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({ title: item.title, text: item.summary ?? undefined, url: shareUrl });
+        return;
+      }
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied to clipboard");
+        return;
+      }
+      toast.error("Sharing is not supported on this device");
+    } catch (err) {
+      if ((err as Error)?.name === "AbortError") return;
+      toast.error("Unable to share");
+    }
+  }
+
   return (
-    <a
-      href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block rounded-xl border bg-card p-5 transition-all hover:border-primary/30 hover:shadow-sm"
-    >
-      <div className="flex items-start justify-between gap-3">
+    <div className="group relative rounded-xl border bg-card p-5 transition-all hover:border-primary/30 hover:shadow-sm">
+      <a
+        href={item.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute inset-0 z-0 rounded-xl"
+        aria-label={item.title}
+      />
+      <div className="relative z-10 flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-2">
           {/* Source + time */}
           <div className="flex items-center gap-2">
@@ -79,9 +103,19 @@ function HeadlineCard({ item }: { item: HeadlineItem }) {
           )}
         </div>
 
-        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="relative z-10 flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={handleShare}
+            aria-label="Share headline"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Share2 className="h-4 w-4" />
+          </button>
+          <ExternalLink className="mt-0.5 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
       </div>
-    </a>
+    </div>
   );
 }
 

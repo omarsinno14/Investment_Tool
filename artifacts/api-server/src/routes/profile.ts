@@ -59,6 +59,9 @@ router.post("/user/profile", async (req, res) => {
     if (body.occupation !== undefined) d.occupation = body.occupation ?? null;
     if (body.websiteUrl !== undefined) d.websiteUrl = body.websiteUrl ?? null;
     if (body.age !== undefined) d.age = body.age ? Number(body.age) : null;
+    if (body.dateOfBirth !== undefined) d.dateOfBirth = body.dateOfBirth ? new Date(body.dateOfBirth) : null;
+    if (body.country !== undefined) d.country = body.country ?? null;
+    if (body.city !== undefined) d.city = body.city ?? null;
     if (body.currency !== undefined) d.currency = body.currency ?? null;
     if (body.riskTolerance !== undefined) d.riskTolerance = body.riskTolerance;
     if (body.phone !== undefined) d.phone = body.phone ?? null;
@@ -70,10 +73,9 @@ router.post("/user/profile", async (req, res) => {
     if (body.coverPhotoUrl !== undefined) d.coverPhotoUrl = body.coverPhotoUrl ?? null;
     if (body.cvUrl !== undefined) d.cvUrl = body.cvUrl ?? null;
 
-    // Verification flags
-    if (body.emailVerified !== undefined) d.emailVerified = Boolean(body.emailVerified);
-    if (body.phoneVerified !== undefined) d.phoneVerified = Boolean(body.phoneVerified);
-    if (body.identityVerified !== undefined) d.identityVerified = Boolean(body.identityVerified);
+    // Verification flags are server-controlled only (set via the verification
+    // workflow and admin review) — never writable through the profile endpoint,
+    // otherwise any user could self-grant a verified badge.
 
     // Arrays
     if (body.expertiseTags !== undefined) d.expertiseTags = Array.isArray(body.expertiseTags) ? body.expertiseTags : [];

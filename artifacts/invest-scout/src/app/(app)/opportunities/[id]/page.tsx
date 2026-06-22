@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SUPPORTED_CURRENCIES } from "@/components/app/CurrencyProvider";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
+import { ShareButton } from "@/components/app/ShareButton";
 
 type ActionState = "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
 
@@ -737,6 +738,7 @@ export default function OpportunityDetailPage() {
               </a>
             </Button>
           )}
+          <ShareButton title={opportunity.title} text={opportunity.summary ?? undefined} variant="outline" size="default" />
           {!isOwner && (
             <Dialog open={reportOpen} onOpenChange={setReportOpen}>
               <DialogTrigger asChild>

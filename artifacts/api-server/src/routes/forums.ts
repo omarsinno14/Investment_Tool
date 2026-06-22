@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
+import { containsProfanity } from "../lib/profanity.js";
 
 const router = Router();
 
@@ -89,6 +90,9 @@ router.post("/forums", async (req, res) => {
   try {
     const body = req.body;
     if (!body?.title || !body?.body) return res.status(400).json({ error: "Title and body are required" });
+    if (containsProfanity(body.title) || containsProfanity(body.body)) {
+      return res.status(400).json({ error: "Your post contains language that isn't allowed. Please revise it." });
+    }
     const post = await prisma.forumPost.create({
       data: {
         userId,
@@ -130,6 +134,9 @@ router.post("/forums/:id/comments", async (req, res) => {
   try {
     const { body } = req.body ?? {};
     if (!body) return res.status(400).json({ error: "Body is required" });
+    if (containsProfanity(body)) {
+      return res.status(400).json({ error: "Your comment contains language that isn't allowed. Please revise it." });
+    }
     const comment = await prisma.forumComment.create({
       data: { postId: req.params.id, userId, body },
       include: { user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } } },

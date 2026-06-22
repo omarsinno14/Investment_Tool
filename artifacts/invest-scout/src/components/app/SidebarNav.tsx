@@ -2,6 +2,7 @@
 
 import { Link } from "wouter";
 import { useLocation } from "wouter";
+import { useEffect, useState } from "react";
 
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,10 @@ import {
   Gauge,
   Home,
   Lightbulb,
+  LifeBuoy,
   MessageSquareText,
   Newspaper,
+  Shield,
   Sparkles,
   User,
   Users,
@@ -30,6 +33,14 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
   const [location] = useLocation();
   const nextTheme = theme === "dark" ? "light" : "dark";
   const badgeCounts = useNavBadgeCounts();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/user/profile", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setIsAdmin(d?.role === "ADMIN"))
+      .catch(() => {});
+  }, []);
 
   const itemClass = (href: string) => {
     const active = location === href || location.startsWith(`${href}/`) || (href === "/forums" && location.startsWith("/hubs"));
@@ -58,8 +69,17 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
             <Link href="/my-profile" className={itemClass("/my-profile")}><User className="h-4 w-4" />{!collapsed && <span>My profile</span>}</Link>
             <Link href="/settings" className={itemClass("/settings")}><User className="h-4 w-4" />{!collapsed && <span>Settings</span>}</Link>
             <Link href="/interests" className={itemClass("/interests")}><Lightbulb className="h-4 w-4" />{!collapsed && <span>Interests</span>}</Link>
+            <Link href="/support" className={itemClass("/support")}><LifeBuoy className="h-4 w-4" />{!collapsed && <span>Support</span>}</Link>
           </div>
         </div>
+        {isAdmin && (
+          <div className="pt-2">
+            {!collapsed && <div className="px-2 text-xs uppercase tracking-wide text-muted-foreground">Admin</div>}
+            <div className="mt-2 space-y-1">
+              <Link href="/admin" className={itemClass("/admin")} aria-current={location.startsWith("/admin") ? "page" : undefined}><Shield className="h-4 w-4" />{!collapsed && <span>Admin Console</span>}</Link>
+            </div>
+          </div>
+        )}
       </nav>
       <Button variant="ghost" className="mb-2" onClick={() => setTheme(nextTheme)}>{collapsed ? (theme === "dark" ? "🌙" : "☀️") : `Switch to ${nextTheme} mode`}</Button>
       <Button variant="outline" onClick={async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); window.location.href = "/login"; }}>{collapsed ? "Exit" : "Logout"}</Button>

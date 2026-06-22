@@ -106,6 +106,13 @@ export default function SettingsPage() {
   const coverRef = useRef<HTMLInputElement | null>(null);
   const cvRef = useRef<HTMLInputElement | null>(null);
   const [adminRequests, setAdminRequests] = useState<any[] | null>(null);
+  const [verification, setVerification] = useState<{ requests: any[]; identityVerified: boolean } | null>(null);
+  const [verifyDocType, setVerifyDocType] = useState("PASSPORT");
+  const [verifyFileUrls, setVerifyFileUrls] = useState("");
+  const [verifyNote, setVerifyNote] = useState("");
+  const [submittingVerify, setSubmittingVerify] = useState(false);
+  const [emailToken, setEmailToken] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // Choose which risk scale to use based on what the backend returns
   const riskScale = useMemo(() => {
@@ -148,6 +155,9 @@ export default function SettingsPage() {
             websiteUrl: p.websiteUrl ?? "",
             cvUrl: p.cvUrl ?? "",
             age: p.age ?? "",
+            dateOfBirth: p.dateOfBirth ? String(p.dateOfBirth).slice(0, 10) : "",
+            country: p.country ?? "",
+            city: p.city ?? "",
             bio: p.bio ?? "",
             occupation: p.occupation ?? "",
             currency: p.currency ?? "USD",
@@ -209,6 +219,80 @@ export default function SettingsPage() {
     toast.success(`Request ${action === "APPROVE" ? "approved" : "rejected"}`);
   }
 
+  async function loadVerification() {
+    try {
+      const res = await fetch("/api/user/verification", { credentials: "include" });
+      if (res.ok) setVerification(await res.json());
+    } catch {}
+  }
+
+  useEffect(() => { loadVerification(); }, []);
+
+  async function submitVerification() {
+    const fileUrls = verifyFileUrls.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+    if (fileUrls.length === 0) { toast.error("Add at least one document URL"); return; }
+    setSubmittingVerify(true);
+    try {
+      const res = await fetch("/api/user/verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ docType: verifyDocType, fileUrls, note: verifyNote || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to submit");
+      toast.success("Verification submitted — we'll review it shortly");
+      setVerifyFileUrls("");
+      setVerifyNote("");
+      loadVerification();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSubmittingVerify(false);
+    }
+  }
+
+  async function sendVerifyEmail() {
+    setSendingEmail(true);
+    try {
+      const res = await fetch("/api/auth/verify-email/send", { method: "POST", credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to send");
+      if (data.alreadyVerified) {
+        toast.success("Your email is already verified");
+        setForm((f: any) => ({ ...f, emailVerified: true }));
+      } else if (data.devToken) {
+        setEmailToken(data.devToken);
+        toast.success("Verification email sent (token pre-filled for testing)");
+      } else {
+        toast.success("Verification email sent — check your inbox");
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSendingEmail(false);
+    }
+  }
+
+  async function confirmVerifyEmail() {
+    if (!emailToken.trim()) { toast.error("Enter the token from your email"); return; }
+    try {
+      const res = await fetch("/api/auth/verify-email/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ token: emailToken.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Failed to verify");
+      toast.success("Email verified ✓");
+      setForm((f: any) => ({ ...f, emailVerified: true }));
+      setEmailToken("");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
   useEffect(() => {
     (async () => {
       setLoadingBlocks(true);
@@ -241,14 +325,14 @@ export default function SettingsPage() {
         occupation: form.occupation || undefined,
         currency: form.currency || undefined,
         age: form.age === "" ? undefined : Number(form.age),
+        dateOfBirth: form.dateOfBirth || undefined,
+        country: form.country || undefined,
+        city: form.city || undefined,
         familySituation: form.familySituation || undefined,
         netWorth: form.netWorth === "" ? undefined : Number(form.netWorth),
         riskTolerance: form.riskTolerance, // ✅ canonical value, not label
         investAmount: form.investAmount === "" ? undefined : Number(form.investAmount),
         layoutPreference: form.layoutPreference || undefined,
-        emailVerified: form.emailVerified,
-        phoneVerified: form.phoneVerified,
-        identityVerified: form.identityVerified,
         expertiseTags: String(form.expertiseTags || "")
           .split(",")
           .map((tag: string) => tag.trim())
@@ -551,6 +635,21 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
+            <Label>Date of birth</Label>
+            <Input value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} type="date" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Country</Label>
+            <Input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="e.g. Canada" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>City</Label>
+            <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="e.g. Toronto" />
+          </div>
+
+          <div className="space-y-2">
             <Label>Username</Label>
             <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
             <p className="text-xs text-muted-foreground">
@@ -670,31 +769,68 @@ export default function SettingsPage() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Email verified</Label>
-            <input
-              type="checkbox"
-              checked={form.emailVerified}
-              onChange={(e) => setForm({ ...form, emailVerified: e.target.checked })}
-            />
+          <div className="space-y-3 rounded-xl border bg-card p-4 md:col-span-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-base">Email verification</Label>
+                <p className="text-xs text-muted-foreground">Confirm your email to secure your account.</p>
+              </div>
+              {form.emailVerified
+                ? <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">Verified ✓</span>
+                : <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">Not verified</span>}
+            </div>
+            {!form.emailVerified && (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button type="button" variant="outline" onClick={sendVerifyEmail} disabled={sendingEmail}>
+                  {sendingEmail ? "Sending…" : "Send verification email"}
+                </Button>
+                <div className="flex flex-1 gap-2">
+                  <Input value={emailToken} onChange={(e) => setEmailToken(e.target.value)} placeholder="Paste token from email" />
+                  <Button type="button" onClick={confirmVerifyEmail}>Confirm</Button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <Label>Phone verified</Label>
-            <input
-              type="checkbox"
-              checked={form.phoneVerified}
-              onChange={(e) => setForm({ ...form, phoneVerified: e.target.checked })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Identity verified (gold badge)</Label>
-            <input
-              type="checkbox"
-              checked={form.identityVerified}
-              onChange={(e) => setForm({ ...form, identityVerified: e.target.checked })}
-            />
+          <div className="space-y-3 rounded-xl border bg-card p-4 md:col-span-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-base">Identity verification</Label>
+                <p className="text-xs text-muted-foreground">Submit a government ID to earn the verified badge on your profile.</p>
+              </div>
+              {verification?.identityVerified
+                ? <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">Verified ✓</span>
+                : verification?.requests?.[0]?.status === "PENDING"
+                  ? <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">Under review</span>
+                  : <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">Not verified</span>}
+            </div>
+            {!verification?.identityVerified && verification?.requests?.[0]?.status !== "PENDING" && (
+              <div className="space-y-2">
+                <Select value={verifyDocType} onValueChange={setVerifyDocType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PASSPORT">Passport</SelectItem>
+                    <SelectItem value="DRIVERS_LICENSE">Driver's license</SelectItem>
+                    <SelectItem value="NATIONAL_ID">National ID</SelectItem>
+                    <SelectItem value="PROOF_OF_ADDRESS">Proof of address</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Textarea
+                  value={verifyFileUrls}
+                  onChange={(e) => setVerifyFileUrls(e.target.value)}
+                  placeholder="Document URLs (one per line or comma-separated)"
+                  rows={2}
+                />
+                <Input value={verifyNote} onChange={(e) => setVerifyNote(e.target.value)} placeholder="Note for reviewer (optional)" />
+                <Button type="button" onClick={submitVerification} disabled={submittingVerify}>
+                  {submittingVerify ? "Submitting…" : "Submit for verification"}
+                </Button>
+              </div>
+            )}
+            {verification?.requests?.[0]?.status === "PENDING" && (
+              <p className="text-sm text-muted-foreground">Your verification is being reviewed by our team. You'll get the badge once approved.</p>
+            )}
           </div>
 
           <div className="space-y-2 md:col-span-2">

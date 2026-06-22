@@ -162,7 +162,7 @@ export default function ForumsPage() {
   }
 
   async function createHub() {
-    if (!createData.name.trim()) return toast.error("Hub name is required");
+    if (!createData.name.trim()) { toast.error("Hub name is required"); return; }
     try {
       const res = await fetch("/api/hubs", {
         method: "POST",

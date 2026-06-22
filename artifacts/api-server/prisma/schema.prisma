@@ -82,6 +82,36 @@ enum ReportTargetType {
   OPPORTUNITY
   HUB_POST
   HUB_COMMENT
+  MESSAGE
+  NEWS
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum VerificationDocType {
+  PASSPORT
+  DRIVERS_LICENSE
+  NATIONAL_ID
+  PROOF_OF_ADDRESS
+  OTHER
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum AdPlacement {
+  FEED
+  OPPORTUNITIES
+  HEADLINES
+  SIDEBAR
 }
 
 model User {
@@ -89,6 +119,10 @@ model User {
   email         String    @unique
   passwordHash  String
   deactivatedAt DateTime?
+  bannedAt      DateTime?
+  banReason     String?
+  restrictedAt  DateTime?
+  restrictReason String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   role          UserRole  @default(USER)
@@ -132,6 +166,14 @@ model User {
   forumViews       ForumView[]       @relation("ForumView_viewer")
   pushTokens       PushToken[]
 
+  verificationRequests   VerificationRequest[] @relation("VerificationSubject")
+  reviewedVerifications  VerificationRequest[] @relation("VerificationReviewer")
+  appSessions            AppSession[]
+  supportTickets         SupportTicket[]
+  emailVerificationTokens EmailVerificationToken[]
+  reviewedReports        Report[]              @relation("ReportReviewer")
+  adsCreated             Advertisement[]       @relation("AdCreator")
+
   @@index([email])
 }
 
@@ -152,6 +194,9 @@ model Profile {
   occupation                  String?
   currency                    String?
   age                         Int?
+  dateOfBirth                 DateTime?
+  country                     String?
+  city                        String?
   familySituation             String?
   netWorth                    Float?
   riskTolerance               RiskTolerance @default(MEDIUM)
@@ -719,18 +764,107 @@ model JournalInvite {
 }
 
 model Report {
-  id         String           @id @default(cuid())
-  reporterId String
-  targetType ReportTargetType
-  targetId   String
-  reason     String
-  createdAt  DateTime         @default(now())
-  resolvedAt DateTime?
+  id               String           @id @default(cuid())
+  reporterId       String
+  targetType       ReportTargetType
+  targetId         String
+  reason           String
+  details          String?
+  isScam           Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  resolvedAt       DateTime?
+  resolutionNote   String?
+  reviewedByUserId String?
 
-  reporter User @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporter   User  @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("ReportReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
   @@index([targetType, targetId])
   @@index([reporterId])
+  @@index([resolvedAt, createdAt])
+}
+
+model VerificationRequest {
+  id               String              @id @default(cuid())
+  userId           String
+  docType          VerificationDocType
+  fileUrls         String[]            @default([])
+  status           VerificationStatus  @default(PENDING)
+  note             String?
+  reviewNote       String?
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  user       User  @relation("VerificationSubject", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("VerificationReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model AppSession {
+  id              String   @id @default(cuid())
+  userId          String
+  startedAt       DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  durationSeconds Int      @default(0)
+  platform        String   @default("web")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+  @@index([startedAt])
+}
+
+model SupportTicket {
+  id         String              @id @default(cuid())
+  userId     String?
+  email      String
+  subject    String
+  message    String
+  status     SupportTicketStatus @default(OPEN)
+  createdAt  DateTime            @default(now())
+  resolvedAt DateTime?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Advertisement {
+  id              String      @id @default(cuid())
+  title           String
+  body            String?
+  imageUrl        String?
+  linkUrl         String?
+  placement       AdPlacement @default(FEED)
+  active          Boolean     @default(true)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  impressions     Int         @default(0)
+  clicks          Int         @default(0)
+  createdByUserId String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  createdBy User? @relation("AdCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([active, placement])
 }
 
 model PushToken {

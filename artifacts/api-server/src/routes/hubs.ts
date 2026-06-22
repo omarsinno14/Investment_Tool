@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
+import { containsProfanity } from "../lib/profanity.js";
 
 const router = Router();
 
@@ -70,6 +71,9 @@ router.post("/hubs", async (req, res) => {
   if (!userId) return;
   try {
     const { name, description, isPrivate } = req.body ?? {};
+    if (containsProfanity(name ?? "") || containsProfanity(description ?? "")) {
+      return res.status(400).json({ error: "The hub name or description contains language that isn't allowed." });
+    }
     if (!name) return res.status(400).json({ error: "Name is required" });
 
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

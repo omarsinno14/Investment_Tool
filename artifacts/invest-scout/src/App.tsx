@@ -10,6 +10,8 @@ import LoginPage from "@/app/(auth)/login/page";
 import RegisterPage from "@/app/(auth)/register/page";
 import AdminLoginPage from "@/app/admin/login/page";
 import AdminSignupPage from "@/app/admin/signup/page";
+import AdminPage from "@/app/admin/page";
+import SupportPage from "@/app/(app)/support/page";
 
 import DashboardPage from "@/app/(app)/dashboard/page";
 import FeedPage from "@/app/(app)/feed/page";
@@ -54,6 +56,7 @@ function AppRoutes() {
       <Route path="/register" component={RegisterPage} />
       <Route path="/admin/login" component={AdminLoginPage} />
       <Route path="/admin/signup" component={AdminSignupPage} />
+      <Route path="/admin" component={() => <AppShell><AdminPage /></AppShell>} />
 
       <Route path="/dashboard" component={() => <AppShell><DashboardPage /></AppShell>} />
       <Route path="/feed" component={() => <AppShell><FeedPage /></AppShell>} />
@@ -71,6 +74,7 @@ function AppRoutes() {
       <Route path="/users" component={() => <AppShell><UsersPage /></AppShell>} />
       <Route path="/users/:id" component={() => <AppShell><UserDetailPage /></AppShell>} />
       <Route path="/settings" component={() => <AppShell><SettingsPage /></AppShell>} />
+      <Route path="/support" component={() => <AppShell><SupportPage /></AppShell>} />
       <Route path="/interests" component={() => <AppShell><InterestsPage /></AppShell>} />
       <Route path="/portfolio" component={() => <AppShell><PortfolioPage /></AppShell>} />
       <Route path="/cashflow" component={() => <AppShell><CashflowPage /></AppShell>} />

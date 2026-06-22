@@ -1,0 +1,1 @@
+- [Vertica platform](vertica-platform.md) — investment-scout monorepo conventions: palette, API paths, profile route, verification/email flows.
