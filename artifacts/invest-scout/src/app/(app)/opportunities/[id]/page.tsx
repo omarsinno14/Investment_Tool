@@ -998,7 +998,7 @@ export default function OpportunityDetailPage() {
               <CardTitle className="text-base">Related signals</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {data?.related.length ? (
+              {data?.related?.length ? (
                 data.related.slice(0, 3).map((r) => (
                   <OpportunityCard key={r.id} opp={r as any} onActionUpdated={load} />
                 ))
