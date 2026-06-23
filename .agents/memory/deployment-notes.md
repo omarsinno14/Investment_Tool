@@ -28,6 +28,12 @@ red root build; verify the real deploy commands instead:
 `.replit` has `router = "application"`, `deploymentTarget = "autoscale"`. One deployment
 serves multiple artifacts by path: web (`invest-scout`) static at `/`, API
 (`api-server`) process at `/api` (health `/api/healthz`, PORT 8080), mobile at `/mobile`.
-Web calls the API via relative `/api/...` (same-origin) so CORS is not triggered in prod.
+Web calls the API via relative `/api/...`, but the browser STILL sends an `Origin`
+header and the `cors` middleware enforces an allowlist — so the production origin
+MUST be allowed or every API call throws 500. Allowlist (app.ts) must include
+`.replit.app` (auto-assigned publish domain) and `verticainvest.com` (custom domain),
+alongside the dev `.replit.dev`/`.repl.co`/localhost entries. `ALLOWED_ORIGINS` env
+can add more. **Do not assume "same-origin ⇒ no CORS"** — the Origin header is sent
+regardless and an unlisted origin returns 500, not a CORS warning.
 Secrets (SESSION_SECRET, DATABASE_URL, PG*) are global → available in production.
 `appUrl()` for emails reads `WEB_APP_URL` (fallback `PUBLIC_WEB_URL`).

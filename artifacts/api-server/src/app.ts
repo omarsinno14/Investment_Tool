@@ -59,7 +59,9 @@ app.use(
         extraOrigins.some((o) => origin.startsWith(o)) ||
         origin.includes(".replit.dev") ||
         origin.includes(".repl.co") ||
-        origin.includes(".picard.replit.dev");
+        origin.includes(".picard.replit.dev") ||
+        origin.includes(".replit.app") ||
+        origin.includes("verticainvest.com");
       if (allowed) {
         callback(null, true);
       } else {

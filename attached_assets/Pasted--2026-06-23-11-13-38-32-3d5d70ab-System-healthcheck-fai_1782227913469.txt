@@ -1,0 +1,205 @@
+
+2026-06-23 11:13:38.32
+3d5d70ab
+System
+healthcheck failed error=healthcheck /mobile returned status 500
+
+2026-06-23 11:13:38.33
+3d5d70ab
+System
+healthcheck failed error=healthcheck /mobile returned status 500
+
+2026-06-23 11:13:38.33
+3d5d70ab
+System
+baseline ports snapshot before artifact start ports=[1105 1106 1104]
+
+2026-06-23 11:13:38.33
+3d5d70ab
+System
+starting artifact processes count=2
+
+2026-06-23 11:13:38.33
+3d5d70ab
+System
+starting artifact process port=18547 artifact=artifacts/invest-scout-mobile args=[sh -c pnpm --filter @workspace/invest-scout-mobile run serve]
+
+2026-06-23 11:13:38.34
+3d5d70ab
+System
+healthcheck failed error=healthcheck /mobile returned status 500
+
+2026-06-23 11:13:38.34
+3d5d70ab
+System
+starting artifact process args=[node --enable-source-maps artifacts/api-server/dist/index.mjs] port=8080 artifact=artifacts/api-server
+
+2026-06-23 11:13:38.35
+3d5d70ab
+System
+artifact process started artifact=artifacts/invest-scout-mobile pid=22
+
+2026-06-23 11:13:38.35
+3d5d70ab
+System
+artifact process started artifact=artifacts/api-server pid=21
+
+2026-06-23 11:13:38.37
+3d5d70ab
+System
+healthcheck failed error=healthcheck /api returned status 500
+
+2026-06-23 11:13:38.44
+3d5d70ab
+System
+healthcheck failed error=healthcheck /mobile returned status 500
+
+2026-06-23 11:13:38.59
+3d5d70ab
+System
+healthcheck failed error=healthcheck /api returned status 500
+
+2026-06-23 11:13:38.62
+3d5d70ab
+System
+healthcheck failed error=healthcheck /mobile returned status 500
+
+2026-06-23 11:13:38.92
+3d5d70ab
+System
+healthcheck failed error=healthcheck /mobile returned status 500
+
+2026-06-23 11:13:38.97
+3d5d70ab
+User
+{"level":30,"time":1782227618975,"pid":21,"hostname":"localhost","count":3,"msg":"Environment variables validated"}
+
+2026-06-23 11:13:39.18
+3d5d70ab
+User
+{"level":30,"time":1782227619183,"pid":21,"hostname":"localhost","msg":"[cron] scheduler started"}
+
+2026-06-23 11:13:39.44
+3d5d70ab
+User
+> @workspace/invest-scout-mobile@0.0.0 serve /home/runner/workspace/artifacts/invest-scout-mobile
+
+2026-06-23 11:13:39.44
+3d5d70ab
+User
+> node server/serve.js
+
+2026-06-23 11:13:39.50
+3d5d70ab
+System
+artifact processes running, waiting for signal or process exit
+
+2026-06-23 11:13:39.50
+3d5d70ab
+System
+all artifact ports detected
+
+2026-06-23 11:13:39.50
+3d5d70ab
+System
+artifact port detected detected=2 expected=2 port=18547
+
+2026-06-23 11:13:39.50
+3d5d70ab
+User
+Serving static Expo build on port 18547
+
+2026-06-23 11:13:39.84
+3d5d70ab
+User
+{"level":30,"time":1782227619847,"pid":21,"hostname":"localhost","req":{"id":1,"method":"GET","url":"/api/healthz"},"res":{"statusCode":200},"responseTime":16,"msg":"request completed"}
+
+2026-06-23 11:13:55.04
+3d5d70ab
+User
+{"level":30,"time":1782227635049,"pid":21,"hostname":"localhost","req":{"id":2,"method":"GET","url":"/api/user/profile"},"res":{"statusCode":401},"responseTime":2,"msg":"request completed"}
+
+2026-06-23 11:13:55.05
+3d5d70ab
+User
+{"level":50,"time":1782227635054,"pid":21,"hostname":"localhost","err":{"type":"Error","message":"CORS: origin not allowed: https://verticainvest.replit.app","stack":"Error: CORS: origin not allowed: https://verticainvest.replit.app\n at origin (/home/runner/workspace/artifacts/api-server/src/app.ts:66:18)\n at <anonymous> (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:219:13)\n at optionsCallback (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:199:9)\n at corsMiddleware (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:204:7)\n at Layer.handleRequest (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)\n at trimPrefix (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:342:13)\n at <anonymous> (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:297:9)\n at processParams (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:582:12)\n at next (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:291:5)\n at loggingMiddleware (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:206:7)"},"msg":"Unhandled route error"}
+
+2026-06-23 11:13:55.05
+3d5d70ab
+User
+{"level":30,"time":1782227635055,"pid":21,"hostname":"localhost","req":{"id":3,"method":"POST","url":"/api/user/heartbeat"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n at onResFinished (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n at ServerResponse.onResponseComplete (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n at ServerResponse.emit (node:events:520:35)\n at onFinish (node:_http_outgoing:1026:10)\n at callback (node:internal/streams/writable:764:21)\n at afterWrite (node:internal/streams/writable:708:5)\n at afterWriteTick (node:internal/streams/writable:694:10)\n at process.processTicksAndRejections (node:internal/process/task_queues:88:21)"},"responseTime":1,"msg":"request errored"}
+
+2026-06-23 11:13:55.11
+3d5d70ab
+User
+{"level":30,"time":1782227635115,"pid":21,"hostname":"localhost","req":{"id":4,"method":"GET","url":"/api/user/profile"},"res":{"statusCode":401},"responseTime":1,"msg":"request completed"}
+
+2026-06-23 11:13:55.21
+3d5d70ab
+User
+{"level":30,"time":1782227635219,"pid":21,"hostname":"localhost","req":{"id":5,"method":"GET","url":"/api/user/profile"},"res":{"statusCode":401},"responseTime":1,"msg":"request completed"}
+
+2026-06-23 11:16:32.17
+3d5d70ab
+User
+{"level":30,"time":1782227792171,"pid":21,"hostname":"localhost","req":{"id":6,"method":"GET","url":"/api/user/profile"},"res":{"statusCode":401},"responseTime":2,"msg":"request completed"}
+
+2026-06-23 11:16:32.18
+3d5d70ab
+User
+{"level":50,"time":1782227792181,"pid":21,"hostname":"localhost","err":{"type":"Error","message":"CORS: origin not allowed: https://verticainvest.replit.app","stack":"Error: CORS: origin not allowed: https://verticainvest.replit.app\n at origin (/home/runner/workspace/artifacts/api-server/src/app.ts:66:18)\n at <anonymous> (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:219:13)\n at optionsCallback (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:199:9)\n at corsMiddleware (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:204:7)\n at Layer.handleRequest (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)\n at trimPrefix (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:342:13)\n at <anonymous> (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:297:9)\n at processParams (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:582:12)\n at next (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:291:5)\n at loggingMiddleware (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:206:7)"},"msg":"Unhandled route error"}
+
+2026-06-23 11:16:32.18
+3d5d70ab
+User
+{"level":30,"time":1782227792182,"pid":21,"hostname":"localhost","req":{"id":7,"method":"POST","url":"/api/user/heartbeat"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n at onResFinished (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n at ServerResponse.onResponseComplete (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n at ServerResponse.emit (node:events:520:35)\n at onFinish (node:_http_outgoing:1026:10)\n at callback (node:internal/streams/writable:764:21)\n at afterWrite (node:internal/streams/writable:708:5)\n at afterWriteTick (node:internal/streams/writable:694:10)\n at process.processTicksAndRejections (node:internal/process/task_queues:88:21)"},"responseTime":1,"msg":"request errored"}
+
+2026-06-23 11:16:32.23
+3d5d70ab
+User
+{"level":30,"time":1782227792231,"pid":21,"hostname":"localhost","req":{"id":8,"method":"GET","url":"/api/user/profile"},"res":{"statusCode":401},"responseTime":2,"msg":"request completed"}
+
+2026-06-23 11:16:32.29
+3d5d70ab
+User
+{"level":30,"time":1782227792293,"pid":21,"hostname":"localhost","req":{"id":9,"method":"GET","url":"/api/user/profile"},"res":{"statusCode":401},"responseTime":1,"msg":"request completed"}
+
+2026-06-23 11:17:20.83
+3d5d70ab
+User
+{"level":50,"time":1782227840834,"pid":21,"hostname":"localhost","err":{"type":"Error","message":"CORS: origin not allowed: https://verticainvest.replit.app","stack":"Error: CORS: origin not allowed: https://verticainvest.replit.app\n at origin (/home/runner/workspace/artifacts/api-server/src/app.ts:66:18)\n at <anonymous> (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:219:13)\n at optionsCallback (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:199:9)\n at corsMiddleware (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:204:7)\n at Layer.handleRequest (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)\n at trimPrefix (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:342:13)\n at <anonymous> (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:297:9)\n at processParams (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:582:12)\n at next (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:291:5)\n at loggingMiddleware (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:206:7)"},"msg":"Unhandled route error"}
+
+2026-06-23 11:17:20.83
+3d5d70ab
+User
+{"level":30,"time":1782227840835,"pid":21,"hostname":"localhost","req":{"id":10,"method":"POST","url":"/api/auth/login"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n at onResFinished (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n at ServerResponse.onResponseComplete (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n at ServerResponse.emit (node:events:520:35)\n at onFinish (node:_http_outgoing:1026:10)\n at callback (node:internal/streams/writable:764:21)\n at afterWrite (node:internal/streams/writable:708:5)\n at afterWriteTick (node:internal/streams/writable:694:10)\n at process.processTicksAndRejections (node:internal/process/task_queues:88:21)"},"responseTime":1,"msg":"request errored"}
+
+2026-06-23 11:17:30.96
+3d5d70ab
+User
+{"level":50,"time":1782227850962,"pid":21,"hostname":"localhost","err":{"type":"Error","message":"CORS: origin not allowed: https://verticainvest.replit.app","stack":"Error: CORS: origin not allowed: https://verticainvest.replit.app\n at origin (/home/runner/workspace/artifacts/api-server/src/app.ts:66:18)\n at <anonymous> (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:219:13)\n at optionsCallback (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:199:9)\n at corsMiddleware (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:204:7)\n at Layer.handleRequest (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)\n at trimPrefix (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:342:13)\n at <anonymous> (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:297:9)\n at processParams (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:582:12)\n at next (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:291:5)\n at loggingMiddleware (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:206:7)"},"msg":"Unhandled route error"}
+
+2026-06-23 11:17:30.96
+3d5d70ab
+User
+{"level":30,"time":1782227850963,"pid":21,"hostname":"localhost","req":{"id":11,"method":"POST","url":"/api/auth/login"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n at onResFinished (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n at ServerResponse.onResponseComplete (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n at ServerResponse.emit (node:events:520:35)\n at onFinish (node:_http_outgoing:1026:10)\n at callback (node:internal/streams/writable:764:21)\n at afterWrite (node:internal/streams/writable:708:5)\n at afterWriteTick (node:internal/streams/writable:694:10)\n at process.processTicksAndRejections (node:internal/process/task_queues:88:21)"},"responseTime":1,"msg":"request errored"}
+
+2026-06-23 11:17:54.18
+3d5d70ab
+User
+{"level":50,"time":1782227874180,"pid":21,"hostname":"localhost","err":{"type":"Error","message":"CORS: origin not allowed: https://verticainvest.replit.app","stack":"Error: CORS: origin not allowed: https://verticainvest.replit.app\n at origin (/home/runner/workspace/artifacts/api-server/src/app.ts:66:18)\n at <anonymous> (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:219:13)\n at optionsCallback (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:199:9)\n at corsMiddleware (/home/runner/workspace/node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js:204:7)\n at Layer.handleRequest (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:152:17)\n at trimPrefix (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:342:13)\n at <anonymous> (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:297:9)\n at processParams (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:582:12)\n at next (/home/runner/workspace/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:291:5)\n at loggingMiddleware (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:206:7)"},"msg":"Unhandled route error"}
+
+2026-06-23 11:17:54.18
+3d5d70ab
+User
+{"level":30,"time":1782227874181,"pid":21,"hostname":"localhost","req":{"id":12,"method":"POST","url":"/api/register"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n at onResFinished (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n at ServerResponse.onResponseComplete (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n at ServerResponse.emit (node:events:520:35)\n at onFinish (node:_http_outgoing:1026:10)\n at callback (node:internal/streams/writable:764:21)\n at afterWrite (node:internal/streams/writable:708:5)\n at afterWriteTick (node:internal/streams/writable:694:10)\n at process.processTicksAndRejections (node:internal/process/task_queues:88:21)"},"responseTime":1,"msg":"request errored"}
+
+2026-06-23 11:17:54.18
+3d5d70ab
+User
+{"level":30,"time":1782227874181,"pid":21,"hostname":"localhost","req":{"id":12,"method":"POST","url":"/api/register"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n at onResFinished (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n at ServerResponse.onResponseComplete (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n at ServerResponse.emit (node:events:520:35)\n at onFinish (node:_http_outgoing:1026:10)\n at callback (node:internal/streams/writable:764:21)\n at afterWrite (node:internal/streams/writable:708:5)\n at afterWriteTick (node:internal/streams/writable:694:10)\n at process.processTicksAndRejections (node:internal/process/task_queues:88:21)"},"responseTime":1,"msg":"request errored"}
+
+2026-06-23 11:17:54.18
+3d5d70ab
+User
+{"level":30,"time":1782227874181,"pid":21,"hostname":"localhost","req":{"id":12,"method":"POST","url":"/api/register"},"res":{"statusCode":500},"err":{"type":"Error","message":"failed with status code 500","stack":"Error: failed with status code 500\n at onResFinished (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:115:39)\n at ServerResponse.onResponseComplete (/home/runner/workspace/node_modules/.pnpm/pino-http@10.5.0/node_modules/pino-http/logger.js:178:14)\n at ServerResponse.emit (node:events:520:35)\n at onFinish (node:_http_outgoing:1026:10)\n at callback (node:internal/streams/writable:764:21)\n at afterWrite (node:internal/streams/writable:708:5)\n at afterWriteTick (node:internal/streams/writable:694:10)\n at process.processTicksAndRejections (node:internal/process/task_queues:88:21)"},"responseTime":1,"msg":"request errored"}
