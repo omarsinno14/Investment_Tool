@@ -8,6 +8,9 @@ import { AppShell } from "@/components/app/AppShell";
 
 import LoginPage from "@/app/(auth)/login/page";
 import RegisterPage from "@/app/(auth)/register/page";
+import ForgotPasswordPage from "@/app/(auth)/forgot-password/page";
+import ResetPasswordPage from "@/app/(auth)/reset-password/page";
+import BillingPage from "@/app/(app)/billing/page";
 import AdminLoginPage from "@/app/admin/login/page";
 import AdminSignupPage from "@/app/admin/signup/page";
 import AdminPage from "@/app/admin/page";
@@ -62,6 +65,8 @@ function AppRoutes() {
       <Route path="/" component={() => <Redirect to="/feed" />} />
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/admin/login" component={AdminLoginPage} />
       <Route path="/admin/signup" component={AdminSignupPage} />
 
@@ -90,6 +95,7 @@ function AppRoutes() {
       <Route path="/users" component={() => <AppShell><UsersPage /></AppShell>} />
       <Route path="/users/:id" component={() => <AppShell><UserDetailPage /></AppShell>} />
       <Route path="/settings" component={() => <AppShell><SettingsPage /></AppShell>} />
+      <Route path="/billing" component={() => <AppShell><BillingPage /></AppShell>} />
       <Route path="/support" component={() => <AppShell><SupportPage /></AppShell>} />
       <Route path="/interests" component={() => <AppShell><InterestsPage /></AppShell>} />
       <Route path="/portfolio" component={() => <AppShell><PortfolioPage /></AppShell>} />

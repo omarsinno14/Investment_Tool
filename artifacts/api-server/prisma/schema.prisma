@@ -57,6 +57,13 @@ enum NotificationType {
   NEWS_BREAKING
   FORUM_MENTION
   HUB_MENTION
+  OPPORTUNITY_COMMENT
+  DEAL_CLOSING_SOON
+  SAVED_DEAL_UPDATED
+  VERIFICATION_UPDATE
+  PAYMENT
+  PREMIUM_OPPORTUNITY
+  SYSTEM
 }
 
 enum HubPostType {
@@ -122,6 +129,32 @@ enum AdPlacement {
   SIDEBAR
 }
 
+enum SubscriptionTier {
+  FREE
+  PLUS
+  ELITE
+  BUSINESS
+}
+
+enum SubscriptionStatus {
+  NONE
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+}
+
+enum PaymentEventType {
+  CHECKOUT_COMPLETED
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_UPDATED
+  SUBSCRIPTION_CANCELED
+  PAYMENT_SUCCEEDED
+  PAYMENT_FAILED
+  REFUND
+  MANUAL_ADJUSTMENT
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -134,6 +167,8 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   role          UserRole  @default(USER)
+  sessionEpoch  Int       @default(0)
+  passwordChangedAt DateTime?
 
   profile                    Profile?
   interests                  Interest[]
@@ -186,6 +221,10 @@ model User {
   portfolioAssets        PortfolioAsset[]
   savedSearches          SavedSearch[]
   earnedBadges           UserBadge[]
+  passwordResetTokens    PasswordResetToken[]
+  savedArticles          SavedArticle[]
+  insightsCreated        AdminInsight[]        @relation("InsightCreator")
+  paymentEvents          PaymentEvent[]
 
   @@index([email])
 }
@@ -244,7 +283,14 @@ model Profile {
   notifyOpportunities         Boolean       @default(true)
   notifyForums                Boolean       @default(true)
   notifyJournal               Boolean       @default(true)
+  notifyPayments              Boolean       @default(true)
+  notifyDigest                Boolean       @default(true)
   reputation                  Int           @default(0)
+
+  subscriptionTier     SubscriptionTier   @default(FREE)
+  subscriptionStatus   SubscriptionStatus @default(NONE)
+  subscriptionRenewsAt DateTime?
+  stripeCustomerId     String?            @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -996,4 +1042,69 @@ model PushToken {
 
   @@unique([userId, token])
   @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SavedArticle {
+  id          String   @id @default(cuid())
+  userId      String
+  url         String
+  title       String
+  source      String?
+  imageUrl    String?
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, url])
+  @@index([userId])
+}
+
+model AdminInsight {
+  id              String    @id @default(cuid())
+  title           String
+  body            String
+  category        String?
+  imageUrl        String?
+  published       Boolean   @default(true)
+  publishedAt     DateTime  @default(now())
+  createdByUserId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  createdBy User? @relation("InsightCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([published, publishedAt])
+}
+
+model PaymentEvent {
+  id        String           @id @default(cuid())
+  userId    String?
+  type      PaymentEventType
+  tier      SubscriptionTier?
+  amount    Int?
+  currency  String?          @default("usd")
+  status    String?
+  reference String?
+  data      Json?
+  createdAt DateTime         @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
 }

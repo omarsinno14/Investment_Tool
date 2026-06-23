@@ -3,6 +3,9 @@ import { z } from "zod";
 import { prisma } from "../lib/db.js";
 import { hashPassword } from "../lib/password.js";
 import { logger } from "../lib/logger.js";
+import { sendEmail } from "../lib/email.js";
+import { welcomeEmail } from "../lib/emailTemplates.js";
+import { accountLimiter } from "../lib/rateLimit.js";
 
 const router = Router();
 
@@ -29,7 +32,7 @@ function isAtLeast18(dob: string) {
   return age >= 18;
 }
 
-router.post("/register", async (req, res) => {
+router.post("/register", accountLimiter, async (req, res) => {
   try {
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
@@ -72,6 +75,14 @@ router.post("/register", async (req, res) => {
       },
       select: { id: true, email: true },
     });
+
+    // Best-effort welcome email — never blocks registration.
+    try {
+      const tpl = welcomeEmail(parsed.data.firstName.trim());
+      await sendEmail({ to: user.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
+    } catch (e) {
+      logger.error({ err: e }, "welcome email failed");
+    }
 
     return res.json({ user, requiresEmailConfirmation: false });
   } catch (e) {

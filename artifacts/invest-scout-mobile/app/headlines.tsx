@@ -30,7 +30,7 @@ interface Headline {
   countryTags?: string[];
 }
 
-type FilterMode = "for-you" | "all";
+type FilterMode = "for-you" | "all" | "saved";
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return "";
@@ -49,7 +49,17 @@ function openArticle(url?: string) {
   Linking.openURL(url);
 }
 
-function HeadlineCard({ item, colors }: { item: Headline; colors: ReturnType<typeof useColors> }) {
+function HeadlineCard({
+  item,
+  colors,
+  saved,
+  onToggleSave,
+}: {
+  item: Headline;
+  colors: ReturnType<typeof useColors>;
+  saved: boolean;
+  onToggleSave: (item: Headline) => void;
+}) {
   const tags = [...(item.countryTags ?? []), ...(item.tags ?? [])].slice(0, 3);
   return (
     <Pressable
@@ -73,9 +83,19 @@ function HeadlineCard({ item, colors }: { item: Headline; colors: ReturnType<typ
             {item.source ?? "News"}
           </Text>
         </View>
-        <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
-          {timeAgo(item.fetchedAt)}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
+            {timeAgo(item.fetchedAt)}
+          </Text>
+          {item.url ? (
+            <Pressable
+              onPress={(e) => { e.stopPropagation?.(); onToggleSave(item); }}
+              hitSlop={10}
+            >
+              <Feather name="bookmark" size={16} color={saved ? colors.primary : colors.mutedForeground} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       {/* Headline */}
@@ -121,10 +141,24 @@ export default function HeadlinesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<FilterMode>("for-you");
   const [total, setTotal] = useState(0);
+  const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set());
 
   const styles = makeStyles(colors);
   const isWeb = Platform.OS === "web";
   const topPad = isWeb ? 67 : insets.top;
+
+  const loadSaved = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/user/saved-articles");
+      const data = await res.json().catch(() => ({ articles: [] }));
+      const urls: string[] = (data.articles ?? [])
+        .map((a: { url?: string }) => a.url)
+        .filter((u: string | undefined): u is string => Boolean(u));
+      setSavedUrls(new Set(urls));
+    } catch {
+      // saved state is best-effort
+    }
+  }, []);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -146,7 +180,41 @@ export default function HeadlinesScreen() {
     }
   }, [mode]);
 
+  const toggleSave = useCallback(async (item: Headline) => {
+    if (!item.url) return;
+    const url = item.url;
+    const isSaved = savedUrls.has(url);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSavedUrls((prev) => {
+      const next = new Set(prev);
+      if (isSaved) next.delete(url); else next.add(url);
+      return next;
+    });
+    try {
+      const res = isSaved
+        ? await apiFetch(`/api/user/saved-articles?url=${encodeURIComponent(url)}`, { method: "DELETE" })
+        : await apiFetch("/api/user/saved-articles", {
+            method: "POST",
+            body: JSON.stringify({
+              url,
+              title: item.title,
+              source: item.source,
+              publishedAt: item.fetchedAt,
+            }),
+          });
+      if (!res.ok) throw new Error(`${res.status}`);
+    } catch {
+      // revert on failure
+      setSavedUrls((prev) => {
+        const next = new Set(prev);
+        if (isSaved) next.add(url); else next.delete(url);
+        return next;
+      });
+    }
+  }, [savedUrls]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadSaved(); }, [loadSaved]);
 
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
@@ -157,14 +225,14 @@ export default function HeadlinesScreen() {
 
       {/* Filter tabs */}
       <View style={styles.tabRow}>
-        {(["for-you", "all"] as FilterMode[]).map((m) => (
+        {(["for-you", "all", "saved"] as FilterMode[]).map((m) => (
           <Pressable
             key={m}
             onPress={() => setMode(m)}
             style={[styles.tab, mode === m && styles.tabActive]}
           >
             <Text style={[styles.tabText, mode === m && styles.tabTextActive]}>
-              {m === "for-you" ? "For You" : "All News"}
+              {m === "for-you" ? "For You" : m === "all" ? "All News" : "Saved"}
             </Text>
           </Pressable>
         ))}
@@ -182,26 +250,35 @@ export default function HeadlinesScreen() {
         </View>
       ) : (
         <FlatList
-          data={items}
+          data={mode === "saved" ? items.filter((i) => i.url && savedUrls.has(i.url)) : items}
           keyExtractor={(i) => i.id}
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => <HeadlineCard item={item} colors={colors} />}
+          renderItem={({ item }) => (
+            <HeadlineCard
+              item={item}
+              colors={colors}
+              saved={Boolean(item.url && savedUrls.has(item.url))}
+              onToggleSave={toggleSave}
+            />
+          )}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.primary} />
+            <RefreshControl refreshing={refreshing} onRefresh={() => { load(true); loadSaved(); }} tintColor={colors.primary} />
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}>
-                <Feather name="rss" size={32} color={colors.accent} />
+                <Feather name={mode === "saved" ? "bookmark" : "rss"} size={32} color={colors.accent} />
               </View>
               <Text style={styles.emptyTitle}>
-                {mode === "for-you" ? "No personalized news yet" : "No headlines available"}
+                {mode === "for-you" ? "No personalized news yet" : mode === "saved" ? "No saved articles" : "No headlines available"}
               </Text>
               <Text style={styles.emptyBody}>
                 {mode === "for-you"
                   ? "Add countries and topics to your interests to get personalised headlines."
-                  : "Pull down to refresh or check back shortly."}
+                  : mode === "saved"
+                    ? "Tap the bookmark on any headline to save it for later."
+                    : "Pull down to refresh or check back shortly."}
               </Text>
               {mode === "for-you" && (
                 <Pressable onPress={() => router.push("/interests")} style={styles.retryBtn}>

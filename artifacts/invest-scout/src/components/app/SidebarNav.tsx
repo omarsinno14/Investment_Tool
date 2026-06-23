@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
   ChevronRight,
+  CreditCard,
   Gauge,
   Home,
   Lightbulb,
@@ -68,6 +69,7 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
           <div className="mt-2 space-y-1">
             <Link href="/my-profile" className={itemClass("/my-profile")}><User className="h-4 w-4" />{!collapsed && <span>My profile</span>}</Link>
             <Link href="/settings" className={itemClass("/settings")}><User className="h-4 w-4" />{!collapsed && <span>Settings</span>}</Link>
+            <Link href="/billing" className={itemClass("/billing")}><CreditCard className="h-4 w-4" />{!collapsed && <span>Membership</span>}</Link>
             <Link href="/interests" className={itemClass("/interests")}><Lightbulb className="h-4 w-4" />{!collapsed && <span>Interests</span>}</Link>
             <Link href="/support" className={itemClass("/support")}><LifeBuoy className="h-4 w-4" />{!collapsed && <span>Support</span>}</Link>
           </div>

@@ -2,16 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import {
   Activity,
+  AlertTriangle,
   BadgeCheck,
   Ban,
   BarChart3,
   Building2,
+  CheckCircle2,
   Clock,
   FileCheck,
   Flag,
   Globe2,
+  HeartPulse,
+  Lightbulb,
   LifeBuoy,
   Megaphone,
+  RefreshCw,
   ScrollText,
   Search,
   Shield,
@@ -20,11 +25,13 @@ import {
   TrendingUp,
   UserCog,
   Users,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -743,6 +750,154 @@ function AdsTab() {
   );
 }
 
+/* ------------------------------- Insights --------------------------------- */
+
+type Insight = {
+  id: string;
+  title: string;
+  body: string;
+  category: string | null;
+  imageUrl: string | null;
+  published: boolean;
+  createdAt: string;
+};
+
+function InsightsTab() {
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Insight | null>(null);
+  const [form, setForm] = useState({ title: "", body: "", category: "", imageUrl: "", published: true });
+
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await apiGet<{ insights: Insight[] }>("/api/admin/insights");
+      setInsights(data.insights);
+    } catch {
+      toast.error("Failed to load insights");
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => { load(); }, []);
+
+  function openNew() {
+    setEditing(null);
+    setForm({ title: "", body: "", category: "", imageUrl: "", published: true });
+    setOpen(true);
+  }
+
+  function openEdit(insight: Insight) {
+    setEditing(insight);
+    setForm({
+      title: insight.title,
+      body: insight.body,
+      category: insight.category ?? "",
+      imageUrl: insight.imageUrl ?? "",
+      published: insight.published,
+    });
+    setOpen(true);
+  }
+
+  async function save() {
+    if (!form.title.trim() || !form.body.trim()) { toast.error("Title and body required"); return; }
+    const payload = {
+      title: form.title,
+      body: form.body,
+      category: form.category || undefined,
+      imageUrl: form.imageUrl || undefined,
+      published: form.published,
+    };
+    try {
+      if (editing) {
+        await apiSend(`/api/admin/insights/${editing.id}`, "PATCH", payload);
+        toast.success("Insight updated");
+      } else {
+        await apiSend("/api/admin/insights", "POST", payload);
+        toast.success("Insight published");
+      }
+      setOpen(false);
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  async function togglePublished(insight: Insight) {
+    try {
+      await apiSend(`/api/admin/insights/${insight.id}`, "PATCH", { published: !insight.published });
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  async function remove(insight: Insight) {
+    if (!confirm(`Delete insight "${insight.title}"?`)) return;
+    try {
+      await apiSend(`/api/admin/insights/${insight.id}`, "DELETE");
+      toast.success("Insight deleted");
+      load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={openNew}><Lightbulb className="mr-1 h-4 w-4" />New insight</Button>
+      </div>
+      {loading ? (
+        <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
+      ) : (
+        <div className="space-y-2">
+          {insights.map((insight) => (
+            <Card key={insight.id}>
+              <CardContent className="flex items-center gap-4 p-4">
+                {insight.imageUrl
+                  ? <img src={insight.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                  : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted"><Lightbulb className="h-5 w-5 text-muted-foreground" /></div>}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{insight.title}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {insight.category ? `${insight.category} · ` : ""}{insight.published ? "Published" : "Draft"}
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => togglePublished(insight)}>{insight.published ? "Unpublish" : "Publish"}</Button>
+                <Button size="sm" variant="outline" onClick={() => openEdit(insight)}>Edit</Button>
+                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => remove(insight)}><Trash2 className="h-4 w-4" /></Button>
+              </CardContent>
+            </Card>
+          ))}
+          {insights.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No insights yet.</p>}
+        </div>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editing ? "Edit insight" : "New insight"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+            <div><Label>Body</Label><Textarea rows={6} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} /></div>
+            <div><Label>Category</Label><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Market outlook" /></div>
+            <div><Label>Image URL</Label><Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} /></div>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={form.published} onCheckedChange={(c) => setForm({ ...form, published: Boolean(c) })} />
+              Published
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={save}>{editing ? "Save" : "Publish"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 /* ------------------------------- Support ---------------------------------- */
 
 type Ticket = {
@@ -954,6 +1109,187 @@ function AuditLogTab() {
   );
 }
 
+/* ---------------------------- Health monitor ------------------------------ */
+
+type HealthStatus = "ok" | "warn" | "down";
+
+type Subsystem = {
+  key: string;
+  label: string;
+  status: HealthStatus;
+  detail: string;
+  meta?: Record<string, unknown>;
+};
+
+type HealthReport = {
+  overall: HealthStatus;
+  checkedAt: string;
+  uptimeSeconds: number;
+  version: string;
+  nodeEnv: string;
+  subsystems: Subsystem[];
+  recentErrors: { at: string; scope: string; message: string }[];
+};
+
+function statusStyles(status: HealthStatus): { dot: string; label: string; Icon: typeof CheckCircle2 } {
+  switch (status) {
+    case "ok":
+      return { dot: "bg-emerald-500", label: "Operational", Icon: CheckCircle2 };
+    case "warn":
+      return { dot: "bg-amber-500", label: "Attention", Icon: AlertTriangle };
+    case "down":
+      return { dot: "bg-destructive", label: "Down", Icon: XCircle };
+  }
+}
+
+function fmtUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function HealthTab() {
+  const [report, setReport] = useState<HealthReport | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = async (manual = false) => {
+    if (manual) setRefreshing(true);
+    try {
+      const data = await apiGet<HealthReport>("/api/admin/health");
+      setReport(data);
+    } catch {
+      toast.error("Failed to load system health");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    const id = setInterval(() => void load(), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-20" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!report) return <p className="py-8 text-center text-sm text-muted-foreground">No health data.</p>;
+
+  const overall = statusStyles(report.overall);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-foreground text-background">
+              <HeartPulse className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className={`inline-block h-2.5 w-2.5 rounded-full ${overall.dot}`} />
+                <h3 className="text-lg font-semibold">
+                  {report.overall === "ok"
+                    ? "All systems operational"
+                    : report.overall === "warn"
+                      ? "Operational with warnings"
+                      : "Service disruption detected"}
+                </h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Uptime {fmtUptime(report.uptimeSeconds)} · v{report.version} · {report.nodeEnv} ·
+                checked {fmtRelative(report.checkedAt)}
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => void load(true)} disabled={refreshing}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {report.subsystems.map((s) => {
+          const st = statusStyles(s.status);
+          return (
+            <Card key={s.key}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <st.Icon
+                      className={`h-4 w-4 ${
+                        s.status === "ok"
+                          ? "text-emerald-600"
+                          : s.status === "warn"
+                            ? "text-amber-600"
+                            : "text-destructive"
+                      }`}
+                    />
+                    <span className="font-medium">{s.label}</span>
+                  </div>
+                  <span className={`inline-block h-2.5 w-2.5 rounded-full ${st.dot}`} title={st.label} />
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{s.detail}</p>
+                {s.meta && Object.keys(s.meta).length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {Object.entries(s.meta)
+                      .filter(([, v]) => typeof v === "number" && (v as number) > 0)
+                      .map(([k, v]) => (
+                        <Badge key={k} variant="secondary" className="text-xs font-normal">
+                          {k}: {String(v)}
+                        </Badge>
+                      ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Recent errors</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="divide-y">
+            {report.recentErrors.length === 0 && (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No errors recorded this session.
+              </p>
+            )}
+            {report.recentErrors.map((e, i) => (
+              <div key={i} className="grid gap-1 px-4 py-3 text-sm sm:grid-cols-[1.5fr_2fr_auto] sm:items-center sm:gap-4">
+                <span className="font-mono text-xs text-muted-foreground">{e.scope}</span>
+                <span className="truncate">{e.message}</span>
+                <span className="text-muted-foreground sm:text-right" title={fmtDate(e.at)}>
+                  {fmtRelative(e.at)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 /* ------------------------------- Page ------------------------------------- */
 
 export default function AdminPage() {
@@ -999,6 +1335,8 @@ export default function AdminPage() {
           <TabsTrigger value="map"><Globe2 className="mr-1 h-4 w-4" />Map</TabsTrigger>
           <TabsTrigger value="ads"><Megaphone className="mr-1 h-4 w-4" />Ads</TabsTrigger>
           <TabsTrigger value="support"><LifeBuoy className="mr-1 h-4 w-4" />Support</TabsTrigger>
+          <TabsTrigger value="insights"><Lightbulb className="mr-1 h-4 w-4" />Insights</TabsTrigger>
+          <TabsTrigger value="health"><HeartPulse className="mr-1 h-4 w-4" />Health</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-6"><OverviewTab /></TabsContent>
         <TabsContent value="users" className="mt-6"><UsersTab /></TabsContent>
@@ -1010,6 +1348,8 @@ export default function AdminPage() {
         <TabsContent value="map" className="mt-6"><MapTab /></TabsContent>
         <TabsContent value="ads" className="mt-6"><AdsTab /></TabsContent>
         <TabsContent value="support" className="mt-6"><SupportTab /></TabsContent>
+        <TabsContent value="insights" className="mt-6"><InsightsTab /></TabsContent>
+        <TabsContent value="health" className="mt-6"><HealthTab /></TabsContent>
       </Tabs>
     </div>
   );

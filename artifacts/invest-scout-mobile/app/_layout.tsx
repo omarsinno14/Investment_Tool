@@ -46,6 +46,8 @@ function RootLayoutNav() {
           <Stack.Screen name="forum/[id]" options={{ headerShown: true, title: "Discussion", headerBackTitle: "Back" }} />
           <Stack.Screen name="notifications" options={{ headerShown: true, title: "Notifications", headerBackTitle: "Back" }} />
           <Stack.Screen name="settings" options={{ headerShown: true, title: "Settings", headerBackTitle: "Back" }} />
+          <Stack.Screen name="billing" options={{ headerShown: true, title: "Membership", headerBackTitle: "Back" }} />
+          <Stack.Screen name="saved-articles" options={{ headerShown: true, title: "Saved Articles", headerBackTitle: "Back" }} />
           <Stack.Screen name="user/[id]" options={{ headerShown: true, title: "Profile", headerBackTitle: "Back" }} />
           <Stack.Screen name="conversation/[id]" options={{ headerShown: true, title: "Chat", headerBackTitle: "Back" }} />
           <Stack.Screen name="dashboard" options={{ headerShown: true, title: "Dashboard", headerBackTitle: "Back" }} />

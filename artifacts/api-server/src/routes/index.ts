@@ -26,6 +26,11 @@ import portfolioAssetsRouter from "./portfolioAssets";
 import searchRouter from "./search";
 import savedSearchesRouter from "./savedSearches";
 import discoveryRouter from "./discovery";
+import passwordResetRouter from "./passwordReset";
+import billingRouter from "./billing";
+import savedArticlesRouter from "./savedArticles";
+import insightsRouter from "./insights";
+import adminHealthRouter from "./adminHealth";
 
 const router: IRouter = Router();
 
@@ -56,5 +61,10 @@ router.use("/user/assets", portfolioAssetsRouter);
 router.use("/search", searchRouter);
 router.use("/user/saved-searches", savedSearchesRouter);
 router.use(discoveryRouter);
+router.use(passwordResetRouter);
+router.use(billingRouter);
+router.use(savedArticlesRouter);
+router.use(insightsRouter);
+router.use(adminHealthRouter);
 
 export default router;

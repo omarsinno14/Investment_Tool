@@ -7,6 +7,8 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
 import { requireAuth } from "../lib/adminGuard.js";
+import { sendEmail, adminRecipients } from "../lib/email.js";
+import { supportRequestEmail } from "../lib/emailTemplates.js";
 
 const router = Router();
 
@@ -77,6 +79,22 @@ router.post("/support", async (req, res) => {
     const ticket = await prisma.supportTicket.create({
       data: { userId: userId ?? null, email: String(resolvedEmail).toLowerCase().trim(), subject: subject.trim(), message: message.trim() },
     });
+
+    // Best-effort notify the admin inbox — never blocks ticket creation.
+    try {
+      const recipients = adminRecipients();
+      if (recipients.length > 0) {
+        const tpl = supportRequestEmail({
+          fromEmail: String(resolvedEmail),
+          subjectLine: subject.trim(),
+          message: message.trim(),
+        });
+        await sendEmail({ to: recipients, subject: tpl.subject, html: tpl.html, text: tpl.text });
+      }
+    } catch (e) {
+      logger.error({ err: e }, "support email failed");
+    }
+
     return res.json({ ticket: { id: ticket.id, status: ticket.status } });
   } catch (e) {
     logger.error({ err: e }, "Support POST error");

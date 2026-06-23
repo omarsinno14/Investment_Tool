@@ -40,6 +40,13 @@ const TYPE_TO_PREFERENCE: Record<NotificationType, keyof PreferenceFlags | null>
   JOURNAL_INVITE: "notifyJournal",
   JOURNAL_INVITE_ACCEPTED: "notifyJournal",
   REPORT_RECEIVED: null,
+  OPPORTUNITY_COMMENT: "notifyOpportunities",
+  DEAL_CLOSING_SOON: "notifyOpportunities",
+  SAVED_DEAL_UPDATED: "notifyOpportunities",
+  PREMIUM_OPPORTUNITY: "notifyOpportunities",
+  VERIFICATION_UPDATE: null,
+  PAYMENT: null,
+  SYSTEM: null,
 };
 
 interface PreferenceFlags {

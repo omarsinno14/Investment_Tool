@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
-import { hashPassword, verifyPassword } from "../lib/password.js";
+import { verifyPassword } from "../lib/password.js";
 import { logger } from "../lib/logger.js";
+import { authLimiter } from "../lib/rateLimit.js";
 
 const router = Router();
 
-router.post("/auth/login", async (req, res) => {
+router.post("/auth/login", authLimiter, async (req, res) => {
   try {
     const { email, password, requestedRole } = req.body ?? {};
     if (!email || !password) {
@@ -33,6 +34,7 @@ router.post("/auth/login", async (req, res) => {
 
     req.session.userId = user.id;
     req.session.userRole = user.role;
+    req.session.sessionEpoch = user.sessionEpoch;
 
     return res.json({
       user: {
@@ -57,6 +59,27 @@ router.post("/auth/logout", (req, res) => {
   });
 });
 
+/** Log out of every device by bumping the user's session epoch. */
+router.post("/auth/logout-all", async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { sessionEpoch: { increment: 1 } },
+    });
+  } catch (e) {
+    logger.error({ err: e }, "logout-all error");
+  }
+  req.session.destroy(() => {
+    res.clearCookie("connect.sid");
+    res.json({ ok: true });
+  });
+});
+
 router.get("/auth/session", async (req, res) => {
   if (!req.session.userId) {
     return res.json({ user: null });
@@ -67,6 +90,15 @@ router.get("/auth/session", async (req, res) => {
       include: { profile: { select: { username: true, name: true, imageUrl: true } } },
     });
     if (!user || user.deactivatedAt) {
+      req.session.destroy(() => {});
+      return res.json({ user: null });
+    }
+    // Invalidate sessions issued before the user's current epoch (logout-all /
+    // password reset bumps it).
+    if (
+      typeof req.session.sessionEpoch === "number" &&
+      req.session.sessionEpoch !== user.sessionEpoch
+    ) {
       req.session.destroy(() => {});
       return res.json({ user: null });
     }

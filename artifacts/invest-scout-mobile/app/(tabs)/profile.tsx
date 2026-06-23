@@ -138,6 +138,7 @@ export default function ProfileScreen() {
               <View style={styles.menuGroup}>
                 <MenuItem icon="home" label="Dashboard" onPress={() => router.push("/dashboard")} colors={colors} />
                 <MenuItem icon="rss" label="Headlines" onPress={() => router.push("/headlines")} colors={colors} />
+                <MenuItem icon="bookmark" label="Saved Articles" onPress={() => router.push("/saved-articles")} colors={colors} />
                 <MenuItem icon="globe" label="Discover Hubs" onPress={() => router.push("/hubs/discover")} colors={colors} />
                 <MenuItem icon="activity" label="Activity" onPress={() => router.push("/activity")} colors={colors} />
                 <MenuItem icon="users" label="Investors" onPress={() => router.push("/users")} colors={colors} />
@@ -160,6 +161,7 @@ export default function ProfileScreen() {
               <Text style={styles.sectionTitle}>Account</Text>
               <View style={styles.menuGroup}>
                 <MenuItem icon="user" label="Edit Profile" onPress={() => router.push("/settings")} colors={colors} />
+                <MenuItem icon="credit-card" label="Membership" onPress={() => router.push("/billing")} colors={colors} />
                 <MenuItem icon="star" label="Interests" onPress={() => router.push("/interests")} colors={colors} />
                 <MenuItem icon="bell" label="Notifications" onPress={() => router.push("/notifications")} colors={colors} />
                 <MenuItem icon="user-plus" label="Follow Requests" onPress={() => router.push("/follow-requests")} colors={colors} />

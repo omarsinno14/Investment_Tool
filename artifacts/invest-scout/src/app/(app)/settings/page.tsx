@@ -93,9 +93,12 @@ export default function SettingsPage() {
     notifyOpportunities: true,
     notifyForums: true,
     notifyJournal: true,
+    notifyPayments: true,
+    notifyDigest: true,
   });
 
   const [saving, setSaving] = useState(false);
+  const [loggingOutAll, setLoggingOutAll] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingCv, setUploadingCv] = useState(false);
@@ -182,6 +185,8 @@ export default function SettingsPage() {
             notifyOpportunities: p.notifyOpportunities !== undefined ? Boolean(p.notifyOpportunities) : true,
             notifyForums: p.notifyForums !== undefined ? Boolean(p.notifyForums) : true,
             notifyJournal: p.notifyJournal !== undefined ? Boolean(p.notifyJournal) : true,
+            notifyPayments: p.notifyPayments !== undefined ? Boolean(p.notifyPayments) : true,
+            notifyDigest: p.notifyDigest !== undefined ? Boolean(p.notifyDigest) : true,
           });
         } else {
           const message = isJson ? data?.error || "Failed to load profile" : "Failed to load profile";
@@ -353,6 +358,8 @@ export default function SettingsPage() {
         notifyOpportunities: form.notifyOpportunities,
         notifyForums: form.notifyForums,
         notifyJournal: form.notifyJournal,
+        notifyPayments: form.notifyPayments,
+        notifyDigest: form.notifyDigest,
       };
 
       const res = await fetch("/api/user/profile", {
@@ -943,6 +950,20 @@ export default function SettingsPage() {
                 />
                 Journal invites & updates
               </label>
+              <label className="flex items-center gap-2">
+                <Checkbox
+                  checked={form.notifyPayments}
+                  onCheckedChange={(checked) => setForm({ ...form, notifyPayments: Boolean(checked) })}
+                />
+                Payment receipts & membership
+              </label>
+              <label className="flex items-center gap-2">
+                <Checkbox
+                  checked={form.notifyDigest}
+                  onCheckedChange={(checked) => setForm({ ...form, notifyDigest: Boolean(checked) })}
+                />
+                Weekly opportunity digest
+              </label>
             </div>
           </div>
 
@@ -951,6 +972,40 @@ export default function SettingsPage() {
               {saving ? "Saving..." : "Save settings"}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Security</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium">Sign out everywhere</p>
+            <p className="text-sm text-muted-foreground">
+              End every active session on all devices. You will need to sign in again.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            disabled={loggingOutAll}
+            onClick={async () => {
+              setLoggingOutAll(true);
+              try {
+                const res = await fetch("/api/auth/logout-all", {
+                  method: "POST",
+                  credentials: "include",
+                });
+                if (!res.ok) throw new Error();
+                window.location.href = "/login";
+              } catch {
+                toast.error("Could not sign out other sessions.");
+                setLoggingOutAll(false);
+              }
+            }}
+          >
+            {loggingOutAll ? "Signing out..." : "Sign out of all devices"}
+          </Button>
         </CardContent>
       </Card>
 

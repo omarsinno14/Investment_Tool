@@ -95,6 +95,8 @@ router.post("/user/profile", async (req, res) => {
     if (body.notifyOpportunities !== undefined) d.notifyOpportunities = Boolean(body.notifyOpportunities);
     if (body.notifyForums !== undefined) d.notifyForums = Boolean(body.notifyForums);
     if (body.notifyJournal !== undefined) d.notifyJournal = Boolean(body.notifyJournal);
+    if (body.notifyPayments !== undefined) d.notifyPayments = Boolean(body.notifyPayments);
+    if (body.notifyDigest !== undefined) d.notifyDigest = Boolean(body.notifyDigest);
 
     let profile;
     if (existing) {

@@ -20,6 +20,12 @@ async function main(): Promise<void> {
     }
 
     logger.info({ port }, "Server listening");
+
+    // Start background schedulers (weekly digest, etc).
+    void import("./lib/cron").then(async ({ startCron }) => {
+      const { prisma } = await import("./lib/db");
+      startCron(prisma);
+    });
   });
 }
 

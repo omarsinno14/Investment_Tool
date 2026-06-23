@@ -26,6 +26,7 @@ Never "guaranteed returns" — use projected/target/estimated. No real money mov
 **Why:** the two clients authenticate differently; mixing them up breaks requests.
 - Web uses plain `fetch` with `credentials: "include"` (session cookie). There is NO apiFetch helper in web.
 - Mobile uses `apiFetch` from `lib/api.ts`. Mobile screens use apiFetch + useState (NOT react-query hooks, despite QueryClient being present).
+- **apiFetch (and plain fetch) do NOT throw on HTTP 4xx/5xx.** For optimistic UI (save/unsave bookmarks, toggles), you MUST check `if (!res.ok) throw` before treating it as success, or the catch-based rollback never fires and UI silently diverges from server truth.
 
 ## Privacy — never leak email in listing/search/feed payloads
 **Why:** broad authenticated listing endpoints (search, discovery/suggested-follows, opportunity feed) are visible to any member; returning `email` exposes every member's address.

@@ -9,6 +9,8 @@ import { hashPassword } from "../lib/password.js";
 import { requireAdmin } from "../lib/adminGuard.js";
 import { writeAuditLog } from "../lib/auditLog.js";
 import { notifyUser } from "../lib/notify.js";
+import { sendEmail } from "../lib/email.js";
+import { verificationStatusEmail } from "../lib/emailTemplates.js";
 
 const router = Router();
 
@@ -515,6 +517,34 @@ router.post("/admin/verifications/:id/decide", async (req, res) => {
       targetId: updated.id,
       metadata: { userId: request.userId, note: note ?? null },
     });
+
+    // Notify the subject in-app and by email (best-effort).
+    try {
+      await notifyUser(prisma, {
+        recipientId: request.userId,
+        type: "VERIFICATION_UPDATE",
+        title: decision === "APPROVE" ? "Verification approved" : "Verification update",
+        body:
+          decision === "APPROVE"
+            ? "Your identity verification has been approved."
+            : "Your identity verification could not be approved at this time.",
+      });
+      const subject = await prisma.user.findUnique({
+        where: { id: request.userId },
+        select: { email: true },
+      });
+      if (subject?.email) {
+        const tpl = verificationStatusEmail({
+          approved: decision === "APPROVE",
+          subject: "identity verification",
+          note: note ?? null,
+        });
+        await sendEmail({ to: subject.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
+      }
+    } catch (e) {
+      logger.error({ err: e }, "verification decision notify failed");
+    }
+
     return res.json({ request: updated });
   } catch (e) {
     logger.error({ err: e }, "Admin verification decide error");
