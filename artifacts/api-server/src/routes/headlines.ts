@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
 import { fetchAllNews, filterByInterests } from "../lib/newsService.js";
+import { getUserEntitlements } from "../lib/subscription.js";
 
 const router = Router();
 
@@ -24,9 +25,14 @@ router.get("/headlines", async (req, res) => {
   if (!userId) return;
 
   try {
+    // Personalised news is a Plus+ entitlement. Free members still get the news
+    // feed, just not the interest-based personalisation layer.
+    const entitlements = await getUserEntitlements(userId);
     const [allNews, userInterests] = await Promise.all([
       fetchAllNews(),
-      prisma.interest.findMany({ where: { userId }, select: { type: true, value: true } }),
+      entitlements.personalizedNews
+        ? prisma.interest.findMany({ where: { userId }, select: { type: true, value: true } })
+        : Promise.resolve([] as { type: string; value: string }[]),
     ]);
 
     let filtered = userInterests.length > 0
@@ -39,7 +45,12 @@ router.get("/headlines", async (req, res) => {
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     const headlines = filtered.slice(0, limit);
 
-    return res.json({ headlines, total: filtered.length, cached: true });
+    return res.json({
+      headlines,
+      total: filtered.length,
+      cached: true,
+      personalized: entitlements.personalizedNews,
+    });
   } catch (e) {
     logger.error({ err: e }, "Headlines GET error");
     return res.status(500).json({ error: "Failed to load headlines" });

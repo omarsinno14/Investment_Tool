@@ -1,0 +1,126 @@
+Now that Phases 1–17 are implemented, stop adding random new features and perform a launch-readiness and beta-readiness pass for Vertica.
+
+Treat Vertica as a premium investment opportunity discovery, research, networking, and lead-generation platform. Do not position it as a brokerage, securities dealer, crowdfunding portal, escrow platform, or app that directly processes investments. The platform should help users discover opportunities, save them, request information, contact deal posters, join discussions, and track interest. Actual investment transactions must happen off-platform unless proper legal/regulatory infrastructure is added later.
+
+Your tasks:
+
+1. Audit the entire product for launch readiness:
+
+* Web app
+* Mobile app
+* API
+* Admin panel
+* Auth
+* Payments
+* Emails
+* Notifications
+* Opportunity/deal flows
+* User profiles
+* Messaging
+* Moderation
+* Verification
+* Pricing page
+* Legal/disclaimer pages
+
+2. Replace any unsafe or misleading investment language:
+
+* Do not use “guaranteed return”
+* Do not use “invest now” unless it only logs an external investment
+* Prefer “projected return,” “target return,” “request information,” “express interest,” “request introduction,” and “contact deal poster”
+* Add clear disclaimers that Vertica does not provide financial advice, does not execute transactions, does not custody funds, and does not guarantee returns
+
+3. Improve the core opportunity conversion funnel:
+
+* View opportunity
+* Save opportunity
+* Request information
+* Request introduction
+* Message deal poster
+* Join waitlist
+* Download documents
+* Track lead status for Business users
+* Show these actions in admin analytics
+
+4. Add or improve lead-generation logic:
+
+* Every “request info” or “request introduction” should create a lead record
+* Business users should have a lead dashboard
+* Admins should see leads by opportunity, category, user, and conversion status
+* Users should see their requested opportunities
+* Deal posters should be able to mark leads as new, contacted, qualified, rejected, or converted
+
+5. Polish pricing:
+
+* Free / Member
+* Plus: $19/mo and $190/year
+* Elite: $49/mo and $490/year
+* Business / Deal Poster: $99/mo and $990/year
+* Add annual billing toggle
+* Add “Founding Member” badge/launch promo support
+* Make sure “Current” only appears on the user’s actual active plan
+* Add clean plan comparison table
+* Add cancellation and renewal terms
+
+6. Verify Stripe:
+
+* Checkout works
+* Customer Portal works
+* Webhooks update subscription status
+* Failed payments are handled
+* Cancellations are handled
+* Plan upgrades/downgrades are handled
+* Payment history appears
+* Premium gating uses backend subscription status
+* Admin revenue dashboard works
+
+7. Prepare for App Store / Google Play later:
+
+* Add account deletion flow
+* Add privacy policy link
+* Add terms link
+* Add subscription terms
+* Add support contact
+* Make mobile subscription state visible
+* Do not rely only on Stripe inside mobile if store billing rules apply
+
+8. Build beta readiness:
+
+* Add beta invite mode if not already present
+* Add feedback widget
+* Add bug report flow
+* Add onboarding checklist
+* Add demo data reset/seed tools
+* Add admin “beta metrics” dashboard
+
+9. Track these metrics:
+
+* Visitor to signup
+* Signup to profile completed
+* Profile completed to first saved opportunity
+* Saved opportunity to request information
+* Request information to message sent
+* Free to Plus conversion
+* Plus to Elite conversion
+* Business trial to paid
+* Deal views
+* Deal saves
+* Deal requests
+* Lead conversion by opportunity
+* Reports/flags by opportunity
+* Churn and cancellation reasons
+
+10. Final output:
+    When finished, provide a clear report:
+
+* What was audited
+* What was broken
+* What was fixed
+* What was improved
+* What remains risky
+* What requires manual setup
+* What needs legal review
+* How to test payments
+* How to run beta
+* Recommended next product priorities
+
+Do not add placeholder buttons that do nothing. Do not leave unsafe investment language. Do not imply Vertica is legally allowed to sell securities or process investments. Keep the app premium, clean, trustworthy, and Bourgeois Minimal.

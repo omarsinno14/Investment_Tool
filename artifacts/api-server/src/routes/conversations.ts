@@ -3,6 +3,7 @@ import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
 import { containsProfanity } from "../lib/profanity.js";
 import { notifyUser } from "../lib/notify.js";
+import { ensureEntitled } from "../lib/subscription.js";
 
 const router = Router();
 
@@ -72,6 +73,15 @@ router.get("/user/conversations", async (req, res) => {
 router.post("/user/conversations", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  // Starting a private discussion is a Plus+ entitlement. Existing participants
+  // (e.g. a Free user replying to a Plus member) can still read and reply.
+  if (
+    !(await ensureEntitled(res, userId, (e) => e.privateDiscussions, {
+      feature: "privateDiscussions",
+      message: "Starting private discussions requires Vertica Plus.",
+    }))
+  )
+    return;
   try {
     const { identifier } = req.body ?? {};
     if (!identifier) return res.status(400).json({ error: "identifier required" });

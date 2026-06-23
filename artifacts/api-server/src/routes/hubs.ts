@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
 import { containsProfanity } from "../lib/profanity.js";
+import { ensureEntitled } from "../lib/subscription.js";
 
 const router = Router();
 
@@ -75,6 +76,17 @@ router.post("/hubs", async (req, res) => {
       return res.status(400).json({ error: "The hub name or description contains language that isn't allowed." });
     }
     if (!name) return res.status(400).json({ error: "Name is required" });
+
+    // Public hubs are open to all members; private hubs require Vertica Elite.
+    if (isPrivate) {
+      if (
+        !(await ensureEntitled(res, userId, (e) => e.privateHubs, {
+          feature: "privateHubs",
+          message: "Private hubs require Vertica Elite.",
+        }))
+      )
+        return;
+    }
 
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     const hub = await prisma.hub.create({

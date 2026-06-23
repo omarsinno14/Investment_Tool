@@ -1,1 +1,2 @@
 - [Vertica platform](vertica-platform.md) — investment-scout monorepo conventions: palette, API paths, profile route, verification/email flows.
+- [Entitlement enforcement](entitlement-enforcement.md) — paid-feature gating: BUSINESS is a sibling track (not ELITE superset), and subscription STATUS (not just tier) gates access.

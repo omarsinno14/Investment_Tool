@@ -7,6 +7,7 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
 import { requireAuth } from "../lib/adminGuard.js";
+import { ensureEntitled } from "../lib/subscription.js";
 import { sendEmail, adminRecipients } from "../lib/email.js";
 import { supportRequestEmail } from "../lib/emailTemplates.js";
 
@@ -36,6 +37,14 @@ router.get("/user/verification", async (req, res) => {
 router.post("/user/verification", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  // Verified investor badge request is an Elite entitlement.
+  if (
+    !(await ensureEntitled(res, userId, (e) => e.verifiedBadgeRequest, {
+      feature: "verifiedBadgeRequest",
+      message: "Requesting a verified investor badge requires Vertica Elite.",
+    }))
+  )
+    return;
   try {
     const { docType, fileUrls, note } = req.body ?? {};
     const validTypes = ["PASSPORT", "DRIVERS_LICENSE", "NATIONAL_ID", "PROOF_OF_ADDRESS", "OTHER"];

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
+import { ensureEntitled } from "../lib/subscription.js";
 
 const router = Router();
 
@@ -89,6 +90,21 @@ function buildSummary(assets: Array<{ assetType: string; currentValue: number; i
     count: assets.length,
   };
 }
+
+// Portfolio and watchlist tools are a Plus+ entitlement — gate the whole
+// router so a Free user cannot read or mutate assets by calling the API.
+router.use(async (req, res, next) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  if (
+    !(await ensureEntitled(res, userId, (e) => e.portfolioTools, {
+      feature: "portfolioTools",
+      message: "Portfolio and watchlist tools require Vertica Plus.",
+    }))
+  )
+    return;
+  next();
+});
 
 router.get("/", async (req, res) => {
   const userId = requireAuth(req, res);
@@ -203,6 +219,13 @@ function csvEscape(value: unknown): string {
 router.get("/export", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  if (
+    !(await ensureEntitled(res, userId, (e) => e.exportReports, {
+      feature: "exportReports",
+      message: "Exportable reports require Vertica Elite.",
+    }))
+  )
+    return;
   const format = (req.query.format === "json" ? "json" : "csv") as "json" | "csv";
   try {
     const assets = await prisma.portfolioAsset.findMany({

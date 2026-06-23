@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
 import { notifyMatchingUsers } from "../lib/pushNotificationService.js";
+import { ensureEntitled, getUserEntitlements } from "../lib/subscription.js";
 
 const router = Router();
 
@@ -147,6 +148,25 @@ router.get("/opportunities", async (req, res) => {
     } = req.query as Record<string, string>;
     const limit = Math.min(Number(limitStr) || 20, 50);
     const search = (q ?? "").trim().toLowerCase();
+
+    // Advanced filters/sorts are a Plus+ entitlement. Enforce server-side so a
+    // Free user cannot apply them by calling the API directly (basic search by
+    // query/category and newest/closing/trending sorts stay open to everyone).
+    const usesAdvancedFilter =
+      [risk, minInvestment, currency, location, horizon, minReturn, verification, status].some(
+        (v) => v !== undefined && String(v).trim() !== "" && String(v).trim() !== "All",
+      ) ||
+      sort === "mostSaved" ||
+      sort === "highestInterest";
+    if (usesAdvancedFilter) {
+      if (
+        !(await ensureEntitled(res, userId, (e) => e.advancedFilters, {
+          feature: "advancedFilters",
+          message: "Advanced filters and sorting require Vertica Plus.",
+        }))
+      )
+        return;
+    }
 
     const where: any = {};
     if (type === "headlines") where.createdByUserId = null;
@@ -306,22 +326,31 @@ router.get("/opportunities/:id", async (req, res) => {
     const counts = countsMap.get(opp.id) ?? { savesCount: 0, interestedCount: 0 };
     const viewerState = opp.actions[0]?.state ?? "NONE";
 
-    // Interested users (VERY_INTERESTED or INVESTED)
-    const interestedActions = await prisma.opportunityAction.findMany({
-      where: { opportunityId: opp.id, state: { in: ["VERY_INTERESTED", "INVESTED"] } },
-      take: 50,
-      orderBy: { updatedAt: "desc" },
-      select: {
-        user: {
-          select: { id: true, profile: { select: { name: true, imageUrl: true } } },
+    // Lead/interest identities (the "who is interested" list) are a deal-owner
+    // capability — only the opportunity's creator sees them. Everyone else gets
+    // the aggregate interestedCount as social proof, never the member list.
+    let interestedUsers: Array<{
+      id: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    }> = [];
+    if (opp.createdByUserId && opp.createdByUserId === userId) {
+      const interestedActions = await prisma.opportunityAction.findMany({
+        where: { opportunityId: opp.id, state: { in: ["VERY_INTERESTED", "INVESTED"] } },
+        take: 50,
+        orderBy: { updatedAt: "desc" },
+        select: {
+          user: {
+            select: { id: true, profile: { select: { name: true, imageUrl: true } } },
+          },
         },
-      },
-    });
-    const interestedUsers = interestedActions.map((a) => ({
-      id: a.user.id,
-      displayName: a.user.profile?.name ?? null,
-      avatarUrl: a.user.profile?.imageUrl ?? null,
-    }));
+      });
+      interestedUsers = interestedActions.map((a) => ({
+        id: a.user.id,
+        displayName: a.user.profile?.name ?? null,
+        avatarUrl: a.user.profile?.imageUrl ?? null,
+      }));
+    }
 
     // Related opportunities sharing any category/tag
     const relatedMatchers: any[] = [];
@@ -366,6 +395,13 @@ router.get("/opportunities/:id", async (req, res) => {
 router.post("/opportunities", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  if (
+    !(await ensureEntitled(res, userId, (e) => e.canPostOpportunities, {
+      feature: "canPostOpportunities",
+      message: "Posting opportunities requires a Business or Elite plan.",
+    }))
+  )
+    return;
   try {
     const body = req.body;
     if (!body?.title) return res.status(400).json({ error: "Title is required" });
@@ -414,6 +450,33 @@ router.post("/opportunities/:id/action", async (req, res) => {
   if (!userId) return;
   try {
     const { state, investedAmt, notes } = req.body ?? {};
+
+    // Free plan caps the number of SAVED opportunities. Only enforce when
+    // transitioning a not-yet-saved opportunity into SAVED (re-saving an
+    // already-saved deal, or any other state change, is unaffected).
+    if (state === "SAVED") {
+      const entitlements = await getUserEntitlements(userId);
+      const savedLimit = entitlements.savedOpportunityLimit;
+      if (savedLimit !== null) {
+        const existing = await prisma.opportunityAction.findUnique({
+          where: { userId_opportunityId: { userId, opportunityId: req.params.id } },
+          select: { state: true },
+        });
+        if (existing?.state !== "SAVED") {
+          const savedCount = await prisma.opportunityAction.count({
+            where: { userId, state: "SAVED" },
+          });
+          if (savedCount >= savedLimit) {
+            return res.status(403).json({
+              error: "upgrade_required",
+              feature: "savedOpportunityLimit",
+              message: `Free members can save up to ${savedLimit} opportunities. Upgrade to Vertica Plus for unlimited saves.`,
+            });
+          }
+        }
+      }
+    }
+
     const action = await prisma.opportunityAction.upsert({
       where: { userId_opportunityId: { userId, opportunityId: req.params.id } },
       create: {
@@ -439,6 +502,13 @@ router.post("/opportunities/:id/action", async (req, res) => {
 router.post("/user/opportunities", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  if (
+    !(await ensureEntitled(res, userId, (e) => e.canPostOpportunities, {
+      feature: "canPostOpportunities",
+      message: "Posting opportunities requires a Business or Elite plan.",
+    }))
+  )
+    return;
   try {
     const body = req.body;
     if (!body?.title) return res.status(400).json({ error: "Title is required" });

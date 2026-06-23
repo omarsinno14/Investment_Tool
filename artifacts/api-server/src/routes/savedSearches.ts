@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
+import { ensureEntitled } from "../lib/subscription.js";
 
 const router = Router();
 
@@ -43,6 +44,13 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  if (
+    !(await ensureEntitled(res, userId, (e) => e.savedSearches, {
+      feature: "savedSearches",
+      message: "Saved searches and deal alerts require Vertica Plus.",
+    }))
+  )
+    return;
   try {
     const parsed = createSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -67,6 +75,13 @@ router.post("/", async (req, res) => {
 router.patch("/:id", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  if (
+    !(await ensureEntitled(res, userId, (e) => e.savedSearches, {
+      feature: "savedSearches",
+      message: "Saved searches and deal alerts require Vertica Plus.",
+    }))
+  )
+    return;
   try {
     const parsed = updateSchema.safeParse(req.body);
     if (!parsed.success) {
