@@ -34,3 +34,8 @@ externalPort = 80
 [[ports]]
 localPort = 18547
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+WEB_APP_URL = "https://verticainvest.com"

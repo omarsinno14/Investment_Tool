@@ -1,2 +1,3 @@
 - [Vertica platform](vertica-platform.md) — investment-scout monorepo conventions: palette, API paths, profile route, verification/email flows.
 - [Entitlement enforcement](entitlement-enforcement.md) — paid-feature gating: BUSINESS is a sibling track (not ELITE superset), and subscription STATUS (not just tier) gates access.
+- [Deployment notes](deployment-notes.md) — autoscale needs Postgres session store (not MemoryStore); deploy build is per-artifact not root; multi-service router topology.
