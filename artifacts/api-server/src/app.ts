@@ -44,25 +44,53 @@ app.use(
   }),
 );
 
-const extraOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
-  : [];
+// Exact origins (scheme + host + port) permitted via env config.
+const extraOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean)
+    .map((o) => {
+      try {
+        return new URL(o).origin;
+      } catch {
+        return o;
+      }
+    }),
+);
 
-const defaultOrigins = ["http://localhost", "http://127.0.0.1"];
+// Exact hostnames always permitted (local dev + the production custom domain).
+const allowedHosts = new Set([
+  "localhost",
+  "127.0.0.1",
+  "verticainvest.com",
+  "www.verticainvest.com",
+]);
+
+// Host suffixes matched against full hostname labels (never substrings), so
+// `evil-verticainvest.com.attacker.com` cannot slip through. Covers Replit
+// dev/preview (`.replit.dev`, `.picard.replit.dev`, `.repl.co`) and the
+// published deployment domain (`.replit.app`).
+const allowedHostSuffixes = [".replit.dev", ".repl.co", ".replit.app"];
+
+function isOriginAllowed(origin: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (extraOrigins.has(parsed.origin)) return true;
+  const host = parsed.hostname;
+  if (allowedHosts.has(host)) return true;
+  return allowedHostSuffixes.some((suffix) => host.endsWith(suffix));
+}
 
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      const allowed =
-        defaultOrigins.some((o) => origin.startsWith(o)) ||
-        extraOrigins.some((o) => origin.startsWith(o)) ||
-        origin.includes(".replit.dev") ||
-        origin.includes(".repl.co") ||
-        origin.includes(".picard.replit.dev") ||
-        origin.includes(".replit.app") ||
-        origin.includes("verticainvest.com");
-      if (allowed) {
+      if (isOriginAllowed(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`CORS: origin not allowed: ${origin}`), false);

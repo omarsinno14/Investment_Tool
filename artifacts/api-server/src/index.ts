@@ -11,6 +11,9 @@ async function main(): Promise<void> {
     throw new Error(`Invalid PORT value: "${rawPort}"`);
   }
 
+  const { ensureSessionTable } = await import("./lib/session");
+  await ensureSessionTable();
+
   const { default: app } = await import("./app");
 
   app.listen(port, (err) => {
