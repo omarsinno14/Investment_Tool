@@ -1,6 +1,7 @@
 
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { invalidateProfile } from "@/lib/profile-cache";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { SUPPORTED_CURRENCIES, useCurrency } from "@/components/app/CurrencyProvider";
@@ -373,6 +374,7 @@ export default function SettingsPage() {
       const isJson = ct.includes("application/json");
       const body = isJson ? await res.json().catch(() => ({})) : {};
 
+      invalidateProfile();
       if (!res.ok) {
         // ✅ show EXACT server error (very important)
         console.error("Save profile failed:", { status: res.status, body, payload });
@@ -432,6 +434,7 @@ export default function SettingsPage() {
       if (!res.ok) throw new Error(data?.error ?? `Upload failed (HTTP ${res.status})`);
 
       setForm((prev: any) => ({ ...prev, imageUrl: data.imageUrl ?? "" }));
+      invalidateProfile();
       toast.success("Profile photo updated");
     } catch (e: any) {
       console.error(e);
@@ -490,6 +493,7 @@ export default function SettingsPage() {
       if (!res.ok) throw new Error(data?.error ?? `Upload failed (HTTP ${res.status})`);
 
       setForm((prev: any) => ({ ...prev, coverPhotoUrl: data.coverPhotoUrl ?? "" }));
+      invalidateProfile();
       toast.success("Cover photo updated");
     } catch (e: any) {
       console.error(e);
@@ -524,7 +528,7 @@ export default function SettingsPage() {
   }
 
   async function deactivateAccount() {
-    if (!window.confirm("Deactivate your account? You can reactivate by logging in.")) return;
+    if (!window.confirm("Deactivate your account? You will be signed out and your profile hidden. Contact support to reactivate.")) return;
     try {
       const res = await fetch("/api/user/account", {
         method: "POST",

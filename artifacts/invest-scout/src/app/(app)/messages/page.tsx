@@ -1,6 +1,6 @@
 
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearch } from "wouter";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -12,13 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { NAV_BADGE_KEYS, markNavSeen } from "@/lib/nav-badges";
-import { encodeCursor } from "@/lib/pagination";
+import { fetchProfile } from "@/lib/profile-cache";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Search, MoreHorizontal } from "lucide-react";
 
 type UserSummary = {
   id: string;
-  email: string;
+  email?: string | null;
   profile?: { name?: string | null; username?: string | null; imageUrl?: string | null } | null;
 };
 
@@ -74,9 +74,20 @@ const timeFormatter = new Intl.DateTimeFormat(undefined, {
 
 function formatPartnerLabel(user?: UserSummary | null) {
   const username = user?.profile?.username;
-  const name = username || user?.profile?.name || user?.email || "Unknown";
-  const subtitle = username ? user?.profile?.name || "" : user?.email || "";
+  const name = username || user?.profile?.name || "Member";
+  const subtitle = username ? user?.profile?.name || "" : "";
   return { name, subtitle, imageUrl: user?.profile?.imageUrl };
+}
+
+const MESSAGE_POLL_MS = 4000;
+const INBOX_POLL_MS = 12000;
+
+function errorText(data: any, fallback: string) {
+  return data?.message || (data?.error && data.error !== "upgrade_required" ? data.error : null) || fallback;
+}
+
+function isTemp(id: string) {
+  return id.startsWith("temp-");
 }
 
 function dayKey(date: Date) {
@@ -141,8 +152,14 @@ export default function MessagesPage() {
   const [newMember, setNewMember] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingBody, setEditingBody] = useState("");
+  const [partnerReadAtRaw, setPartnerReadAtRaw] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const messagesRef = useRef<Message[]>([]);
+  const activeIdRef = useRef<string | null>(null);
+  const scrollToEndOnLoad = useRef(true);
+  const prependAnchor = useRef<{ height: number; top: number } | null>(null);
+  messagesRef.current = messages;
+  activeIdRef.current = activeConversationId;
 
   const chatItems = useMemo(() => buildChatItems(messages), [messages]);
 
@@ -161,11 +178,10 @@ export default function MessagesPage() {
     let active = true;
     (async () => {
       try {
-        const res = await fetch("/api/user/profile", { credentials: "include" });
-        if (!res.ok) return;
-        const data = await res.json().catch(() => ({}));
-        if (!active) return;
+        const { ok, data } = await fetchProfile();
+        if (!ok || !active) return;
         setCurrentUsername(data?.profile?.username ?? null);
+        if (data?.profile?.userId) setCurrentUserId(data.profile.userId);
       } catch (e) {
         console.error("Failed to load profile for messaging", e);
       }
@@ -189,8 +205,8 @@ export default function MessagesPage() {
     localStorage.setItem(GROUPS_KEY, JSON.stringify(groups));
   }, [groups]);
 
-  async function loadConversations() {
-    setConversationsLoading(true);
+  const loadConversations = useCallback(async (options: { silent?: boolean } = {}) => {
+    if (!options.silent) setConversationsLoading(true);
     try {
       const res = await fetch("/api/user/conversations", { credentials: "include" });
       if (res.status === 401) {
@@ -199,26 +215,26 @@ export default function MessagesPage() {
       }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to load conversations");
-      setConversations(data.conversations ?? []);
+      const next: Conversation[] = data.conversations ?? [];
+      // The open thread is being read right now, so it has no unread messages.
+      setConversations(next.map((c) => (c.id === activeIdRef.current ? { ...c, unreadCount: 0 } : c)));
+      if (data.currentUserId) setCurrentUserId(data.currentUserId);
     } catch (e) {
       console.error(e);
-      toast.error("Failed to load conversations");
+      if (!options.silent) toast.error("Failed to load conversations");
     } finally {
-      setConversationsLoading(false);
+      if (!options.silent) setConversationsLoading(false);
     }
-  }
+  }, []);
 
-  async function loadMessages(conversationId: string, cursor?: string | null, direction: "backward" | "forward" = "backward") {
+  /** Load the newest page of a thread, or (with `before`) the page of older messages. */
+  async function loadMessages(conversationId: string, before?: string | null) {
     if (!conversationId) return;
-    if (direction === "backward") {
-      setLoadingOlder(true);
-    } else {
-      setMessagesLoading(true);
-    }
+    if (before) setLoadingOlder(true);
+    else setMessagesLoading(true);
     try {
       const params = new URLSearchParams();
-      if (cursor) params.set("cursor", cursor);
-      params.set("direction", direction);
+      if (before) params.set("before", before);
       const res = await fetch(`/api/user/conversations/${conversationId}/messages?${params.toString()}`, {
         credentials: "include",
       });
@@ -227,18 +243,28 @@ export default function MessagesPage() {
         return;
       }
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to load messages");
+      if (!res.ok) throw new Error(errorText(data, "Failed to load messages"));
+      if (activeIdRef.current !== conversationId) return;
 
-      if (direction === "backward") {
-        setMessages((prev) => [...(data.messages ?? []), ...prev]);
+      const incoming: Message[] = data.messages ?? [];
+      if (before) {
+        const el = listRef.current;
+        if (el) prependAnchor.current = { height: el.scrollHeight, top: el.scrollTop };
+        setMessages((prev) => {
+          const seen = new Set(prev.map((m) => m.id));
+          return [...incoming.filter((m) => !seen.has(m.id)), ...prev];
+        });
       } else {
-        setMessages(data.messages ?? []);
+        setMessages(incoming);
+        // Opening a thread marks it read server-side; refresh the nav badge.
+        window.dispatchEvent(new Event("nav:refresh"));
       }
       setNextCursor(data.nextCursor ?? null);
-      setCurrentUserId(data.currentUserId ?? currentUserId);
-    } catch (e) {
+      if (data.currentUserId) setCurrentUserId(data.currentUserId);
+      setPartnerReadAtRaw(data.partnerLastReadAt ?? null);
+    } catch (e: any) {
       console.error(e);
-      toast.error("Failed to load messages");
+      toast.error(e?.message ?? "Failed to load messages");
     } finally {
       setMessagesLoading(false);
       setLoadingOlder(false);
@@ -247,27 +273,18 @@ export default function MessagesPage() {
 
   useEffect(() => {
     loadConversations();
-  }, []);
+  }, [loadConversations]);
 
   useEffect(() => {
+    const conversationParam = searchParams.get("c");
+    if (conversationParam) {
+      setActiveConversationId(conversationParam);
+      setShowThreadList(false);
+      return;
+    }
     const partner = searchParams.get("partner");
     if (!partner) return;
-    (async () => {
-      const res = await fetch("/api/user/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ identifier: partner }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data?.error ?? "Unable to start chat");
-        return;
-      }
-      setActiveConversationId(data.conversationId);
-      setShowThreadList(false);
-      await loadMessages(data.conversationId, null, "forward");
-    })();
+    startChat(partner);
   }, [searchString]);
 
   useEffect(() => {
@@ -282,34 +299,65 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (!activeConversationId) return;
+    scrollToEndOnLoad.current = true;
     setMessages([]);
     setNextCursor(null);
-    loadMessages(activeConversationId, null, "forward");
+    setPartnerReadAtRaw(null);
+    setEditingId(null);
+    setConversations((prev) => prev.map((c) => (c.id === activeConversationId ? { ...c, unreadCount: 0 } : c)));
+    loadMessages(activeConversationId);
   }, [activeConversationId]);
 
+  // Poll the open thread for new messages (and the partner's read receipt).
   useEffect(() => {
     if (!activeConversationId) return;
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      if (document.visibilityState !== "visible") return;
-      const latest = messages[messages.length - 1];
-      if (!latest) return;
-      const cursor = encodeCursor({ id: latest.id, ts: latest.createdAt });
-      const res = await fetch(
-        `/api/user/conversations/${activeConversationId}/messages?direction=forward&cursor=${encodeURIComponent(cursor)}`,
-        { credentials: "include" }
-      );
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.messages?.length) {
-        setMessages((prev) => [...prev, ...(data.messages ?? [])]);
-        loadConversations();
+    let cancelled = false;
+    let inFlight = false;
+    const tick = async () => {
+      if (inFlight || document.visibilityState !== "visible") return;
+      const latest = [...messagesRef.current].reverse().find((m) => !isTemp(m.id));
+      inFlight = true;
+      try {
+        const params = latest ? `after=${encodeURIComponent(latest.id)}` : "";
+        const res = await fetch(`/api/user/conversations/${activeConversationId}/messages?${params}`, {
+          credentials: "include",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled || !res.ok || activeIdRef.current !== activeConversationId) return;
+        setPartnerReadAtRaw(data.partnerLastReadAt ?? null);
+        const incoming: Message[] = data.messages ?? [];
+        if (incoming.length === 0) return;
+        setMessages((prev) => {
+          const seen = new Set(prev.map((m) => m.id));
+          const fresh = incoming.filter((m) => !seen.has(m.id));
+          return fresh.length ? [...prev, ...fresh] : prev;
+        });
+        loadConversations({ silent: true });
+      } catch {
+        /* transient network error; next tick retries */
+      } finally {
+        inFlight = false;
       }
-    }, 8000);
-
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [activeConversationId, messages]);
+    const interval = window.setInterval(tick, MESSAGE_POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [activeConversationId, loadConversations]);
+
+  // Refresh the inbox in the background so new threads and unread counts appear.
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") loadConversations({ silent: true });
+    }, INBOX_POLL_MS);
+    return () => window.clearInterval(interval);
+  }, [loadConversations]);
 
   useEffect(() => {
     const handler = window.setTimeout(async () => {
@@ -341,7 +389,8 @@ export default function MessagesPage() {
       const nearTop = el.scrollTop < 120;
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
       if (nearTop && nextCursor && !loadingOlder && activeConversationId) {
-        loadMessages(activeConversationId, nextCursor, "backward");
+        const oldest = messagesRef.current.find((m) => !isTemp(m.id));
+        if (oldest) loadMessages(activeConversationId, oldest.id);
       }
       setNewMessageIndicator(!nearBottom);
     };
@@ -352,6 +401,26 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!listRef.current) return;
     const el = listRef.current;
+    // Older messages were prepended: keep the reader's place instead of jumping.
+    if (prependAnchor.current) {
+      const anchor = prependAnchor.current;
+      prependAnchor.current = null;
+      requestAnimationFrame(() => {
+        el.scrollTop = anchor.top + (el.scrollHeight - anchor.height);
+      });
+      return;
+    }
+    // A freshly opened thread always starts at the latest message.
+    if (scrollToEndOnLoad.current && chatItems.length > 0) {
+      scrollToEndOnLoad.current = false;
+      requestAnimationFrame(() => {
+        virtualizer.scrollToIndex(chatItems.length - 1, { align: "end" });
+        // Measured row heights can shift the end slightly; settle on the next frame.
+        requestAnimationFrame(() => virtualizer.scrollToIndex(chatItems.length - 1, { align: "end" }));
+      });
+      setNewMessageIndicator(false);
+      return;
+    }
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
     if (nearBottom) {
       requestAnimationFrame(() => {
@@ -381,26 +450,34 @@ export default function MessagesPage() {
     if (!q) return conversations;
     return conversations.filter((conv) => {
       const partner = conv.partner?.user;
-      const label = partner?.profile?.username || partner?.profile?.name || partner?.email || "";
+      const label = partner?.profile?.username || partner?.profile?.name || "";
       return label.toLowerCase().includes(q);
     });
   }, [conversations, searchTerm]);
 
   async function startChat(identifier: string) {
-    const res = await fetch("/api/user/conversations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ identifier }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toast.error(data?.error ?? "Unable to start chat");
-      return;
+    try {
+      const res = await fetch("/api/user/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ identifier }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(errorText(data, "Unable to start chat"), {
+          action: data?.error === "upgrade_required" ? { label: "Upgrade", onClick: () => (window.location.href = "/billing") } : undefined,
+        });
+        return;
+      }
+      setSearchTerm("");
+      setActiveConversationId(data.conversationId);
+      setShowThreadList(false);
+      await loadConversations({ silent: true });
+    } catch (e) {
+      console.error(e);
+      toast.error("Unable to start chat");
     }
-    setActiveConversationId(data.conversationId);
-    setShowThreadList(false);
-    await loadConversations();
   }
 
   async function ensureMutual(identifierValue: string) {
@@ -499,20 +576,27 @@ export default function MessagesPage() {
     }
     setSending(true);
     try {
-      for (const member of group.members) {
-        // eslint-disable-next-line no-await-in-loop
-        await fetch("/api/user/messages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            identifier: member,
-            body: groupMessage,
-          }),
-        });
+      const results = await Promise.all(
+        group.members.map((member) =>
+          fetch("/api/user/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ identifier: member, body: groupMessage }),
+          }).then((res) => res.ok, () => false)
+        )
+      );
+      const failed = group.members.filter((_, i) => !results[i]);
+      if (failed.length === 0) {
+        toast.success("Group message sent");
+        setGroupMessage("");
+      } else if (failed.length < group.members.length) {
+        toast.warning(`Sent, but couldn't reach: ${failed.join(", ")}`);
+        setGroupMessage("");
+      } else {
+        toast.error("Failed to send group message");
       }
-      toast.success("Group message sent");
-      setGroupMessage("");
+      loadConversations({ silent: true });
     } catch (e) {
       console.error(e);
       toast.error("Failed to send group message");
@@ -527,7 +611,9 @@ export default function MessagesPage() {
   }
 
   async function sendMessage() {
-    if (!activeConversationId || !messageDraft.trim()) return;
+    const conversationId = activeConversationId;
+    const text = messageDraft.trim();
+    if (!conversationId || !text || sending) return;
     if (!currentUsername) {
       toast.error("Set a username in Settings before sending messages.");
       window.location.href = "/settings";
@@ -535,7 +621,7 @@ export default function MessagesPage() {
     }
     const optimistic: Message = {
       id: `temp-${Date.now()}`,
-      body: messageDraft,
+      body: text,
       createdAt: new Date().toISOString(),
       fromUserId: currentUserId ?? "me",
       toUserId: "",
@@ -543,23 +629,33 @@ export default function MessagesPage() {
     setMessages((prev) => [...prev, optimistic]);
     setMessageDraft("");
     setSending(true);
+    requestAnimationFrame(() => virtualizer.scrollToIndex(chatItems.length + 1, { align: "end" }));
     try {
-      const res = await fetch(`/api/user/conversations/${activeConversationId}/messages`, {
+      const res = await fetch(`/api/user/conversations/${conversationId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ body: optimistic.body }),
+        body: JSON.stringify({ body: text }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.error ?? "Failed to send");
-      }
-      await loadConversations();
-    } catch (e) {
+      if (!res.ok) throw new Error(errorText(data, "Failed to send message"));
+      const saved: Message = data.message;
+      // Swap the optimistic bubble for the server copy (the poller may already have added it).
+      setMessages((prev) => {
+        const without = prev.filter((m) => m.id !== optimistic.id);
+        return without.some((m) => m.id === saved.id) ? without : [...without, saved];
+      });
+      setConversations((prev) => {
+        const current = prev.find((c) => c.id === conversationId);
+        if (!current) return prev;
+        const updated = { ...current, lastMessage: saved, lastMessageAt: saved.createdAt };
+        return [updated, ...prev.filter((c) => c.id !== conversationId)];
+      });
+    } catch (e: any) {
       console.error(e);
-      toast.error("Failed to send message");
+      toast.error(e?.message ?? "Failed to send message");
       setMessages((prev) => prev.filter((msg) => msg.id !== optimistic.id));
-      setMessageDraft(optimistic.body);
+      setMessageDraft(text);
     } finally {
       setSending(false);
     }
@@ -576,7 +672,7 @@ export default function MessagesPage() {
       setMessages((prev) =>
         prev.map((msg) => (msg.id === messageId ? { ...msg, body: "", deletedAt: new Date().toISOString() } : msg))
       );
-      await loadConversations();
+      loadConversations({ silent: true });
     } catch (e) {
       console.error(e);
       toast.error("Unable to remove message");
@@ -597,10 +693,11 @@ export default function MessagesPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to edit message");
+      const updated: Message | undefined = data.message;
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === messageId
-            ? { ...msg, body: editingBody, editedAt: new Date().toISOString(), deletedAt: null }
+            ? { ...msg, body: updated?.body ?? editingBody.trim(), editedAt: updated?.editedAt ?? new Date().toISOString(), deletedAt: null }
             : msg
         )
       );
@@ -619,10 +716,10 @@ export default function MessagesPage() {
   }, [messages, currentUserId]);
 
   const activeConversation = conversations.find((conv) => conv.id === activeConversationId);
-  const hasActiveConversation = Boolean(activeConversationId && activeConversation);
   const partner = activeConversation?.partner?.user;
   const partnerLabel = formatPartnerLabel(partner);
-  const partnerReadAt = activeConversation?.partnerLastReadAt ? new Date(activeConversation.partnerLastReadAt) : null;
+  const partnerReadSource = partnerReadAtRaw ?? activeConversation?.partnerLastReadAt ?? null;
+  const partnerReadAt = partnerReadSource ? new Date(partnerReadSource) : null;
 
   return (
     <div className="space-y-6">
@@ -635,7 +732,7 @@ export default function MessagesPage() {
 
       <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         <div
-          className={`flex max-h-[75vh] flex-col overflow-hidden rounded-2xl border bg-card ${
+          className={`flex h-[75vh] min-h-[480px] flex-col overflow-hidden rounded-2xl border bg-card ${
             showThreadList ? "flex" : "hidden"
           } md:flex`}
         >
@@ -662,7 +759,7 @@ export default function MessagesPage() {
               {suggestedUsers.map((user) => {
                 const label = formatPartnerLabel(user);
                 return (
-                  <button key={`suggest-${user.id}`} type="button" onClick={() => startChat(user.profile?.username || user.email)} className="inline-flex min-w-[120px] items-center gap-2 rounded-xl border px-2 py-2 text-left transition hover:bg-muted">
+                  <button key={`suggest-${user.id}`} type="button" onClick={() => startChat(user.id)} className="inline-flex min-w-[120px] items-center gap-2 rounded-xl border px-2 py-2 text-left transition hover:bg-muted">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={label.imageUrl ?? undefined} alt={label.name} />
                       <AvatarFallback>{label.name.slice(0, 2).toUpperCase()}</AvatarFallback>
@@ -692,7 +789,7 @@ export default function MessagesPage() {
                     <button
                       key={user.id}
                       type="button"
-                      onClick={() => startChat(user.profile?.username || user.email)}
+                      onClick={() => startChat(user.id)}
                       className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-muted"
                     >
                       <Avatar className="h-9 w-9">
@@ -740,9 +837,13 @@ export default function MessagesPage() {
                       <AvatarFallback>{label.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium">{label.name}</div>
-                      <div className="text-xs text-muted-foreground line-clamp-1">
-                        {thread.lastMessage?.deletedAt ? "Message removed" : thread.lastMessage?.body ?? "No messages yet"}
+                      <div className={`text-sm ${thread.unreadCount ? "font-semibold" : "font-medium"}`}>{label.name}</div>
+                      <div className={`text-xs line-clamp-1 ${thread.unreadCount ? "text-foreground" : "text-muted-foreground"}`}>
+                        {thread.lastMessage?.deletedAt
+                          ? "Message removed"
+                          : thread.lastMessage
+                            ? `${thread.lastMessage.fromUserId === currentUserId ? "You: " : ""}${thread.lastMessage.body}`
+                            : "No messages yet"}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
@@ -763,7 +864,7 @@ export default function MessagesPage() {
         </div>
 
         <div
-          className={`flex min-h-[520px] flex-col overflow-hidden rounded-2xl border bg-card ${
+          className={`flex h-[75vh] min-h-[480px] flex-col overflow-hidden rounded-2xl border bg-card ${
             showThreadList ? "hidden" : "flex"
           } md:flex`}
         >
@@ -783,19 +884,19 @@ export default function MessagesPage() {
                   <AvatarImage src={partnerLabel.imageUrl ?? undefined} alt={partnerLabel.name} />
                   <AvatarFallback>{partnerLabel.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <div>
+                <Link href={`/users/${partner.profile?.username || partner.id}`} className="min-w-0 hover:underline">
                   <div className="text-sm font-semibold">{partnerLabel.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {partnerLabel.subtitle || "Active now"}
-                  </div>
-                </div>
+                  {partnerLabel.subtitle ? (
+                    <div className="text-xs text-muted-foreground">{partnerLabel.subtitle}</div>
+                  ) : null}
+                </Link>
               </div>
             ) : (
               <div className="text-sm text-muted-foreground">Select or start a chat.</div>
             )}
           </div>
 
-          <div ref={listRef} className="relative flex-1 overflow-y-auto bg-muted/30 px-4 py-4">
+          <div ref={listRef} className="relative min-h-0 flex-1 overflow-y-auto bg-muted/30 px-4 py-4">
             {loadingOlder && (
               <div className="mb-3 text-center text-xs text-muted-foreground">Loading older messages...</div>
             )}
@@ -875,12 +976,20 @@ export default function MessagesPage() {
               <Textarea
                 value={messageDraft}
                 onChange={(e) => setMessageDraft(e.target.value)}
-                placeholder="Message..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                maxLength={4000}
+                disabled={!activeConversationId}
+                placeholder={activeConversationId ? "Message... (Enter to send, Shift+Enter for a new line)" : "Select a conversation"}
                 rows={2}
                 className="min-h-[44px] flex-1 resize-none rounded-2xl"
               />
               <Button onClick={sendMessage} disabled={sending || !activeConversationId || !messageDraft.trim()}>
-                {sending ? "Sending..." : "Send"}
+                Send
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -933,7 +1042,7 @@ export default function MessagesPage() {
                   onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
                 />
                 <Textarea
-                  placeholder="Members (comma-separated usernames or emails)"
+                  placeholder="Members (comma-separated usernames)"
                   value={groupForm.members}
                   onChange={(e) => setGroupForm({ ...groupForm, members: e.target.value })}
                   rows={3}
@@ -967,7 +1076,7 @@ export default function MessagesPage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Input
-                    placeholder="Add member by username/email"
+                    placeholder="Add member by username"
                     value={newMember}
                     onChange={(e) => setNewMember(e.target.value)}
                     className="max-w-xs"
@@ -1025,9 +1134,10 @@ function MessageBubble({
   const isEditing = editingId === message.id;
   const timestamp = timeFormatter.format(new Date(message.createdAt));
   const showReceipt = isMine && isLatestOutgoing;
-  let receipt = "Sent";
-  if (showReceipt && partnerReadAt) {
-    receipt = partnerReadAt >= new Date(message.createdAt) ? "Seen" : "Delivered";
+  const pending = isTemp(message.id);
+  let receipt = pending ? "Sending..." : "Sent";
+  if (!pending && showReceipt && partnerReadAt && partnerReadAt >= new Date(message.createdAt)) {
+    receipt = "Seen";
   }
   return (
     <div className={`group mb-3 flex ${isMine ? "justify-end" : "justify-start"}`}>
@@ -1037,7 +1147,7 @@ function MessageBubble({
             isMine ? "bg-primary text-primary-foreground" : "border border-border/60 bg-background"
           }`}
         >
-          {isMine && !message.deletedAt && (
+          {isMine && !message.deletedAt && !pending && (
             <div className="absolute -right-8 top-1/2 flex -translate-y-1/2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1090,7 +1200,7 @@ function MessageBubble({
         <div className="text-[10px] text-muted-foreground">
           {timestamp}
           {message.editedAt && !message.deletedAt ? " • Edited" : ""}
-          {showReceipt ? ` • ${receipt}` : ""}
+          {showReceipt || pending ? ` • ${receipt}` : ""}
         </div>
       </div>
     </div>

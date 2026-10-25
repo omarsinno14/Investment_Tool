@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
 import { notifyUser } from "../lib/notify.js";
+import { toggleFollow } from "../lib/follow.js";
 
 const router = Router();
 
@@ -18,56 +19,10 @@ router.post("/user/follow", async (req, res) => {
   if (!userId) return;
   try {
     const { userId: targetId } = req.body ?? {};
-    if (!targetId) return res.status(400).json({ error: "userId required" });
-    if (targetId === userId) return res.status(400).json({ error: "Cannot follow yourself" });
-
-    const target = await prisma.user.findUnique({ where: { id: targetId }, select: { id: true, profile: { select: { requiresFollowApproval: true } } } });
-    if (!target) return res.status(404).json({ error: "User not found" });
-
-    const requiresApproval = target.profile?.requiresFollowApproval ?? false;
-    const existing = await prisma.follow.findUnique({
-      where: { followerId_followingId: { followerId: userId, followingId: targetId } },
-    });
-
-    if (existing) {
-      await prisma.follow.delete({ where: { id: existing.id } });
-      return res.json({ following: false, followRequestStatus: null });
-    }
-
-    if (requiresApproval) {
-      await prisma.followRequest.upsert({
-        where: { followerId_followingId: { followerId: userId, followingId: targetId } },
-        create: { followerId: userId, followingId: targetId, status: "PENDING" },
-        update: { status: "PENDING" },
-      });
-      await notifyUser(prisma, {
-        recipientId: targetId,
-        actorId: userId,
-        type: "FOLLOW_REQUEST",
-        title: "New follow request",
-        link: `/users/${userId}`,
-        targetType: "USER",
-        targetId: userId,
-        data: { fromUserId: userId },
-      });
-      return res.json({ following: false, followRequestStatus: "PENDING" });
-    }
-
-    await prisma.follow.create({ data: { followerId: userId, followingId: targetId } });
-    await notifyUser(prisma, {
-      recipientId: targetId,
-      actorId: userId,
-      type: "FOLLOW_ACCEPTED",
-      title: "You have a new follower",
-      link: `/users/${userId}`,
-      targetType: "USER",
-      targetId: userId,
-      data: { fromUserId: userId },
-    });
-    const isFollowedBy = !!(await prisma.follow.findUnique({
-      where: { followerId_followingId: { followerId: targetId, followingId: userId } },
-    }));
-    return res.json({ following: true, followRequestStatus: null, isFollowedBy });
+    const result = await toggleFollow(userId, String(targetId ?? ""));
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
+    const { ok: _ok, ...payload } = result;
+    return res.json(payload);
   } catch (e) {
     logger.error({ err: e }, "Follow error");
     return res.status(500).json({ error: "Failed to update follow" });
@@ -81,12 +36,12 @@ router.get("/user/follow-requests", async (req, res) => {
     const [incoming, outgoing] = await Promise.all([
       prisma.followRequest.findMany({
         where: { followingId: userId, status: "PENDING" },
-        include: { follower: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } } },
+        include: { follower: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } } },
         orderBy: { createdAt: "desc" },
       }),
       prisma.followRequest.findMany({
         where: { followerId: userId, status: "PENDING" },
-        include: { following: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } } },
+        include: { following: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } } },
         orderBy: { createdAt: "desc" },
       }),
     ]);
@@ -113,7 +68,11 @@ router.post("/user/follow-requests", async (req, res) => {
     if (action === "accept") {
       await prisma.$transaction([
         prisma.followRequest.update({ where: { id: requestId }, data: { status: "ACCEPTED" } }),
-        prisma.follow.create({ data: { followerId: request.followerId, followingId: userId } }),
+        prisma.follow.upsert({
+          where: { followerId_followingId: { followerId: request.followerId, followingId: userId } },
+          create: { followerId: request.followerId, followingId: userId },
+          update: {},
+        }),
       ]);
       await notifyUser(prisma, {
         recipientId: request.followerId,

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { fetchProfile } from "@/lib/profile-cache";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/app/Navbar";
 import { SidebarNav } from "@/components/app/SidebarNav";
@@ -34,7 +35,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     let active = true;
     (async () => {
       try {
-        const res = await fetch("/api/user/profile", { credentials: "include" });
+        const res = await fetchProfile();
         if (!active) return;
         if (res.status === 401) {
           navigate("/login");
@@ -44,8 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           setAuthChecked(true);
           return;
         }
-        const data = await res.json().catch(() => ({}));
-        if (!active) return;
+        const data = res.data;
         const pref = data?.profile?.layoutPreference ?? "SIDEBAR";
         if (pref === "SIDEBAR" || pref === "TOP") setLayoutPreference(pref);
         setProfileSummary({ username: data?.profile?.username ?? null, email: data?.email ?? null });
@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setScrollContainer(container);
     const key = `scroll:${location}`;
     const stored = sessionStorage.getItem(key);
-    if (stored) container.scrollTop = Number(stored);
+    container.scrollTop = stored ? Number(stored) : 0;
     const onScroll = () => { sessionStorage.setItem(key, String(container.scrollTop)); };
     container.addEventListener("scroll", onScroll);
     return () => container.removeEventListener("scroll", onScroll);

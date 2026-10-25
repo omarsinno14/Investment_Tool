@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
+import { lazy, Suspense, type ComponentType } from "react";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
@@ -6,49 +7,50 @@ import { CurrencyProvider } from "@/components/app/CurrencyProvider";
 import { PersonalFinanceProvider } from "@/components/app/PersonalFinanceProvider";
 import { AppShell } from "@/components/app/AppShell";
 
-import LoginPage from "@/app/(auth)/login/page";
-import RegisterPage from "@/app/(auth)/register/page";
-import ForgotPasswordPage from "@/app/(auth)/forgot-password/page";
-import ResetPasswordPage from "@/app/(auth)/reset-password/page";
-import BillingPage from "@/app/(app)/billing/page";
-import AdminLoginPage from "@/app/admin/login/page";
-import AdminSignupPage from "@/app/admin/signup/page";
-import AdminPage from "@/app/admin/page";
-import SupportPage from "@/app/(app)/support/page";
 
-import DashboardPage from "@/app/(app)/dashboard/page";
-import FeedPage from "@/app/(app)/feed/page";
-import OpportunitiesPage from "@/app/(app)/opportunities/page";
-import OpportunityDetailPage from "@/app/(app)/opportunities/[id]/page";
-import SearchPage from "@/app/(app)/search/page";
-import HeadlinesPage from "@/app/(app)/headlines/page";
-import ForumsPage from "@/app/(app)/forums/page";
-import ForumDetailPage from "@/app/(app)/forums/[id]/page";
-import HubsPage from "@/app/(app)/hubs/page";
-import HubDetailPage from "@/app/(app)/hubs/[slug]/page";
-import HubPostDetailPage from "@/app/(app)/hubs/[slug]/posts/[postId]/page";
-import MessagesPage from "@/app/(app)/messages/page";
-import NotificationsPage from "@/app/(app)/notifications/page";
-import MyProfilePage from "@/app/(app)/my-profile/page";
-import UsersPage from "@/app/(app)/users/page";
-import UserDetailPage from "@/app/(app)/users/[id]/page";
-import SettingsPage from "@/app/(app)/settings/page";
-import InterestsPage from "@/app/(app)/interests/page";
-import PortfolioPage from "@/app/(app)/portfolio/page";
-import CashflowPage from "@/app/(app)/cashflow/page";
-import GoalsPage from "@/app/(app)/goals/page";
-import JournalPage from "@/app/(app)/journal/page";
-import ToolsPage from "@/app/(app)/tools/page";
-import ToolDetailPage from "@/app/(app)/tools/[slug]/page";
-import RatiosPage from "@/app/(app)/ratios/page";
-import FollowRequestsPage from "@/app/(app)/follow-requests/page";
 
-import TermsPage from "@/app/legal/terms/page";
-import PrivacyPage from "@/app/legal/privacy/page";
-import RiskDisclosurePage from "@/app/legal/risk-disclosure/page";
-import AdvertiserTermsPage from "@/app/legal/advertiser-terms/page";
-import SubscriptionTermsPage from "@/app/legal/subscription-terms/page";
-import CommunityGuidelinesPage from "@/app/legal/community-guidelines/page";
+
+const LoginPage = lazy(() => import("@/app/(auth)/login/page"));
+const RegisterPage = lazy(() => import("@/app/(auth)/register/page"));
+const ForgotPasswordPage = lazy(() => import("@/app/(auth)/forgot-password/page"));
+const ResetPasswordPage = lazy(() => import("@/app/(auth)/reset-password/page"));
+const BillingPage = lazy(() => import("@/app/(app)/billing/page"));
+const AdminLoginPage = lazy(() => import("@/app/admin/login/page"));
+const AdminSignupPage = lazy(() => import("@/app/admin/signup/page"));
+const AdminPage = lazy(() => import("@/app/admin/page"));
+const SupportPage = lazy(() => import("@/app/(app)/support/page"));
+const DashboardPage = lazy(() => import("@/app/(app)/dashboard/page"));
+const FeedPage = lazy(() => import("@/app/(app)/feed/page"));
+const OpportunitiesPage = lazy(() => import("@/app/(app)/opportunities/page"));
+const OpportunityDetailPage = lazy(() => import("@/app/(app)/opportunities/[id]/page"));
+const SearchPage = lazy(() => import("@/app/(app)/search/page"));
+const HeadlinesPage = lazy(() => import("@/app/(app)/headlines/page"));
+const ForumsPage = lazy(() => import("@/app/(app)/forums/page"));
+const ForumDetailPage = lazy(() => import("@/app/(app)/forums/[id]/page"));
+const HubsPage = lazy(() => import("@/app/(app)/hubs/page"));
+const HubDetailPage = lazy(() => import("@/app/(app)/hubs/[slug]/page"));
+const HubPostDetailPage = lazy(() => import("@/app/(app)/hubs/[slug]/posts/[postId]/page"));
+const MessagesPage = lazy(() => import("@/app/(app)/messages/page"));
+const NotificationsPage = lazy(() => import("@/app/(app)/notifications/page"));
+const MyProfilePage = lazy(() => import("@/app/(app)/my-profile/page"));
+const UsersPage = lazy(() => import("@/app/(app)/users/page"));
+const UserDetailPage = lazy(() => import("@/app/(app)/users/[id]/page"));
+const SettingsPage = lazy(() => import("@/app/(app)/settings/page"));
+const InterestsPage = lazy(() => import("@/app/(app)/interests/page"));
+const PortfolioPage = lazy(() => import("@/app/(app)/portfolio/page"));
+const CashflowPage = lazy(() => import("@/app/(app)/cashflow/page"));
+const GoalsPage = lazy(() => import("@/app/(app)/goals/page"));
+const JournalPage = lazy(() => import("@/app/(app)/journal/page"));
+const ToolsPage = lazy(() => import("@/app/(app)/tools/page"));
+const ToolDetailPage = lazy(() => import("@/app/(app)/tools/[slug]/page"));
+const RatiosPage = lazy(() => import("@/app/(app)/ratios/page"));
+const FollowRequestsPage = lazy(() => import("@/app/(app)/follow-requests/page"));
+const TermsPage = lazy(() => import("@/app/legal/terms/page"));
+const PrivacyPage = lazy(() => import("@/app/legal/privacy/page"));
+const RiskDisclosurePage = lazy(() => import("@/app/legal/risk-disclosure/page"));
+const AdvertiserTermsPage = lazy(() => import("@/app/legal/advertiser-terms/page"));
+const SubscriptionTermsPage = lazy(() => import("@/app/legal/subscription-terms/page"));
+const CommunityGuidelinesPage = lazy(() => import("@/app/legal/community-guidelines/page"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,56 +61,108 @@ const queryClient = new QueryClient({
   },
 });
 
+function PageFallback() {
+  return (
+    <div className="space-y-4" aria-busy="true">
+      <div className="h-8 w-48 animate-pulse rounded-md bg-muted" />
+      <div className="h-40 animate-pulse rounded-2xl bg-muted" />
+      <div className="h-40 animate-pulse rounded-2xl bg-muted" />
+    </div>
+  );
+}
+
+function FullPageFallback() {
+  return (
+    <div className="flex h-screen items-center justify-center">
+      <div className="animate-pulse text-sm text-muted-foreground">Loading...</div>
+    </div>
+  );
+}
+
+const shellRoutes: Array<[string, ComponentType]> = [
+  ["/admin", AdminPage],
+  ["/dashboard", DashboardPage],
+  ["/feed", FeedPage],
+  ["/opportunities", OpportunitiesPage],
+  ["/opportunities/:id", OpportunityDetailPage],
+  ["/search", SearchPage],
+  ["/headlines", HeadlinesPage],
+  ["/forums", ForumsPage],
+  ["/forums/:id", ForumDetailPage],
+  ["/hubs", HubsPage],
+  ["/hubs/:slug", HubDetailPage],
+  ["/hubs/:slug/posts/:postId", HubPostDetailPage],
+  ["/messages", MessagesPage],
+  ["/notifications", NotificationsPage],
+  ["/my-profile", MyProfilePage],
+  ["/users", UsersPage],
+  ["/users/:id", UserDetailPage],
+  ["/settings", SettingsPage],
+  ["/billing", BillingPage],
+  ["/support", SupportPage],
+  ["/interests", InterestsPage],
+  ["/portfolio", PortfolioPage],
+  ["/cashflow", CashflowPage],
+  ["/goals", GoalsPage],
+  ["/journal", JournalPage],
+  ["/tools", ToolsPage],
+  ["/tools/:slug", ToolDetailPage],
+  ["/ratios", RatiosPage],
+  ["/follow-requests", FollowRequestsPage],
+];
+
+/**
+ * Signed-in pages share one AppShell that stays mounted across navigation, so
+ * the sidebar, auth check, badges and heartbeat are not torn down and refetched
+ * on every page change. Pages are code-split and load on first visit.
+ */
+function ShellRoutes() {
+  return (
+    <AppShell>
+      <Suspense fallback={<PageFallback />}>
+        <Switch>
+          {shellRoutes.map(([path, Page]) => (
+            <Route key={path} path={path}>
+              {/* Remount when params change (e.g. /users/a -> /users/b) so page state resets. */}
+              {(params) => <Page key={JSON.stringify(params)} />}
+            </Route>
+          ))}
+          <Route component={NotFound} />
+        </Switch>
+      </Suspense>
+    </AppShell>
+  );
+}
+
+function NotFound() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <h1 className="text-2xl font-bold">404 — Page not found</h1>
+    </div>
+  );
+}
+
 function AppRoutes() {
   return (
-    <Switch>
-      <Route path="/" component={() => <Redirect to="/feed" />} />
-      <Route path="/login" component={LoginPage} />
-      <Route path="/register" component={RegisterPage} />
-      <Route path="/forgot-password" component={ForgotPasswordPage} />
-      <Route path="/reset-password" component={ResetPasswordPage} />
-      <Route path="/admin/login" component={AdminLoginPage} />
-      <Route path="/admin/signup" component={AdminSignupPage} />
-
-      <Route path="/legal/terms" component={TermsPage} />
-      <Route path="/legal/privacy" component={PrivacyPage} />
-      <Route path="/legal/risk-disclosure" component={RiskDisclosurePage} />
-      <Route path="/legal/advertiser-terms" component={AdvertiserTermsPage} />
-      <Route path="/legal/subscription-terms" component={SubscriptionTermsPage} />
-      <Route path="/legal/community-guidelines" component={CommunityGuidelinesPage} />
-      <Route path="/admin" component={() => <AppShell><AdminPage /></AppShell>} />
-
-      <Route path="/dashboard" component={() => <AppShell><DashboardPage /></AppShell>} />
-      <Route path="/feed" component={() => <AppShell><FeedPage /></AppShell>} />
-      <Route path="/opportunities" component={() => <AppShell><OpportunitiesPage /></AppShell>} />
-      <Route path="/opportunities/:id" component={() => <AppShell><OpportunityDetailPage /></AppShell>} />
-      <Route path="/search" component={() => <AppShell><SearchPage /></AppShell>} />
-      <Route path="/headlines" component={() => <AppShell><HeadlinesPage /></AppShell>} />
-      <Route path="/forums" component={() => <AppShell><ForumsPage /></AppShell>} />
-      <Route path="/forums/:id" component={() => <AppShell><ForumDetailPage /></AppShell>} />
-      <Route path="/hubs" component={() => <AppShell><HubsPage /></AppShell>} />
-      <Route path="/hubs/:slug" component={() => <AppShell><HubDetailPage /></AppShell>} />
-      <Route path="/hubs/:slug/posts/:postId" component={() => <AppShell><HubPostDetailPage /></AppShell>} />
-      <Route path="/messages" component={() => <AppShell><MessagesPage /></AppShell>} />
-      <Route path="/notifications" component={() => <AppShell><NotificationsPage /></AppShell>} />
-      <Route path="/my-profile" component={() => <AppShell><MyProfilePage /></AppShell>} />
-      <Route path="/users" component={() => <AppShell><UsersPage /></AppShell>} />
-      <Route path="/users/:id" component={() => <AppShell><UserDetailPage /></AppShell>} />
-      <Route path="/settings" component={() => <AppShell><SettingsPage /></AppShell>} />
-      <Route path="/billing" component={() => <AppShell><BillingPage /></AppShell>} />
-      <Route path="/support" component={() => <AppShell><SupportPage /></AppShell>} />
-      <Route path="/interests" component={() => <AppShell><InterestsPage /></AppShell>} />
-      <Route path="/portfolio" component={() => <AppShell><PortfolioPage /></AppShell>} />
-      <Route path="/cashflow" component={() => <AppShell><CashflowPage /></AppShell>} />
-      <Route path="/goals" component={() => <AppShell><GoalsPage /></AppShell>} />
-      <Route path="/journal" component={() => <AppShell><JournalPage /></AppShell>} />
-      <Route path="/tools" component={() => <AppShell><ToolsPage /></AppShell>} />
-      <Route path="/tools/:slug" component={() => <AppShell><ToolDetailPage /></AppShell>} />
-      <Route path="/ratios" component={() => <AppShell><RatiosPage /></AppShell>} />
-      <Route path="/follow-requests" component={() => <AppShell><FollowRequestsPage /></AppShell>} />
-      <Route path="/activity" component={() => <Redirect to="/settings?tab=activity" />} />
-      <Route component={() => <div className="flex min-h-screen items-center justify-center"><div className="text-center"><h1 className="text-2xl font-bold">404 — Page not found</h1></div></div>} />
-    </Switch>
+    <Suspense fallback={<FullPageFallback />}>
+      <Switch>
+        <Route path="/" component={() => <Redirect to="/feed" />} />
+        <Route path="/login" component={LoginPage} />
+        <Route path="/register" component={RegisterPage} />
+        <Route path="/forgot-password" component={ForgotPasswordPage} />
+        <Route path="/reset-password" component={ResetPasswordPage} />
+        <Route path="/admin/login" component={AdminLoginPage} />
+        <Route path="/admin/signup" component={AdminSignupPage} />
+        <Route path="/legal/terms" component={TermsPage} />
+        <Route path="/legal/privacy" component={PrivacyPage} />
+        <Route path="/legal/risk-disclosure" component={RiskDisclosurePage} />
+        <Route path="/legal/advertiser-terms" component={AdvertiserTermsPage} />
+        <Route path="/legal/subscription-terms" component={SubscriptionTermsPage} />
+        <Route path="/legal/community-guidelines" component={CommunityGuidelinesPage} />
+        <Route path="/activity" component={() => <Redirect to="/settings?tab=activity" />} />
+        <Route component={ShellRoutes} />
+      </Switch>
+    </Suspense>
   );
 }
 

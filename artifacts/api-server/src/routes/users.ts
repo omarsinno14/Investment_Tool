@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
 import { computeAutoBadges } from "../lib/badges.js";
+import { toggleFollow } from "../lib/follow.js";
 
 const router = Router();
 
@@ -26,7 +27,6 @@ router.get("/users/search", async (req, res) => {
       where: {
         deactivatedAt: null,
         OR: [
-          { email: { contains: search, mode: "insensitive" } },
           { profile: { name: { contains: search, mode: "insensitive" } } },
           { profile: { username: { contains: search, mode: "insensitive" } } },
         ],
@@ -34,8 +34,7 @@ router.get("/users/search", async (req, res) => {
       take: limit,
       select: {
         id: true,
-        email: true,
-        profile: { select: { name: true, username: true, imageUrl: true } },
+        profile: { select: { name: true, username: true, imageUrl: true, identityVerified: true, occupation: true } },
       },
     });
     return res.json({ users: items });
@@ -56,7 +55,6 @@ router.get("/users", async (req, res) => {
     const where: any = { deactivatedAt: null };
     if (search) {
       where.OR = [
-        { email: { contains: search, mode: "insensitive" } },
         { profile: { name: { contains: search, mode: "insensitive" } } },
         { profile: { username: { contains: search, mode: "insensitive" } } },
       ];
@@ -71,10 +69,9 @@ router.get("/users", async (req, res) => {
       skip: cursorObj ? 1 : 0,
       select: {
         id: true,
-        email: true,
         role: true,
         createdAt: true,
-        profile: { select: { name: true, username: true, imageUrl: true, bio: true, occupation: true } },
+        profile: { select: { name: true, username: true, imageUrl: true, bio: true, occupation: true, identityVerified: true } },
         _count: { select: { followers: true, following: true } },
       },
     });
@@ -88,6 +85,28 @@ router.get("/users", async (req, res) => {
     return res.status(500).json({ error: "Failed to load users" });
   }
 });
+
+// Profile fields that are never exposed to other members.
+const PRIVATE_PROFILE_FIELDS = [
+  "phone",
+  "dateOfBirth",
+  "netWorth",
+  "investAmount",
+  "familySituation",
+  "currency",
+  "layoutPreference",
+  "stripeCustomerId",
+  "subscriptionStatus",
+  "subscriptionRenewsAt",
+  "usernameLower",
+  "notifyMessages",
+  "notifyFollows",
+  "notifyOpportunities",
+  "notifyForums",
+  "notifyJournal",
+  "notifyPayments",
+  "notifyDigest",
+] as const;
 
 router.get("/users/:id", async (req, res) => {
   const userId = requireAuth(req, res);
@@ -111,14 +130,62 @@ router.get("/users/:id", async (req, res) => {
     });
     if (!user) return res.status(404).json({ error: "Not found" });
 
-    const [isFollowing, isFollower] = await Promise.all([
+    const isSelf = user.id === userId;
+    const [isFollowing, isFollower, followRequest, blockedByMe, blockedMe] = await Promise.all([
       prisma.follow.findUnique({ where: { followerId_followingId: { followerId: userId, followingId: user.id } }, select: { id: true } }),
       prisma.follow.findUnique({ where: { followerId_followingId: { followerId: user.id, followingId: userId } }, select: { id: true } }),
+      prisma.followRequest.findUnique({ where: { followerId_followingId: { followerId: userId, followingId: user.id } }, select: { status: true } }),
+      prisma.block.findUnique({ where: { blockerId_blockedId: { blockerId: userId, blockedId: user.id } }, select: { id: true } }),
+      prisma.block.findUnique({ where: { blockerId_blockedId: { blockerId: user.id, blockedId: userId } }, select: { id: true } }),
     ]);
+
+    let publicUser: any = user;
+    if (!isSelf) {
+      const { email: _email, ...rest } = user;
+      const profile: Record<string, any> | null = user.profile ? { ...user.profile } : null;
+      if (profile) {
+        for (const field of PRIVATE_PROFILE_FIELDS) delete profile[field];
+        const canSeeRestricted = !!isFollowing;
+        if (!canSeeRestricted) {
+          if (profile.hideAgeFromNonFollowers) profile.age = null;
+          if (profile.hideContactFromNonFollowers) {
+            profile.websiteUrl = null;
+            profile.cvUrl = null;
+          }
+          if (profile.hidePhotoFromNonFollowers) {
+            profile.imageUrl = null;
+            profile.coverPhotoUrl = null;
+          }
+        }
+      }
+      const counts = profile?.hideFollowerCount ? { followers: null, following: null } : user._count;
+      publicUser = { ...rest, profile, _count: counts };
+    }
+
+    if (blockedMe && !isSelf) {
+      return res.json({
+        user: { id: user.id, profile: { username: user.profile?.username ?? null, name: user.profile?.name ?? null } },
+        isFollowing: false,
+        isFollower: false,
+        followRequestStatus: null,
+        isBlocked: !!blockedByMe,
+        isBlockedBy: true,
+        badges: [],
+      });
+    }
 
     const badges = await computeAutoBadges(prisma, user.id);
 
-    return res.json({ user, isFollowing: !!isFollowing, isFollower: !!isFollower, badges });
+    return res.json({
+      user: publicUser,
+      isSelf,
+      isFollowing: !!isFollowing,
+      isFollower: !!isFollower,
+      followRequestStatus: followRequest?.status === "PENDING" ? "PENDING" : null,
+      isBlocked: !!blockedByMe,
+      isBlockedBy: !!blockedMe,
+      badges,
+    });
   } catch (e) {
     logger.error({ err: e }, "User GET error");
     return res.status(500).json({ error: "Failed to load user" });
@@ -129,18 +196,10 @@ router.post("/users/:id/follow", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
   try {
-    const targetId = req.params.id;
-    if (targetId === userId) return res.status(400).json({ error: "Cannot follow yourself" });
-
-    const existing = await prisma.follow.findUnique({
-      where: { followerId_followingId: { followerId: userId, followingId: targetId } },
-    });
-    if (existing) {
-      await prisma.follow.delete({ where: { id: existing.id } });
-      return res.json({ following: false });
-    }
-    await prisma.follow.create({ data: { followerId: userId, followingId: targetId } });
-    return res.json({ following: true });
+    const result = await toggleFollow(userId, req.params.id);
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
+    const { ok: _ok, ...payload } = result;
+    return res.json(payload);
   } catch (e) {
     logger.error({ err: e }, "Follow error");
     return res.status(500).json({ error: "Failed to follow" });

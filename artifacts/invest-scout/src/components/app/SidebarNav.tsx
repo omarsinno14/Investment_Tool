@@ -1,6 +1,7 @@
 
 
 import { Link } from "wouter";
+import { fetchProfile } from "@/lib/profile-cache";
 import { useLocation } from "wouter";
 import { useEffect, useState } from "react";
 
@@ -37,9 +38,8 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    fetch("/api/user/profile", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setIsAdmin(d?.role === "ADMIN"))
+    fetchProfile()
+      .then((r) => setIsAdmin(r.ok && r.data?.role === "ADMIN"))
       .catch(() => {});
   }, []);
 

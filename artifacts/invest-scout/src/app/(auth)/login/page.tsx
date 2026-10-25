@@ -1,7 +1,6 @@
 
 
 import { useState } from "react";
-import { useLocation } from "wouter";
 
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [, navigate] = useLocation();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,7 +33,8 @@ export default function LoginPage() {
       setErr(data?.error ?? "Invalid credentials");
       return;
     }
-    navigate("/dashboard");
+    // Full load so app-wide providers (currency, finance data scope) pick up the new session.
+    window.location.assign("/dashboard");
   }
 
   return (

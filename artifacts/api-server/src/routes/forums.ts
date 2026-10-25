@@ -41,7 +41,7 @@ router.get("/forums", async (req, res) => {
       cursor: cursorObj,
       skip: cursorObj ? 1 : 0,
       include: {
-        user: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
+        user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
         _count: { select: { comments: true, reactions: true, saves: true, reposts: true } },
         saves: { where: { userId }, take: 1 },
         reposts: { where: { userId }, take: 1 },
@@ -66,7 +66,7 @@ router.get("/forums/:id", async (req, res) => {
     const post = await prisma.forumPost.findUnique({
       where: { id: req.params.id },
       include: {
-        user: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
+        user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
         comments: {
           orderBy: { createdAt: "asc" },
           include: { user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } } },

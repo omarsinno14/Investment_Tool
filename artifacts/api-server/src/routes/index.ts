@@ -31,6 +31,9 @@ import billingRouter from "./billing";
 import savedArticlesRouter from "./savedArticles";
 import insightsRouter from "./insights";
 import adminHealthRouter from "./adminHealth";
+import accountRouter from "./account";
+import uploadsRouter from "./uploads";
+import journalRouter from "./journal";
 
 const router: IRouter = Router();
 
@@ -66,5 +69,8 @@ router.use(billingRouter);
 router.use(savedArticlesRouter);
 router.use(insightsRouter);
 router.use(adminHealthRouter);
+router.use(accountRouter);
+router.use(uploadsRouter);
+router.use(journalRouter);
 
 export default router;

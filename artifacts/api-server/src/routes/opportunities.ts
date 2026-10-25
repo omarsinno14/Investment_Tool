@@ -32,7 +32,11 @@ const createdByUserSelect = {
   },
 } as const;
 
-/** Build the structured deal fields from a request body (validating enums, ignoring unknown). */
+/**
+ * Build the structured deal fields from a request body (validating enums, ignoring unknown).
+ * Verification status and deal score are admin-controlled (see
+ * POST /admin/opportunities/:id/verify) and are never accepted from members.
+ */
 function buildDealFields(body: any): Record<string, any> {
   const data: Record<string, any> = {};
 
@@ -55,16 +59,8 @@ function buildDealFields(body: any): Record<string, any> {
   if (body.dealStatus !== undefined) {
     if (DEAL_STATUSES.has(String(body.dealStatus))) data.dealStatus = String(body.dealStatus);
   }
-  if (body.dealVerification !== undefined) {
-    if (VERIFICATION_STATUSES.has(String(body.dealVerification)))
-      data.dealVerification = String(body.dealVerification);
-  }
   if (body.closingDate !== undefined) {
     data.closingDate = body.closingDate ? new Date(body.closingDate) : null;
-  }
-  if (body.dealScore !== undefined) {
-    data.dealScore =
-      body.dealScore === null || body.dealScore === "" ? null : Number(body.dealScore);
   }
   if (body.documentUrls !== undefined) {
     data.documentUrls = Array.isArray(body.documentUrls)
@@ -445,11 +441,32 @@ router.post("/opportunities", async (req, res) => {
   }
 });
 
-router.post("/opportunities/:id/action", async (req, res) => {
+/**
+ * Set the viewer's action (save / very interested / invested / clear) on an
+ * opportunity. Shared by POST /opportunities/:id/action and the legacy
+ * POST /user/opportunity { opportunityId, state } used by the web cards.
+ */
+async function applyOpportunityAction(req: any, res: any, opportunityId: string) {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  if (!opportunityId) return res.status(400).json({ error: "opportunityId required" });
+  req.params.id = opportunityId;
   try {
     const { state, investedAmt, notes } = req.body ?? {};
+    const ACTION_STATES = ["NONE", "SAVED", "VERY_INTERESTED", "INVESTED"];
+    if (state !== undefined && !ACTION_STATES.includes(String(state))) {
+      return res.status(400).json({ error: "Invalid state" });
+    }
+
+    // The feed mixes real opportunities with synthetic news-headline items;
+    // only real Opportunity rows can carry an action.
+    const target = await prisma.opportunity.findUnique({
+      where: { id: req.params.id },
+      select: { id: true },
+    });
+    if (!target) {
+      return res.status(404).json({ error: "This item can't be saved here. Use Saved Articles for news." });
+    }
 
     // Free plan caps the number of SAVED opportunities. Only enforce when
     // transitioning a not-yet-saved opportunity into SAVED (re-saving an
@@ -497,7 +514,12 @@ router.post("/opportunities/:id/action", async (req, res) => {
     logger.error({ err: e }, "Opportunity action error");
     return res.status(500).json({ error: "Failed to update action" });
   }
-});
+}
+
+router.post("/opportunities/:id/action", (req, res) => applyOpportunityAction(req, res, req.params.id));
+router.post("/user/opportunity", (req, res) =>
+  applyOpportunityAction(req, res, String(req.body?.opportunityId ?? "")),
+);
 
 router.post("/user/opportunities", async (req, res) => {
   const userId = requireAuth(req, res);

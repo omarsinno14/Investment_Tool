@@ -50,7 +50,7 @@ const INVESTMENT_HUBS: { name: string; description: string }[] = [
   { name: "Film & Media Finance", description: "Funding films, shows, and content projects for returns." },
 ];
 
-router.post("/api/admin/seed-hubs", async (req, res) => {
+router.post("/admin/seed-hubs", async (req, res) => {
   try {
     // Auth check
     if (!req.session.userId) return res.status(401).json({ error: "Unauthorized" });
