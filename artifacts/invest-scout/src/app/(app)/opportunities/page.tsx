@@ -22,6 +22,7 @@ import { NAV_BADGE_KEYS, markNavSeen } from "@/lib/nav-badges";
 type Opportunity = any;
 
 type SortValue =
+  | "FOR_YOU"
   | "NEWEST"
   | "OLDEST"
   | "PRICE_LOW"
@@ -32,6 +33,7 @@ type SortValue =
   | "HIGHEST_INTEREST";
 
 const SERVER_SORTS: Record<string, string> = {
+  FOR_YOU: "forYou",
   NEWEST: "newest",
   TRENDING: "trending",
   CLOSING_SOON: "closingSoon",
@@ -100,7 +102,7 @@ export default function OpportunitiesPage() {
   const [maxAsk, setMaxAsk] = useState("");
   const [benefitFilter, setBenefitFilter] = useState("");
   const [tab, setTab] = useState<"ALL" | "SAVED" | "VERY_INTERESTED">("ALL");
-  const [sort, setSort] = useState<SortValue>("NEWEST");
+  const [sort, setSort] = useState<SortValue>("FOR_YOU");
   const [showStats, setShowStats] = useState(true);
   const [postOpen, setPostOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -348,7 +350,7 @@ export default function OpportunitiesPage() {
     setStatusFilter(typeof f.statusFilter === "string" ? f.statusFilter : "All");
     setMinReturn(typeof f.minReturn === "string" ? f.minReturn : "");
     setHorizon(typeof f.horizon === "string" ? f.horizon : "");
-    setSort((f.sort as SortValue) ?? "NEWEST");
+    setSort((f.sort as SortValue) ?? "FOR_YOU");
   }
 
   async function deleteSavedSearch(id: string) {
@@ -507,7 +509,7 @@ export default function OpportunitiesPage() {
         const bAmount = Number(b.askAmount ?? 0);
         return bAmount - aAmount;
       }
-      // Server-handled sorts (TRENDING, CLOSING_SOON, MOST_SAVED, HIGHEST_INTEREST) keep server order
+      // Server-handled sorts (FOR_YOU, TRENDING, CLOSING_SOON, MOST_SAVED, HIGHEST_INTEREST) keep server order
       return 0;
     });
 
@@ -567,13 +569,13 @@ export default function OpportunitiesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">The Deal Room</h1>
           <p className="text-sm text-muted-foreground">Member-sourced opportunities, curated and open for diligence.</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <Dialog open={postOpen} onOpenChange={setPostOpen}>
             <DialogTrigger asChild>
               <Button>Bring a deal</Button>
@@ -867,6 +869,7 @@ export default function OpportunitiesPage() {
                       <SelectValue placeholder="Sort" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="FOR_YOU">For you</SelectItem>
                       <SelectItem value="NEWEST">Newest</SelectItem>
                       <SelectItem value="OLDEST">Oldest</SelectItem>
                       <SelectItem value="PRICE_LOW">Price: Low to high</SelectItem>
@@ -1049,7 +1052,8 @@ export default function OpportunitiesPage() {
                   <SelectValue placeholder="Sort" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="NEWEST">Newest</SelectItem>
+                  <SelectItem value="FOR_YOU">For you</SelectItem>
+                      <SelectItem value="NEWEST">Newest</SelectItem>
                   <SelectItem value="OLDEST">Oldest</SelectItem>
                       <SelectItem value="PRICE_LOW">Price: Low to high</SelectItem>
                       <SelectItem value="PRICE_HIGH">Price: High to low</SelectItem>

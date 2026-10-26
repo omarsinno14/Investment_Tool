@@ -8,99 +8,112 @@ type BadgeCounts = {
   headlines: number;
 };
 
-function countSince(date: Date | null, timestamp: string | null | undefined) {
-  if (!timestamp) return 0;
-  const created = new Date(timestamp);
-  if (Number.isNaN(created.getTime())) return 0;
-  if (!date) return 1;
-  return created.getTime() > date.getTime() ? 1 : 0;
+const UNREAD_POLL_MS = 30_000;
+const FEED_REFRESH_MS = 5 * 60_000;
+
+function countSince(date: Date | null, items: Array<any>) {
+  return items.reduce((sum, item) => {
+    const raw = item.publishedAt ?? item.fetchedAt;
+    if (!raw) return sum;
+    const created = new Date(raw);
+    if (Number.isNaN(created.getTime())) return sum;
+    return sum + (!date || created.getTime() > date.getTime() ? 1 : 0);
+  }, 0);
+}
+
+/**
+ * One shared store for every component that shows nav badges, so the sidebar,
+ * top bar and page remounts don't each re-download data. Unread messages and
+ * notifications come from the lightweight /api/user/badge-counts endpoint;
+ * "new deals/headlines since last visit" refresh far less often.
+ */
+let counts: BadgeCounts = { messages: 0, notifications: 0, opportunities: 0, headlines: 0 };
+let feedItems: { opportunities: any[]; headlines: any[] } = { opportunities: [], headlines: [] };
+let feedLoadedAt = 0;
+const listeners = new Set<(c: BadgeCounts) => void>();
+let timer: number | null = null;
+let inFlight = false;
+
+function publish(next: Partial<BadgeCounts>) {
+  counts = { ...counts, ...next };
+  listeners.forEach((l) => l(counts));
+}
+
+function recomputeFeedCounts() {
+  publish({
+    opportunities: countSince(readNavSeen(NAV_BADGE_KEYS.opportunities), feedItems.opportunities),
+    headlines: countSince(readNavSeen(NAV_BADGE_KEYS.headlines), feedItems.headlines),
+  });
+}
+
+async function refresh(force = false) {
+  if (inFlight) return;
+  if (typeof document !== "undefined" && document.visibilityState !== "visible" && !force) return;
+  inFlight = true;
+  try {
+    const unreadReq = fetch("/api/user/badge-counts", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+
+    const needFeed = force || Date.now() - feedLoadedAt > FEED_REFRESH_MS;
+    const feedReq = needFeed
+      ? Promise.all([
+          fetch("/api/opportunities?type=community&limit=20", { credentials: "include" }).then((r) => (r.ok ? r.json() : null)),
+          fetch("/api/opportunities?type=headlines&limit=20", { credentials: "include" }).then((r) => (r.ok ? r.json() : null)),
+        ]).catch(() => null)
+      : Promise.resolve(null);
+
+    const [unread, feed] = await Promise.all([unreadReq, feedReq]);
+    if (unread) publish({ messages: unread.messages ?? 0, notifications: unread.notifications ?? 0 });
+    if (feed) {
+      feedItems = { opportunities: feed[0]?.opportunities ?? [], headlines: feed[1]?.opportunities ?? [] };
+      feedLoadedAt = Date.now();
+    }
+    recomputeFeedCounts();
+  } finally {
+    inFlight = false;
+  }
+}
+
+function start() {
+  if (timer !== null) return;
+  refresh(true);
+  timer = window.setInterval(() => refresh(), UNREAD_POLL_MS);
+  window.addEventListener("nav:refresh", onSeen);
+  window.addEventListener("storage", onSeen);
+  document.addEventListener("visibilitychange", onVisible);
+}
+
+function stop() {
+  if (timer === null) return;
+  window.clearInterval(timer);
+  timer = null;
+  window.removeEventListener("nav:refresh", onSeen);
+  window.removeEventListener("storage", onSeen);
+  document.removeEventListener("visibilitychange", onVisible);
+}
+
+function onSeen() {
+  recomputeFeedCounts();
+  refresh();
+}
+
+function onVisible() {
+  if (document.visibilityState === "visible") refresh();
 }
 
 export function useNavBadgeCounts() {
-  const [counts, setCounts] = useState<BadgeCounts>({
-    messages: 0,
-    notifications: 0,
-    opportunities: 0,
-    headlines: 0,
-  });
+  const [value, setValue] = useState<BadgeCounts>(counts);
 
   useEffect(() => {
-    let active = true;
-
-    const load = async () => {
-      try {
-        const [messagesRes, notificationsRes, oppsRes, headlinesRes] = await Promise.all([
-          fetch("/api/user/messages", { credentials: "include" }),
-          fetch("/api/user/notifications", { credentials: "include" }),
-          fetch("/api/opportunities?type=community", { credentials: "include" }),
-          fetch("/api/opportunities?type=headlines", { credentials: "include" }),
-        ]);
-
-        const [messagesData, notificationsData, oppsData, headlinesData] = await Promise.all([
-          messagesRes.json().catch(() => ({})),
-          notificationsRes.json().catch(() => ({})),
-          oppsRes.json().catch(() => ({})),
-          headlinesRes.json().catch(() => ({})),
-        ]);
-
-        if (!active) return;
-
-        const messagesSeen = readNavSeen(NAV_BADGE_KEYS.messages);
-        const notificationsSeen = readNavSeen(NAV_BADGE_KEYS.notifications);
-        const oppsSeen = readNavSeen(NAV_BADGE_KEYS.opportunities);
-        const headlinesSeen = readNavSeen(NAV_BADGE_KEYS.headlines);
-
-        const messages = (messagesData.messages ?? []) as Array<any>;
-        const currentUserId = messagesData.currentUserId;
-        const messageCount = messages.reduce((sum, item) => {
-          if (item.toUserId !== currentUserId) return sum;
-          return sum + countSince(messagesSeen, item.createdAt);
-        }, 0);
-
-        const notifications = (notificationsData.notifications ?? []) as Array<any>;
-        const notificationCount = notifications.reduce(
-          (sum, item) => sum + countSince(notificationsSeen, item.createdAt),
-          0
-        );
-
-        const opportunities = (oppsData.opportunities ?? []) as Array<any>;
-        const opportunityCount = opportunities.reduce((sum, item) => {
-          const date = item.publishedAt ?? item.fetchedAt;
-          return sum + countSince(oppsSeen, date);
-        }, 0);
-
-        const headlines = (headlinesData.opportunities ?? []) as Array<any>;
-        const headlinesCount = headlines.reduce((sum, item) => {
-          const date = item.publishedAt ?? item.fetchedAt;
-          return sum + countSince(headlinesSeen, date);
-        }, 0);
-
-        setCounts({
-          messages: messageCount,
-          notifications: notificationCount,
-          opportunities: opportunityCount,
-          headlines: headlinesCount,
-        });
-      } catch (e) {
-        if (!active) return;
-        console.error("Failed to load nav badges", e);
-      }
-    };
-
-    const handleRefresh = () => {
-      load();
-    };
-
-    load();
-    window.addEventListener("storage", handleRefresh);
-    window.addEventListener("nav:refresh", handleRefresh);
-
+    listeners.add(setValue);
+    setValue(counts);
+    start();
     return () => {
-      active = false;
-      window.removeEventListener("storage", handleRefresh);
-      window.removeEventListener("nav:refresh", handleRefresh);
+      listeners.delete(setValue);
+      if (listeners.size === 0) stop();
     };
   }, []);
 
-  return counts;
+  return value;
 }

@@ -1,6 +1,7 @@
 
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { fetchProfile } from "@/lib/profile-cache";
 
 const STORAGE_KEY = "vertica-preferred-currency";
 const RATE_CACHE_KEY = "vertica-currency-rates";
@@ -68,9 +69,9 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     } else {
       (async () => {
         try {
-          const res = await fetch("/api/user/profile", { credentials: "include" });
+          const res = await fetchProfile();
           if (!res.ok) return;
-          const data = await res.json().catch(() => ({}));
+          const data = res.data;
           const profileCurrency = data?.profile?.currency;
           if (profileCurrency && isSupportedCurrency(profileCurrency)) {
             setCurrencyState(profileCurrency);
@@ -97,7 +98,8 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
     (async () => {
       try {
-        const res = await fetch("https://api.exchangerate.host/latest?base=USD");
+        // Free, keyless endpoint (exchangerate.host now requires an API key).
+        const res = await fetch("https://open.er-api.com/v6/latest/USD");
         if (!res.ok) throw new Error("Failed to fetch exchange rates");
         const data = await res.json().catch(() => ({}));
         if (!data?.rates) return;

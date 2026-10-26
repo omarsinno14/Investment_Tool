@@ -13,6 +13,8 @@ async function main(): Promise<void> {
 
   const { ensureSessionTable } = await import("./lib/session");
   await ensureSessionTable();
+  const { ensureStoredFilesTable } = await import("./lib/storage");
+  await ensureStoredFilesTable();
 
   const { default: app } = await import("./app");
 
@@ -29,6 +31,9 @@ async function main(): Promise<void> {
       const { prisma } = await import("./lib/db");
       startCron(prisma);
     });
+
+    // Warm the headline cache so the first reader doesn't wait on RSS feeds.
+    void import("./lib/newsService").then(({ refreshNews }) => refreshNews());
   });
 }
 

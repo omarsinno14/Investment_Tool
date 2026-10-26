@@ -1,176 +1,156 @@
-
-
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AtSign,
+  Bell,
+  BookOpen,
+  CheckCheck,
+  ChevronRight,
+  CreditCard,
+  Heart,
+  MessageCircle,
+  Newspaper,
+  ShieldCheck,
+  Sparkles,
+  TrendingUp,
+  UserPlus,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { UserAvatar, displayName, profileHref, type SocialUser } from "@/components/social/UserAvatar";
 import { NAV_BADGE_KEYS, markNavSeen } from "@/lib/nav-badges";
+import { fullDate, recencyBucket, timeAgo } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
 type NotificationItem = {
   id: string;
   type: string;
-  data?: any;
+  data?: Record<string, any> | null;
   readAt?: string | null;
   createdAt: string;
-  fromUser?: {
-    id: string;
-    email: string;
-    profile?: { name?: string | null; username?: string | null; imageUrl?: string | null } | null;
-  } | null;
+  fromUser?: (NonNullable<SocialUser> & { id: string }) | null;
   isFollowingFromUser?: boolean;
   followRequestStatus?: string | null;
 };
 
-type NotificationFilter = "ALL" | "FOLLOWS" | "MESSAGES" | "OPPORTUNITIES" | "FORUMS" | "JOURNAL";
+type FollowRequest = {
+  id: string;
+  follower?: NonNullable<SocialUser> & { id: string };
+  following?: NonNullable<SocialUser> & { id: string };
+};
 
-const FOLLOW_TYPES = new Set(["FOLLOW_ACCEPTED", "FOLLOW_REQUEST"]);
-const MESSAGE_TYPES = new Set(["MESSAGE"]);
-const OPPORTUNITY_TYPES = new Set(["OPPORTUNITY_MATCH", "OPPORTUNITY_TRENDING", "NEWS_BREAKING"]);
-const FORUM_TYPES = new Set(["FORUM_REACTION", "FORUM_COMMENT"]);
-const JOURNAL_TYPES = new Set(["JOURNAL_INVITE", "JOURNAL_INVITE_ACCEPTED"]);
+type Filter = "ALL" | "UNREAD" | "SOCIAL" | "DEALS" | "OTHER";
+
+const SOCIAL = new Set(["FOLLOW_ACCEPTED", "FOLLOW_REQUEST", "FORUM_REACTION", "FORUM_COMMENT", "FORUM_MENTION", "HUB_MENTION", "OPPORTUNITY_COMMENT"]);
+const DEALS = new Set(["OPPORTUNITY_MATCH", "OPPORTUNITY_TRENDING", "NEWS_BREAKING", "DEAL_CLOSING_SOON", "SAVED_DEAL_UPDATED", "PREMIUM_OPPORTUNITY"]);
+
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "ALL", label: "All" },
+  { key: "UNREAD", label: "Unread" },
+  { key: "SOCIAL", label: "People" },
+  { key: "DEALS", label: "Deals and news" },
+  { key: "OTHER", label: "Account" },
+];
+
+/** Small icon badge shown on the avatar, plus the sentence describing what happened. */
+function describe(note: NotificationItem): { icon: typeof Bell; action: string; detail?: string; system: boolean } {
+  const d = note.data ?? {};
+  switch (note.type) {
+    case "FOLLOW_REQUEST":
+      return { icon: UserPlus, action: "requested to follow you", system: false };
+    case "FOLLOW_ACCEPTED":
+      return { icon: UserPlus, action: d.title?.toLowerCase().includes("accepted") ? "accepted your follow request" : "started following you", system: false };
+    case "FORUM_REACTION":
+      return { icon: Heart, action: "reacted to your thread", system: false };
+    case "FORUM_COMMENT":
+      return { icon: MessageCircle, action: d.targetType === "HUB_POST" ? "commented on your hub post" : "commented on your thread", detail: d.snippet ?? d.body, system: false };
+    case "OPPORTUNITY_COMMENT":
+      return { icon: MessageCircle, action: "commented on your deal", detail: d.body, system: false };
+    case "FORUM_MENTION":
+    case "HUB_MENTION":
+      return { icon: AtSign, action: "mentioned you", detail: d.body ?? d.snippet, system: false };
+    case "JOURNAL_INVITE":
+      return { icon: BookOpen, action: "invited you to collaborate on a journal entry", detail: d.body, system: false };
+    case "JOURNAL_INVITE_ACCEPTED":
+      return { icon: BookOpen, action: "accepted your journal invite", system: false };
+    case "MESSAGE":
+      return { icon: MessageCircle, action: "sent you a message", detail: d.body, system: false };
+    case "OPPORTUNITY_MATCH":
+      return { icon: Sparkles, action: d.title ?? "A new deal matches your interests", detail: d.body, system: true };
+    case "OPPORTUNITY_TRENDING":
+      return { icon: TrendingUp, action: d.title ?? "A deal is trending", detail: d.body, system: true };
+    case "NEWS_BREAKING":
+      return { icon: Newspaper, action: d.headline ?? d.title ?? "Breaking news", detail: d.source, system: true };
+    case "DEAL_CLOSING_SOON":
+    case "SAVED_DEAL_UPDATED":
+    case "PREMIUM_OPPORTUNITY":
+      return { icon: TrendingUp, action: d.title ?? "Update on a deal you follow", detail: d.body, system: true };
+    case "VERIFICATION_UPDATE":
+      return { icon: ShieldCheck, action: d.title ?? "Your verification status changed", detail: d.body, system: true };
+    case "PAYMENT":
+      return { icon: CreditCard, action: d.title ?? "Billing update", detail: d.body, system: true };
+    default:
+      return { icon: Bell, action: d.title ?? note.type.replace(/_/g, " ").toLowerCase(), detail: d.body, system: true };
+  }
+}
+
+function linkFor(note: NotificationItem): string | null {
+  const d = note.data ?? {};
+  if (typeof d.link === "string" && d.link) return d.link;
+  if (note.type === "NEWS_BREAKING" && d.url) return d.url;
+  if (d.opportunityId) return `/opportunities/${d.opportunityId}`;
+  if (d.postId) return `/forums/${d.postId}`;
+  if (d.entryId) return "/journal";
+  if (note.fromUser) return profileHref(note.fromUser);
+  return null;
+}
 
 export default function NotificationsPage() {
+  const [, navigate] = useLocation();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [matchOpps, setMatchOpps] = useState<any[]>([]);
-  const [trendingPosts, setTrendingPosts] = useState<any[]>([]);
-  const [filter, setFilter] = useState<NotificationFilter>("ALL");
-  const [activeTab, setActiveTab] = useState<"NOTIFICATIONS" | "REQUESTS">("NOTIFICATIONS");
-  const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
-  const [outgoingRequests, setOutgoingRequests] = useState<any[]>([]);
-  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [filter, setFilter] = useState<Filter>("ALL");
+  const [incoming, setIncoming] = useState<FollowRequest[]>([]);
+  const [showRequests, setShowRequests] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
-      const [res, oppRes, forumRes, requestsRes] = await Promise.all([
-        fetch("/api/user/notifications", { credentials: "include" }),
-        fetch("/api/opportunities?type=community", { credentials: "include", cache: "no-store" }),
-        fetch("/api/forums", { credentials: "include" }),
+      const [res, reqRes] = await Promise.all([
+        fetch("/api/user/notifications?limit=40", { credentials: "include" }),
         fetch("/api/user/follow-requests", { credentials: "include" }),
       ]);
       if (res.status === 401) {
-        window.location.href = "/login";
+        navigate("/login");
         return;
       }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Failed to load notifications");
       setNotifications(data.notifications ?? []);
-
-      const oppData = await oppRes.json().catch(() => ({}));
-      if (oppRes.ok) {
-        setMatchOpps((oppData.opportunities ?? []).slice(0, 3));
-      }
-
-      const forumData = await forumRes.json().catch(() => ({}));
-      if (forumRes.ok) {
-        const posts = forumData.posts ?? [];
-        const ranked = posts
-          .map((post: any) => ({
-            ...post,
-            reactionCount: (post.reactions ?? []).length + (post.comments ?? []).length,
-          }))
-          .sort((a: any, b: any) => b.reactionCount - a.reactionCount)
-          .slice(0, 3);
-        setTrendingPosts(ranked);
-      }
-
-      const requestsData = await requestsRes.json().catch(() => ({}));
-      if (requestsRes.ok) {
-        setIncomingRequests(requestsData.incoming ?? []);
-        setOutgoingRequests(requestsData.outgoing ?? []);
-      }
+      setNextCursor(data.nextCursor ?? null);
+      const reqData = await reqRes.json().catch(() => ({}));
+      if (reqRes.ok) setIncoming(reqData.incoming ?? []);
     } catch (e) {
       console.error(e);
-      toast.error("Failed to load notifications");
+      toast.error("Couldn't load your activity");
     } finally {
       setLoading(false);
     }
   }
 
-  async function markRead(id: string) {
-    try {
-      const res = await fetch("/api/user/notifications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ notificationId: id }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to mark read");
-      setNotifications((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, readAt: new Date().toISOString() } : item))
-      );
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to update notification");
+  async function loadMore() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    const res = await fetch(`/api/user/notifications?limit=40&cursor=${encodeURIComponent(nextCursor)}`, { credentials: "include" }).catch(() => null);
+    const data = await res?.json().catch(() => ({}));
+    if (res?.ok) {
+      setNotifications((prev) => [...prev, ...(data.notifications ?? [])]);
+      setNextCursor(data.nextCursor ?? null);
     }
-  }
-
-  async function markAllRead() {
-    try {
-      const res = await fetch("/api/user/notifications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ markAll: true }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to mark all read");
-      setNotifications((prev) => prev.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to update notifications");
-    }
-  }
-
-  async function followBack(notification: NotificationItem) {
-    if (!notification.fromUser?.id) return;
-    try {
-      const res = await fetch("/api/user/follow", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ userId: notification.fromUser.id }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to follow");
-      setNotifications((prev) =>
-        prev.map((item) =>
-          item.id === notification.id
-            ? {
-                ...item,
-                isFollowingFromUser: Boolean(data.following),
-                followRequestStatus: data.followRequestStatus ?? item.followRequestStatus ?? null,
-              }
-            : item
-        )
-      );
-      toast.success(data.followRequestStatus ? "Follow request sent" : "Follow updated");
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to follow back");
-    }
-  }
-
-  async function handleRequestAction(id: string, action: "accept" | "decline") {
-    try {
-      const res = await fetch(`/api/user/follow-requests`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ requestId: id, action }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "Failed to update request");
-      await load();
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to update follow request");
-    }
+    setLoadingMore(false);
   }
 
   useEffect(() => {
@@ -178,326 +158,295 @@ export default function NotificationsPage() {
     load();
   }, []);
 
-  const filteredNotifications = useMemo(() => {
-    if (filter === "ALL") return notifications;
-    return notifications.filter((note) => {
-      if (filter === "FOLLOWS") return FOLLOW_TYPES.has(note.type);
-      if (filter === "MESSAGES") return MESSAGE_TYPES.has(note.type);
-      if (filter === "OPPORTUNITIES") return OPPORTUNITY_TYPES.has(note.type);
-      if (filter === "FORUMS") return FORUM_TYPES.has(note.type);
-      if (filter === "JOURNAL") return JOURNAL_TYPES.has(note.type);
+  function refreshBadges() {
+    window.dispatchEvent(new Event("nav:refresh"));
+  }
+
+  async function markRead(note: NotificationItem) {
+    if (note.readAt) return;
+    setNotifications((prev) => prev.map((n) => (n.id === note.id ? { ...n, readAt: new Date().toISOString() } : n)));
+    await fetch(`/api/user/notifications/${note.id}/read`, { method: "POST", credentials: "include" }).catch(() => undefined);
+    refreshBadges();
+  }
+
+  async function markAllRead() {
+    const now = new Date().toISOString();
+    setNotifications((prev) => prev.map((n) => ({ ...n, readAt: n.readAt ?? now })));
+    const res = await fetch("/api/user/notifications/read-all", { method: "POST", credentials: "include" }).catch(() => null);
+    if (!res?.ok) {
+      toast.error("Couldn't mark everything as read");
+      load();
+      return;
+    }
+    refreshBadges();
+  }
+
+  async function followBack(note: NotificationItem) {
+    if (!note.fromUser?.id) return;
+    const res = await fetch("/api/user/follow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ userId: note.fromUser.id }),
+    }).catch(() => null);
+    const data = await res?.json().catch(() => ({}));
+    if (!res?.ok) {
+      toast.error(data?.error ?? "Couldn't follow back");
+      return;
+    }
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.fromUser?.id === note.fromUser?.id
+          ? { ...n, isFollowingFromUser: Boolean(data.following), followRequestStatus: data.followRequestStatus ?? null }
+          : n
+      )
+    );
+  }
+
+  async function respondToRequest(req: FollowRequest, action: "accept" | "decline") {
+    setIncoming((prev) => prev.filter((r) => r.id !== req.id));
+    const res = await fetch("/api/user/follow-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ requestId: req.id, action }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setIncoming((prev) => [req, ...prev]);
+      toast.error("Couldn't update the request");
+      return;
+    }
+    if (action === "accept") toast.success(`${displayName(req.follower)} can now follow you`);
+    refreshBadges();
+  }
+
+  const filtered = useMemo(() => {
+    return notifications.filter((n) => {
+      if (filter === "UNREAD") return !n.readAt;
+      if (filter === "SOCIAL") return SOCIAL.has(n.type) || n.type.startsWith("JOURNAL");
+      if (filter === "DEALS") return DEALS.has(n.type);
+      if (filter === "OTHER") return !SOCIAL.has(n.type) && !DEALS.has(n.type) && !n.type.startsWith("JOURNAL");
       return true;
     });
   }, [notifications, filter]);
 
+  const groups = useMemo(() => {
+    const order = ["Today", "This week", "Earlier"] as const;
+    const map = new Map<string, NotificationItem[]>();
+    for (const n of filtered) {
+      const key = recencyBucket(n.createdAt);
+      map.set(key, [...(map.get(key) ?? []), n]);
+    }
+    return order.filter((k) => map.has(k)).map((k) => ({ label: k, items: map.get(k)! }));
+  }, [filtered]);
+
+  const unreadCount = notifications.filter((n) => !n.readAt).length;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto max-w-2xl space-y-5">
+      <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Activity</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {unreadCount > 0 ? `${unreadCount} new since you last checked` : "You're all caught up."}
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-full border bg-background p-1">
-            <button
-              type="button"
-              onClick={() => setActiveTab("NOTIFICATIONS")}
-              className={`rounded-full px-4 py-1 text-sm transition ${
-                activeTab === "NOTIFICATIONS" ? "bg-muted" : "text-muted-foreground"
-              }`}
-            >
-              Notifications
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("REQUESTS")}
-              className={`rounded-full px-4 py-1 text-sm transition ${
-                activeTab === "REQUESTS" ? "bg-muted" : "text-muted-foreground"
-              }`}
-            >
-              Follow requests
-              {incomingRequests.length > 0 && (
-                <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">
-                  {incomingRequests.length}
-                </span>
-              )}
-            </button>
-          </div>
-          {activeTab === "NOTIFICATIONS" && (
-            <>
-              <Select value={filter} onValueChange={(value) => setFilter(value as NotificationFilter)}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Filter" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All notifications</SelectItem>
-                  <SelectItem value="FOLLOWS">Follows</SelectItem>
-                  <SelectItem value="MESSAGES">Messages</SelectItem>
-                  <SelectItem value="OPPORTUNITIES">Opportunities</SelectItem>
-                  <SelectItem value="FORUMS">Forums</SelectItem>
-                  <SelectItem value="JOURNAL">Journal</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="sm" onClick={markAllRead}>
-                Mark all as read
-              </Button>
-            </>
-          )}
-        </div>
+        {unreadCount > 0 && (
+          <Button variant="ghost" size="sm" className="gap-1.5 text-primary hover:text-primary" onClick={markAllRead}>
+            <CheckCheck className="h-4 w-4" /> Mark all read
+          </Button>
+        )}
       </div>
 
-      {activeTab === "NOTIFICATIONS" && (
-        <>
-          {loading && (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-16 rounded-xl border bg-muted/30" />
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {FILTERS.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setFilter(key)}
+            className={cn(
+              "shrink-0 rounded-full border px-3.5 py-1.5 text-sm transition",
+              filter === key ? "border-foreground bg-foreground text-background" : "bg-card text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {label}
+            {key === "UNREAD" && unreadCount > 0 ? <span className="ml-1.5 tabular-nums">{unreadCount}</span> : null}
+          </button>
+        ))}
+      </div>
+
+      {incoming.length > 0 && (
+        <section className="overflow-hidden rounded-2xl border bg-card">
+          <button
+            type="button"
+            onClick={() => setShowRequests((v) => !v)}
+            className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-muted/40"
+          >
+            <div className="flex -space-x-3">
+              {incoming.slice(0, 3).map((r) => (
+                <UserAvatar key={r.id} user={r.follower} size="md" className="border-2 border-card" />
               ))}
             </div>
-          )}
-          {!loading && filteredNotifications.length === 0 && (
-            <div className="rounded-2xl border bg-card py-10 text-center text-muted-foreground">
-              No notifications yet.
-            </div>
-          )}
-
-          {!loading && filteredNotifications.length > 0 && (
-            <div className="divide-y rounded-2xl border bg-card">
-              {filteredNotifications.map((note) => {
-                const fromUser = note.fromUser;
-                const username = fromUser?.profile?.username;
-                const displayName = username || fromUser?.profile?.name || fromUser?.email || "User";
-                const isFollowNotification = FOLLOW_TYPES.has(note.type);
-                const isUnread = !note.readAt;
-                const title = note.type === "MESSAGE"
-                  ? `New message from ${displayName}`
-                  : note.type === "FOLLOW_REQUEST"
-                    ? `${displayName} requested to follow you`
-                    : note.type === "FOLLOW_ACCEPTED"
-                      ? `${displayName} accepted your follow request`
-                      : note.type === "FORUM_REACTION"
-                        ? `${displayName} liked your discussion post`
-                        : note.type === "FORUM_COMMENT"
-                          ? `${displayName} commented on your post`
-                          : note.type === "OPPORTUNITY_MATCH"
-                            ? "New opportunity match"
-                            : note.type === "OPPORTUNITY_TRENDING"
-                              ? "Trending opportunity"
-                              : note.type === "JOURNAL_INVITE"
-                                ? `${displayName} invited you to a journal`
-                                : note.type === "JOURNAL_INVITE_ACCEPTED"
-                                  ? `${displayName} accepted your journal invite`
-                                  : note.type === "NEWS_BREAKING"
-                                    ? "Breaking news"
-                                    : note.type.replace(/_/g, " ");
-                const content =
-                  note.type === "NEWS_BREAKING"
-                    ? `From ${note.data?.source ?? "News"}: ${note.data?.headline ?? "New story"} — tap to read more`
-                    : note.type === "FORUM_COMMENT" && note.data?.snippet
-                      ? `“${note.data.snippet}”`
-                      : "";
-                const link =
-                  note.type === "NEWS_BREAKING"
-                    ? note.data?.url || (note.data?.opportunityId ? `/opportunities/${note.data.opportunityId}` : "#")
-                    : note.type === "MESSAGE"
-                      ? "/messages"
-                      : note.data?.opportunityId
-                        ? `/opportunities/${note.data.opportunityId}`
-                        : note.data?.postId
-                          ? `/forums/${note.data.postId}`
-                          : note.data?.fromUserId
-                            ? `/users/${note.data.fromUserId}`
-                            : note.data?.entryId
-                              ? `/journal?entry=${note.data.entryId}`
-                              : "#";
-
-                const isExternal = typeof link === "string" && link.startsWith("http");
-                return (
-                  <div
-                    key={note.id}
-                    className={`flex flex-col gap-3 px-4 py-4 text-sm ${isUnread ? "bg-muted/40" : ""}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        {fromUser ? (
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={fromUser.profile?.imageUrl || undefined} alt={displayName} />
-                            <AvatarFallback>{displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                        ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs">
-                            !
-                          </div>
-                        )}
-                        <div className="space-y-1">
-                          <div className="text-sm font-semibold text-foreground">{title}</div>
-                          {content && <div className="text-xs text-muted-foreground">{content}</div>}
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(note.createdAt).toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                      {!note.readAt && (
-                        <Button size="sm" variant="ghost" onClick={() => markRead(note.id)}>
-                          Mark read
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      {link !== "#" && (
-                        <Button asChild size="sm" variant="outline">
-                          {isExternal ? (
-                            <a href={link} target="_blank" rel="noreferrer">
-                              View details
-                            </a>
-                          ) : (
-                            <Link href={link}>View details</Link>
-                          )}
-                        </Button>
-                      )}
-                      {isFollowNotification && fromUser && (
-                        <>
-                          {note.isFollowingFromUser ? (
-                            <Button size="sm" variant="secondary" disabled>
-                              Following
-                            </Button>
-                          ) : note.followRequestStatus === "PENDING" ? (
-                            <Button size="sm" variant="secondary" disabled>
-                              Requested
-                            </Button>
-                          ) : (
-                            <Button size="sm" onClick={() => followBack(note)}>
-                              Follow back
-                            </Button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-
-      {activeTab === "REQUESTS" && (
-        <div className="rounded-2xl border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold">Follow requests</div>
-              <div className="text-xs text-muted-foreground">
-                {incomingRequests.length} incoming • {outgoingRequests.length} outgoing
+              <div className="truncate text-xs text-muted-foreground">
+                {displayName(incoming[0]?.follower)}
+                {incoming.length > 1 ? ` and ${incoming.length - 1} other${incoming.length > 2 ? "s" : ""}` : ""}
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                setRequestsLoading(true);
-                await load();
-                setRequestsLoading(false);
-              }}
-            >
-              {requestsLoading ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-          <div className="divide-y">
-            {incomingRequests.length === 0 && outgoingRequests.length === 0 && (
-              <div className="px-4 py-6 text-sm text-muted-foreground">No follow requests right now.</div>
-            )}
-            {incomingRequests.map((req) => {
-              const person = req.follower;
-              const displayName =
-                person?.profile?.username || person?.profile?.name || person?.email || "User";
-              return (
-                <div key={req.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 text-sm">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={person?.profile?.imageUrl || undefined} alt={displayName} />
-                      <AvatarFallback>{displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <Link href={`/users/${person?.id}`} className="font-medium hover:underline">
-                        {displayName}
-                      </Link>
-                      {person?.profile?.username && (
-                        <div className="text-xs text-muted-foreground">@{person.profile.username}</div>
-                      )}
-                    </div>
+            <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
+            <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition", showRequests && "rotate-90")} />
+          </button>
+          {showRequests && (
+            <ul className="divide-y border-t">
+              {incoming.map((req) => (
+                <li key={req.id} className="flex items-center gap-3 px-4 py-3">
+                  <Link href={profileHref(req.follower)}>
+                    <UserAvatar user={req.follower} size="md" />
+                  </Link>
+                  <div className="min-w-0 flex-1">
+                    <Link href={profileHref(req.follower)} className="block truncate text-sm font-semibold hover:underline">
+                      {displayName(req.follower)}
+                    </Link>
+                    {req.follower?.profile?.name && req.follower.profile.username && (
+                      <div className="truncate text-xs text-muted-foreground">{req.follower.profile.name}</div>
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleRequestAction(req.id, "accept")}>
-                      Accept
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleRequestAction(req.id, "decline")}>
-                      Decline
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-            {outgoingRequests.map((req) => {
-              const person = req.following;
-              const displayName =
-                person?.profile?.username || person?.profile?.name || person?.email || "User";
-              return (
-                <div key={req.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 text-sm">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={person?.profile?.imageUrl || undefined} alt={displayName} />
-                      <AvatarFallback>{displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <Link href={`/users/${person?.id}`} className="font-medium hover:underline">
-                        {displayName}
-                      </Link>
-                      {person?.profile?.username && (
-                        <div className="text-xs text-muted-foreground">@{person.profile.username}</div>
-                      )}
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground">Pending approval</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+                  <Button size="sm" className="h-8 rounded-lg px-4" onClick={() => respondToRequest(req, "accept")}>
+                    Confirm
+                  </Button>
+                  <Button size="sm" variant="secondary" className="h-8 rounded-lg px-4" onClick={() => respondToRequest(req, "decline")}>
+                    Delete
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
 
-      {!loading && (matchOpps.length > 0 || trendingPosts.length > 0) && (
-        <details className="rounded-lg border p-4">
-          <summary className="cursor-pointer text-sm font-medium">Explore highlights</summary>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Matched opportunities</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                {matchOpps.length === 0 && <div className="text-muted-foreground">No matches yet.</div>}
-                {matchOpps.map((opp) => (
-                  <Link key={opp.id} href={`/opportunities/${opp.id}`} className="block hover:underline">
-                    {opp.title}
-                  </Link>
-                ))}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Trending forums</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                {trendingPosts.length === 0 && <div className="text-muted-foreground">No trending posts yet.</div>}
-                {trendingPosts.map((post) => (
-                  <Link key={post.id} href={`/forums/${post.id}`} className="block hover:underline">
-                    {post.title}
-                  </Link>
-                ))}
-              </CardContent>
-            </Card>
+      {loading ? (
+        <div className="space-y-1 rounded-2xl border bg-card p-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-2 py-3">
+              <Skeleton className="h-11 w-11 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3.5 w-3/4" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : groups.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-6 py-16 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-foreground/80">
+            <Bell className="h-6 w-6" />
           </div>
-        </details>
+          <div>
+            <p className="font-semibold">{filter === "ALL" ? "Activity on your posts and profile" : "Nothing here yet"}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {filter === "ALL" ? "When members follow you, react or comment, you'll see it here." : "Try a different filter."}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {groups.map((group) => (
+            <section key={group.label}>
+              <h2 className="mb-1.5 px-1 text-sm font-semibold">{group.label}</h2>
+              <ul className="overflow-hidden rounded-2xl border bg-card">
+                {group.items.map((note) => (
+                  <NotificationRow
+                    key={note.id}
+                    note={note}
+                    onOpen={() => markRead(note)}
+                    onFollowBack={() => followBack(note)}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
+          {nextCursor && (
+            <div className="flex justify-center">
+              <Button variant="outline" size="sm" className="rounded-full" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? "Loading..." : "Show older activity"}
+              </Button>
+            </div>
+          )}
+        </div>
       )}
     </div>
+  );
+}
+
+function NotificationRow({ note, onOpen, onFollowBack }: { note: NotificationItem; onOpen: () => void; onFollowBack: () => void }) {
+  const { icon: Icon, action, detail, system } = describe(note);
+  const href = linkFor(note);
+  const unread = !note.readAt;
+  const showFollow = (note.type === "FOLLOW_ACCEPTED" || note.type === "FOLLOW_REQUEST") && note.fromUser;
+  const external = href?.startsWith("http");
+
+  const body = (
+    <>
+      <div className="relative shrink-0">
+        {system || !note.fromUser ? (
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted">
+            <Icon className="h-5 w-5 text-foreground/80" />
+          </div>
+        ) : (
+          <>
+            <UserAvatar user={note.fromUser} size="md" className="h-11 w-11" />
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-card bg-foreground text-background">
+              <Icon className="h-2.5 w-2.5" />
+            </span>
+          </>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm leading-snug">
+          {!system && note.fromUser && <span className="font-semibold">{displayName(note.fromUser)} </span>}
+          <span className={cn(system && "font-medium")}>{action}</span>
+          <time className="ml-1.5 whitespace-nowrap text-muted-foreground" title={fullDate(note.createdAt)}>
+            {timeAgo(note.createdAt)}
+          </time>
+        </p>
+        {detail && <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{detail}</p>}
+      </div>
+    </>
+  );
+
+  return (
+    <li className={cn("flex items-center gap-2 border-b px-3 last:border-b-0 transition hover:bg-muted/40", unread && "bg-primary/[0.04]")}>
+      {href ? (
+        external ? (
+          <a href={href} target="_blank" rel="noreferrer" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 py-3">
+            {body}
+          </a>
+        ) : (
+          <Link href={href} onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 py-3">
+            {body}
+          </Link>
+        )
+      ) : (
+        <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 py-3 text-left">
+          {body}
+        </button>
+      )}
+      {showFollow &&
+        (note.isFollowingFromUser ? (
+          <Button size="sm" variant="secondary" className="h-8 rounded-lg px-4" disabled>
+            Following
+          </Button>
+        ) : note.followRequestStatus === "PENDING" ? (
+          <Button size="sm" variant="secondary" className="h-8 rounded-lg px-4" disabled>
+            Requested
+          </Button>
+        ) : (
+          <Button size="sm" className="h-8 rounded-lg px-4" onClick={onFollowBack}>
+            Follow back
+          </Button>
+        ))}
+      {unread && !showFollow && <span className="ml-1 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />}
+    </li>
   );
 }

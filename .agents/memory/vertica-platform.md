@@ -63,3 +63,32 @@ In a multi-artifact repl where the web app owns `router="path"` paths=["/"] on e
 A reported "web is white" / "mobile is 404" in the canvas can be a stale iframe, NOT a server fault. The iframe does NOT auto-reload when a workflow restarts; it keeps the last frame.
 **Why:** agent screenshots/curl hit fresh sessions and pass (200 + render) while the user's cached iframe shows the old broken state.
 **How to apply:** verify health first (curl localhost:80/<path> and the Expo domain → expect 200; reproduce logged-in via runTest since some crashes are auth-only). If healthy, restart the workflow then re-call presentArtifact per artifact to force reload. Expo web also needs a first-load Metro bundle (~10-30s) which can transiently error.
+
+## Chat (Private Wire)
+- Shared helpers in `api-server/src/lib/chat.ts` (user select without email, block check, 1:1 conversation lookup, unread counts via one SQL query). Use `findDirectConversation` before creating a thread — never create duplicates.
+- `GET /api/user/conversations/:id/messages`: default = newest page (ascending) + `nextCursor`; `?before=<id>` = older page; `?after=<id>` = poll for newer. Reading marks the thread read (`lastReadAt`), which drives unread counts and the "Seen" receipt (`partnerLastReadAt`).
+- Starting a NEW thread is Plus-gated; reopening/replying to an existing thread is always allowed.
+- Edit/unsend: PATCH/DELETE `/api/user/messages/:id` (soft delete, body blanked on the way out).
+- Nav badges poll `GET /api/user/badge-counts` (shared store in `useNavBadgeCounts.ts`) — don't add per-page badge fetches.
+
+## Uploads
+- DB-backed (`lib/storage.ts`, `stored_files` table created at startup like the session table) because autoscale has no shared disk. Served at `/api/files/:id`. Endpoints: `/api/upload` (images), `/api/user/profile/photo|cover-photo|cv`. 5 MB limit, MIME allowlist.
+
+## Web app shell
+- Signed-in routes render inside ONE persistent `AppShell` (App.tsx `ShellRoutes`) with lazy-loaded pages. Don't wrap pages in `<AppShell>` per route again — it remounts the shell on every navigation.
+- Use `fetchProfile()` from `lib/profile-cache.ts` for the viewer's profile in shared components; call `invalidateProfile()` after profile edits.
+
+## Social UI kit
+- `invest-scout/src/components/social/`: `UserAvatar` (+ `displayName`, `profileHref`), `RichText` (@mentions + links), `CommentSection` (used by forum threads, hub posts and deal discussion; `threaded` when the backend stores `parentId`, otherwise replies become @mentions), `useViewer`. Reuse these instead of hand-rolling avatars/comments.
+- `src/lib/time.ts`: `timeAgo`, `fullDate`, `recencyBucket`.
+- Mobile bottom nav is two rows (~138px); AppShell `main` uses `pb-40`, and full-height pages (Messages) size to `100dvh-140px` on mobile.
+- Activity feed (`/api/user/notifications`) excludes MESSAGE by default and returns `fromUser` + follow state per item.
+
+## Interest personalization
+- `api-server/src/lib/interestMatch.ts`: one matcher for deals, news and forum threads (phrases + synonyms + place aliases). List endpoints return `matchScore` and `matchedInterests`; `/api/opportunities?sort=forYou` ranks by match. Extend `SYNONYMS` when new interest options are added.
+- News: every member gets matches ranked first; Plus+ (`personalizedNews`) narrows to matches only. Topics match story text only (feed tags are too broad).
+- UI shows matches with `components/social/MatchChip`.
+
+## Profiles and mobile shell
+- `/my-profile` and `/users/:id` both render `components/social/ProfileView` from `GET /api/users/:id` (posts honor hidePostsFromNonFollowers; counts honor hideFollowerCount). Lists: `GET /api/users/:id/followers|following`.
+- Phones: `MobileTopBar` (activity, messages, menu with settings/logout) + one-row `MobileNav`; main uses `pb-28`; full-height pages size to `100dvh-7.5rem`.

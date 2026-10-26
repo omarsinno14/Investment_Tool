@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "wouter";
+import { MatchChip } from "@/components/social/MatchChip";
 import { ExternalLink, RefreshCcw, Search, Rss, Clock, Share2, Bookmark, BookmarkCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -108,6 +110,7 @@ function HeadlineCard({
           <h3 className="text-sm font-semibold leading-snug line-clamp-2 group-hover:text-primary transition-colors">
             {item.title}
           </h3>
+          <MatchChip matched={(item as any).matchedInterests} />
 
           {/* Summary */}
           {item.summary && (
@@ -177,6 +180,8 @@ export default function HeadlinesPage() {
   const [savedOnly, setSavedOnly] = useState(false);
   const [insights, setInsights] = useState<Insight[]>([]);
 
+  const [personalization, setPersonalization] = useState<{ on: boolean; only: boolean }>({ on: false, only: false });
+
   async function load() {
     setLoading(true);
     try {
@@ -186,6 +191,7 @@ export default function HeadlinesPage() {
       if (!res.ok) throw new Error(data?.error ?? "Failed to load headlines");
       setItems(data.headlines ?? []);
       setTotal(data.total ?? 0);
+      setPersonalization({ on: Boolean(data.personalized), only: Boolean(data.interestsOnly) });
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to load headlines");
     } finally {
@@ -293,7 +299,15 @@ export default function HeadlinesPage() {
             <h1 className="text-2xl font-bold tracking-tight">The Briefing</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Market intel curated from {sources.length} sources{total > 0 ? ` · ${total} stories` : ""}.
+            Market intel curated from {sources.length} sources{total > 0 ? ` · ${total} stories` : ""}.{" "}
+            {personalization.on ? (
+              <>
+                {personalization.only ? "Showing stories that match your interests." : "Stories matching your interests come first."}{" "}
+                <Link href="/interests" className="font-medium text-primary hover:underline">Edit interests</Link>
+              </>
+            ) : (
+              <Link href="/interests" className="font-medium text-primary hover:underline">Add interests to personalize this feed</Link>
+            )}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>

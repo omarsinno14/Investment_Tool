@@ -63,23 +63,6 @@ router.post("/user/money-management", async (req, res) => {
   }
 });
 
-router.get("/user/journal", async (req, res) => {
-  const userId = requireAuth(req, res);
-  if (!userId) return;
-  try {
-    const entries = await prisma.journalEntry.findMany({
-      where: { ownerId: userId },
-      orderBy: { entryDate: "desc" },
-      take: 50,
-      select: { id: true, title: true, body: true, entryDate: true, createdAt: true, updatedAt: true },
-    });
-    return res.json({ entries });
-  } catch (e) {
-    logger.error({ err: e }, "Journal GET error");
-    return res.status(500).json({ error: "Failed to load journal" });
-  }
-});
-
 router.get("/user/activity", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;

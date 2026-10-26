@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
+import { loadInterestMatcher, opportunityFields } from "../lib/interestMatch.js";
 import { notifyMatchingUsers } from "../lib/pushNotificationService.js";
 import { ensureEntitled, getUserEntitlements } from "../lib/subscription.js";
 
@@ -32,7 +33,11 @@ const createdByUserSelect = {
   },
 } as const;
 
-/** Build the structured deal fields from a request body (validating enums, ignoring unknown). */
+/**
+ * Build the structured deal fields from a request body (validating enums, ignoring unknown).
+ * Verification status and deal score are admin-controlled (see
+ * POST /admin/opportunities/:id/verify) and are never accepted from members.
+ */
 function buildDealFields(body: any): Record<string, any> {
   const data: Record<string, any> = {};
 
@@ -55,16 +60,8 @@ function buildDealFields(body: any): Record<string, any> {
   if (body.dealStatus !== undefined) {
     if (DEAL_STATUSES.has(String(body.dealStatus))) data.dealStatus = String(body.dealStatus);
   }
-  if (body.dealVerification !== undefined) {
-    if (VERIFICATION_STATUSES.has(String(body.dealVerification)))
-      data.dealVerification = String(body.dealVerification);
-  }
   if (body.closingDate !== undefined) {
     data.closingDate = body.closingDate ? new Date(body.closingDate) : null;
-  }
-  if (body.dealScore !== undefined) {
-    data.dealScore =
-      body.dealScore === null || body.dealScore === "" ? null : Number(body.dealScore);
   }
   if (body.documentUrls !== undefined) {
     data.documentUrls = Array.isArray(body.documentUrls)
@@ -261,7 +258,8 @@ router.get("/opportunities", async (req, res) => {
     // DB columns, so they cannot be combined with cursor pagination (the cursor order
     // would differ from the returned order, causing duplicates/gaps across pages).
     // For these we fetch a bounded window, sort in memory, and return a single page.
-    const isCountSort = sortVal === "mostSaved" || sortVal === "highestInterest";
+    // "forYou" ranks by how well each deal matches the viewer's interests.
+    const isCountSort = sortVal === "mostSaved" || sortVal === "highestInterest" || sortVal === "forYou";
     const COUNT_SORT_WINDOW = 100;
     const cursorObj = cursor ? { id: cursor } : undefined;
 
@@ -281,21 +279,28 @@ router.get("/opportunities", async (req, res) => {
     const data = hasMore ? items.slice(0, -1) : items;
     const nextCursor = hasMore ? data[data.length - 1]?.id : null;
 
-    const countsMap = await computeActionCounts(data.map((o) => o.id));
+    const [countsMap, matcher] = await Promise.all([computeActionCounts(data.map((o) => o.id)), loadInterestMatcher(userId)]);
 
     let opportunities = data.map((o) => {
       const counts = countsMap.get(o.id) ?? { savesCount: 0, interestedCount: 0 };
       const viewerState = o.actions[0]?.state ?? "NONE";
+      const match = matcher ? matcher(...opportunityFields(o)) : { score: 0, matched: [] as string[] };
       return {
         ...o,
         savesCount: counts.savesCount,
         interestedCount: counts.interestedCount,
         viewerState,
+        matchScore: match.score,
+        matchedInterests: match.matched,
       };
     });
 
     if (sortVal === "mostSaved") {
       opportunities.sort((a, b) => b.savesCount - a.savesCount);
+      opportunities = opportunities.slice(0, limit);
+    } else if (sortVal === "forYou") {
+      // Stable sort keeps newest-first among equally matched deals.
+      opportunities.sort((a, b) => b.matchScore - a.matchScore);
       opportunities = opportunities.slice(0, limit);
     } else if (sortVal === "highestInterest") {
       opportunities.sort((a, b) => b.interestedCount - a.interestedCount);
@@ -445,11 +450,32 @@ router.post("/opportunities", async (req, res) => {
   }
 });
 
-router.post("/opportunities/:id/action", async (req, res) => {
+/**
+ * Set the viewer's action (save / very interested / invested / clear) on an
+ * opportunity. Shared by POST /opportunities/:id/action and the legacy
+ * POST /user/opportunity { opportunityId, state } used by the web cards.
+ */
+async function applyOpportunityAction(req: any, res: any, opportunityId: string) {
   const userId = requireAuth(req, res);
   if (!userId) return;
+  if (!opportunityId) return res.status(400).json({ error: "opportunityId required" });
+  req.params.id = opportunityId;
   try {
     const { state, investedAmt, notes } = req.body ?? {};
+    const ACTION_STATES = ["NONE", "SAVED", "VERY_INTERESTED", "INVESTED"];
+    if (state !== undefined && !ACTION_STATES.includes(String(state))) {
+      return res.status(400).json({ error: "Invalid state" });
+    }
+
+    // The feed mixes real opportunities with synthetic news-headline items;
+    // only real Opportunity rows can carry an action.
+    const target = await prisma.opportunity.findUnique({
+      where: { id: req.params.id },
+      select: { id: true },
+    });
+    if (!target) {
+      return res.status(404).json({ error: "This item can't be saved here. Use Saved Articles for news." });
+    }
 
     // Free plan caps the number of SAVED opportunities. Only enforce when
     // transitioning a not-yet-saved opportunity into SAVED (re-saving an
@@ -497,7 +523,12 @@ router.post("/opportunities/:id/action", async (req, res) => {
     logger.error({ err: e }, "Opportunity action error");
     return res.status(500).json({ error: "Failed to update action" });
   }
-});
+}
+
+router.post("/opportunities/:id/action", (req, res) => applyOpportunityAction(req, res, req.params.id));
+router.post("/user/opportunity", (req, res) =>
+  applyOpportunityAction(req, res, String(req.body?.opportunityId ?? "")),
+);
 
 router.post("/user/opportunities", async (req, res) => {
   const userId = requireAuth(req, res);

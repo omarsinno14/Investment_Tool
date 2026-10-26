@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { MatchChip } from "@/components/social/MatchChip";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ExternalLink, Bookmark, Star, Banknote, MapPin, Clock3, ShieldCheck, TrendingUp, Users } from "lucide-react";
@@ -130,7 +131,7 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
   }
 
   return (
-    <Card className="group overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-accent/40 active:scale-[0.98]">
+    <Card className="group gap-0 overflow-hidden rounded-2xl border bg-card py-0 transition-colors duration-200 hover:border-primary/30">
       {imageUrl ? (
         <div className="relative overflow-hidden border-b bg-muted/20">
           <img src={imageUrl} alt={opp.title} className="aspect-[16/9] w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" decoding="async" />
@@ -178,6 +179,7 @@ export function OpportunityCard({ opp, onActionUpdated }: { opp: Opportunity; on
                   {opp.title}
                 </Link>
               </CardTitle>
+              <MatchChip matched={(opp as any).matchedInterests} className="mt-2" />
             </div>
           </div>
           

@@ -1,6 +1,7 @@
 
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { fetchProfile } from "@/lib/profile-cache";
 
 export type SpendingItem = {
   id: string;
@@ -142,10 +143,12 @@ export function PersonalFinanceProvider({ children }: { children: ReactNode }) {
     let active = true;
     async function loadKey() {
       try {
-        const res = await fetch("/api/user/profile", { credentials: "include" });
-        if (!res.ok) throw new Error("Profile unavailable");
-        const data = await res.json();
-        const userId = data?.profile?.userId;
+        const res = await fetchProfile();
+        if (!res.ok) {
+          if (active) setStorageKey(STORAGE_KEY);
+          return;
+        }
+        const userId = res.data?.profile?.userId;
         if (active) {
           setStorageKey(userId ? `${STORAGE_KEY}:${userId}` : STORAGE_KEY);
         }

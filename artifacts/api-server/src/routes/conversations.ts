@@ -4,6 +4,17 @@ import { logger } from "../lib/logger.js";
 import { containsProfanity } from "../lib/profanity.js";
 import { notifyUser } from "../lib/notify.js";
 import { ensureEntitled } from "../lib/subscription.js";
+import {
+  MAX_MESSAGE_LENGTH,
+  chatUserSelect,
+  createDirectConversation,
+  findActiveUser,
+  findDirectConversation,
+  isBlockedEitherWay,
+  messageInclude,
+  serializeMessage,
+  unreadCountsByConversation,
+} from "../lib/chat.js";
 
 const router = Router();
 
@@ -15,55 +26,44 @@ function requireAuth(req: any, res: any): string | null {
   return req.session.userId as string;
 }
 
-async function getOrCreateConversation(userId: string, partnerId: string) {
-  const mine = await prisma.conversationParticipant.findMany({
-    where: { userId },
-    select: { conversationId: true },
-  });
-  const myIds = mine.map((p) => p.conversationId);
-  if (myIds.length) {
-    const shared = await prisma.conversationParticipant.findFirst({
-      where: { conversationId: { in: myIds }, userId: partnerId },
-      select: { conversationId: true },
-    });
-    if (shared) return shared.conversationId;
-  }
-  const conv = await prisma.conversation.create({
-    data: { participants: { create: [{ userId }, { userId: partnerId }] } },
-  });
-  return conv.id;
-}
-
 router.get("/user/conversations", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
   try {
-    const participations = await prisma.conversationParticipant.findMany({
-      where: { userId },
-      include: {
-        conversation: {
-          include: {
-            participants: {
-              where: { userId: { not: userId } },
-              include: {
-                user: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
+    const [participations, unread] = await Promise.all([
+      prisma.conversationParticipant.findMany({
+        where: { userId },
+        include: {
+          conversation: {
+            include: {
+              participants: {
+                where: { userId: { not: userId } },
+                select: { userId: true, lastReadAt: true, user: { select: chatUserSelect } },
               },
+              messages: { orderBy: { createdAt: "desc" }, take: 1 },
             },
-            messages: { orderBy: { createdAt: "desc" }, take: 1 },
           },
         },
-      },
-      orderBy: { conversation: { lastMessageAt: "desc" } },
-    });
+        orderBy: { conversation: { lastMessageAt: { sort: "desc", nulls: "last" } } },
+        take: 100,
+      }),
+      unreadCountsByConversation(userId),
+    ]);
 
-    const conversations = participations.map((p) => ({
-      id: p.conversationId,
-      partner: p.conversation.participants[0] ?? null,
-      lastMessage: p.conversation.messages[0] ?? null,
-      lastMessageAt: p.conversation.lastMessageAt,
-      myLastReadAt: p.lastReadAt,
-    }));
-    return res.json({ conversations });
+    const conversations = participations.map((p) => {
+      const partner = p.conversation.participants[0] ?? null;
+      const last = p.conversation.messages[0];
+      return {
+        id: p.conversationId,
+        partner: partner ? { user: partner.user } : null,
+        lastMessage: last ? serializeMessage(last) : null,
+        lastMessageAt: p.conversation.lastMessageAt ?? p.conversation.createdAt,
+        myLastReadAt: p.lastReadAt,
+        partnerLastReadAt: partner?.lastReadAt ?? null,
+        unreadCount: unread.get(p.conversationId) ?? 0,
+      };
+    });
+    return res.json({ conversations, currentUserId: userId });
   } catch (e) {
     logger.error({ err: e }, "Conversations GET error");
     return res.status(500).json({ error: "Failed to load conversations" });
@@ -73,33 +73,44 @@ router.get("/user/conversations", async (req, res) => {
 router.post("/user/conversations", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
-  // Starting a private discussion is a Plus+ entitlement. Existing participants
-  // (e.g. a Free user replying to a Plus member) can still read and reply.
-  if (
-    !(await ensureEntitled(res, userId, (e) => e.privateDiscussions, {
-      feature: "privateDiscussions",
-      message: "Starting private discussions requires Vertica Plus.",
-    }))
-  )
-    return;
   try {
     const { identifier } = req.body ?? {};
     if (!identifier) return res.status(400).json({ error: "identifier required" });
 
-    const partner = await prisma.user.findFirst({
-      where: { OR: [{ id: identifier }, { profile: { username: identifier } }, { email: identifier }] },
-      select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } },
-    });
+    const partner = await findActiveUser(String(identifier));
     if (!partner) return res.status(404).json({ error: "User not found" });
+    if (partner.id === userId) return res.status(400).json({ error: "You cannot message yourself" });
+    if (await isBlockedEitherWay(userId, partner.id)) {
+      return res.status(403).json({ error: "You can't message this member" });
+    }
 
-    const conversationId = await getOrCreateConversation(userId, partner.id);
-    return res.json({ conversationId, partner });
+    // Re-opening an existing thread is always allowed (a Free member can keep
+    // replying). Only starting a brand-new private discussion is a Plus+ perk.
+    const existing = await findDirectConversation(userId, partner.id);
+    if (existing) return res.json({ conversationId: existing, partner, created: false });
+
+    if (
+      !(await ensureEntitled(res, userId, (e) => e.privateDiscussions, {
+        feature: "privateDiscussions",
+        message: "Starting private discussions requires Vertica Plus.",
+      }))
+    )
+      return;
+
+    const conversationId = await createDirectConversation(userId, partner.id);
+    return res.json({ conversationId, partner, created: true });
   } catch (e) {
     logger.error({ err: e }, "Conversations POST error");
     return res.status(500).json({ error: "Failed to create conversation" });
   }
 });
 
+/**
+ * GET /user/conversations/:id/messages
+ * - default: the newest `limit` messages (ascending), plus `nextCursor` to page older
+ * - `?before=<messageId>` (or legacy `cursor` + direction=backward): older page
+ * - `?after=<messageId>`: everything newer than that message (used for polling)
+ */
 router.get("/user/conversations/:id/messages", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
@@ -110,34 +121,63 @@ router.get("/user/conversations/:id/messages", async (req, res) => {
     });
     if (!participant) return res.status(403).json({ error: "Not a participant" });
 
-    const { cursor, direction = "backward", limit: limitStr } = req.query as Record<string, string>;
-    const limit = Math.min(Number(limitStr) || 30, 50);
-    const cursorObj = cursor ? { id: cursor } : undefined;
+    const q = req.query as Record<string, string>;
+    const limit = Math.min(Number(q.limit) || 30, 100);
+    const after = q.after || (q.direction === "forward" ? q.cursor : undefined);
+    const before = q.before || (q.direction !== "forward" ? q.cursor : undefined);
 
-    const messages = await prisma.message.findMany({
-      where: { conversationId, deletedAt: null },
-      orderBy: { createdAt: direction === "forward" ? "asc" : "desc" },
-      take: limit + 1,
-      cursor: cursorObj,
-      skip: cursorObj ? 1 : 0,
-      include: {
-        fromUser: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
-        toUser: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
-        opportunity: { select: { id: true, title: true } },
-      },
+    let data;
+    let nextCursor: string | null = null;
+
+    if (after) {
+      const anchor = await prisma.message.findFirst({
+        where: { id: after, conversationId },
+        select: { createdAt: true },
+      });
+      data = anchor
+        ? await prisma.message.findMany({
+            where: { conversationId, createdAt: { gt: anchor.createdAt } },
+            orderBy: { createdAt: "asc" },
+            take: 100,
+            include: messageInclude,
+          })
+        : [];
+    } else {
+      const anchor = before
+        ? await prisma.message.findFirst({ where: { id: before, conversationId }, select: { createdAt: true } })
+        : null;
+      const page = await prisma.message.findMany({
+        where: { conversationId, ...(anchor ? { createdAt: { lt: anchor.createdAt } } : {}) },
+        orderBy: { createdAt: "desc" },
+        take: limit + 1,
+        include: messageInclude,
+      });
+      const hasMore = page.length > limit;
+      const trimmed = hasMore ? page.slice(0, limit) : page;
+      nextCursor = hasMore ? trimmed[trimmed.length - 1]!.id : null;
+      data = trimmed.reverse();
+    }
+
+    // Opening/polling a thread marks it read.
+    const hasIncoming = data.some((m) => m.fromUserId !== userId);
+    if (hasIncoming || !participant.lastReadAt) {
+      await prisma.conversationParticipant.update({
+        where: { conversationId_userId: { conversationId, userId } },
+        data: { lastReadAt: new Date() },
+      });
+    }
+
+    const partner = await prisma.conversationParticipant.findFirst({
+      where: { conversationId, userId: { not: userId } },
+      select: { lastReadAt: true },
     });
 
-    const hasMore = messages.length > limit;
-    const data = hasMore ? messages.slice(0, -1) : messages;
-    const sorted = direction === "forward" ? data : [...data].reverse();
-    const nextCursor = hasMore ? data[data.length - 1]?.id : null;
-
-    await prisma.conversationParticipant.update({
-      where: { conversationId_userId: { conversationId, userId } },
-      data: { lastReadAt: new Date() },
+    return res.json({
+      messages: data.map(serializeMessage),
+      nextCursor,
+      currentUserId: userId,
+      partnerLastReadAt: partner?.lastReadAt ?? null,
     });
-
-    return res.json({ messages: sorted, nextCursor, currentUserId: userId });
   } catch (e) {
     logger.error({ err: e }, "Conversation messages GET error");
     return res.status(500).json({ error: "Failed to load messages" });
@@ -154,8 +194,12 @@ router.post("/user/conversations/:id/messages", async (req, res) => {
     });
     if (!participant) return res.status(403).json({ error: "Not a participant" });
 
-    const { body, opportunityId } = req.body ?? {};
-    if (!body?.trim()) return res.status(400).json({ error: "body required" });
+    const { body: rawBody, opportunityId } = req.body ?? {};
+    const body = typeof rawBody === "string" ? rawBody.trim() : "";
+    if (!body) return res.status(400).json({ error: "body required" });
+    if (body.length > MAX_MESSAGE_LENGTH) {
+      return res.status(400).json({ error: `Messages are limited to ${MAX_MESSAGE_LENGTH} characters.` });
+    }
     if (containsProfanity(body)) {
       return res.status(400).json({ error: "Your message contains language that isn't allowed. Please revise it." });
     }
@@ -164,30 +208,36 @@ router.post("/user/conversations/:id/messages", async (req, res) => {
       where: { conversationId, userId: { not: userId } },
       select: { userId: true },
     });
-    const toUserId = others[0]?.userId ?? userId;
-
-    const message = await prisma.message.create({
-      data: { fromUserId: userId, toUserId, conversationId, body, opportunityId: opportunityId ?? null },
-      include: {
-        fromUser: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
-        toUser: { select: { id: true, email: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
-      },
-    });
-    await prisma.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: new Date() } });
-
-    if (toUserId && toUserId !== userId) {
-      await notifyUser(prisma, {
-        recipientId: toUserId,
-        actorId: userId,
-        type: "MESSAGE",
-        title: "New message",
-        body: String(body).slice(0, 140),
-        link: "/messages",
-        targetType: "MESSAGE",
-        targetId: message.id,
-        data: { fromUserId: userId, conversationId },
-      });
+    const toUserId = others[0]?.userId;
+    if (!toUserId) return res.status(400).json({ error: "This conversation has no other participant" });
+    if (await isBlockedEitherWay(userId, toUserId)) {
+      return res.status(403).json({ error: "You can't message this member" });
     }
+
+    const now = new Date();
+    const [message] = await prisma.$transaction([
+      prisma.message.create({
+        data: { fromUserId: userId, toUserId, conversationId, body, opportunityId: opportunityId ?? null },
+        include: messageInclude,
+      }),
+      prisma.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: now } }),
+      prisma.conversationParticipant.update({
+        where: { conversationId_userId: { conversationId, userId } },
+        data: { lastReadAt: now },
+      }),
+    ]);
+
+    void notifyUser(prisma, {
+      recipientId: toUserId,
+      actorId: userId,
+      type: "MESSAGE",
+      title: "New message",
+      body: body.slice(0, 140),
+      link: `/messages?c=${conversationId}`,
+      targetType: "MESSAGE",
+      targetId: message.id,
+      data: { fromUserId: userId, conversationId },
+    });
 
     return res.json({ message });
   } catch (e) {

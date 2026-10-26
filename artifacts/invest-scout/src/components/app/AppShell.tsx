@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { fetchProfile } from "@/lib/profile-cache";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/app/Navbar";
 import { SidebarNav } from "@/components/app/SidebarNav";
-import { MobileNav } from "@/components/app/MobileNav";
+import { MobileNav, MobileTopBar } from "@/components/app/MobileNav";
 import { SiteFooter } from "@/components/app/SiteFooter";
 import { OverflowGuard } from "@/components/app/OverflowGuard";
 import { ScrollToTopButton } from "@/components/app/ScrollToTopButton";
@@ -34,7 +35,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     let active = true;
     (async () => {
       try {
-        const res = await fetch("/api/user/profile", { credentials: "include" });
+        const res = await fetchProfile();
         if (!active) return;
         if (res.status === 401) {
           navigate("/login");
@@ -44,8 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           setAuthChecked(true);
           return;
         }
-        const data = await res.json().catch(() => ({}));
-        if (!active) return;
+        const data = res.data;
         const pref = data?.profile?.layoutPreference ?? "SIDEBAR";
         if (pref === "SIDEBAR" || pref === "TOP") setLayoutPreference(pref);
         setProfileSummary({ username: data?.profile?.username ?? null, email: data?.email ?? null });
@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setScrollContainer(container);
     const key = `scroll:${location}`;
     const stored = sessionStorage.getItem(key);
-    if (stored) container.scrollTop = Number(stored);
+    container.scrollTop = stored ? Number(stored) : 0;
     const onScroll = () => { sessionStorage.setItem(key, String(container.scrollTop)); };
     container.addEventListener("scroll", onScroll);
     return () => container.removeEventListener("scroll", onScroll);
@@ -108,9 +108,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <main
             ref={mainRef}
             data-scroll-container
-            className="flex min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pt-6 pb-24 md:px-6 md:py-8"
+            className="flex min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pb-28 md:px-6 md:py-8"
           >
-            <div className="mx-auto w-full max-w-6xl space-y-10">
+            <MobileTopBar />
+            <div className="mx-auto w-full max-w-6xl space-y-10 px-4 pt-5 md:px-0 md:pt-0">
               {usernamePrompt}
               {children}
               <SiteFooter />
