@@ -22,6 +22,9 @@ import {
   User,
   Users,
   Bell,
+  LogOut,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { useNavBadgeCounts } from "@/components/app/useNavBadgeCounts";
 
@@ -29,6 +32,15 @@ type SidebarNavProps = {
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
 };
+
+function NavCount({ count, collapsed }: { count: number; collapsed: boolean }) {
+  if (count <= 0) return null;
+  return collapsed ? (
+    <span className="ml-auto h-2 w-2 rounded-full bg-destructive" aria-label={`${count} new`} />
+  ) : (
+    <span className="ml-auto rounded-full bg-destructive px-1.5 text-[11px] font-bold leading-[18px] text-white">{count > 99 ? "99+" : count}</span>
+  );
+}
 
 export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavProps) {
   const { theme, setTheme } = useTheme();
@@ -62,8 +74,8 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
         <Link href="/opportunities" className={itemClass("/opportunities")} aria-current={location.startsWith("/opportunities") ? "page" : undefined}><Sparkles className="h-4 w-4" />{!collapsed && <span>Opportunities</span>}</Link>
         <Link href="/headlines" className={itemClass("/headlines")} aria-current={location.startsWith("/headlines") ? "page" : undefined}><Newspaper className="h-4 w-4" />{!collapsed && <span>News</span>}</Link>
         <Link href="/forums" className={itemClass("/forums")} aria-current={location.startsWith("/forums") || location.startsWith("/hubs") ? "page" : undefined}><Users className="h-4 w-4" />{!collapsed && <span>Forums</span>}</Link>
-        <Link href="/messages" className={itemClass("/messages")} aria-current={location.startsWith("/messages") ? "page" : undefined}><MessageSquareText className="h-4 w-4" />{!collapsed && <span>Messages {badgeCounts.messages > 0 ? `(${badgeCounts.messages})` : ""}</span>}</Link>
-        <Link href="/notifications" className={itemClass("/notifications")} aria-current={location.startsWith("/notifications") ? "page" : undefined}><Bell className="h-4 w-4" />{!collapsed && <span>Notifications</span>}</Link>
+        <Link href="/messages" className={itemClass("/messages")} aria-current={location.startsWith("/messages") ? "page" : undefined}><MessageSquareText className="h-4 w-4" />{!collapsed && <span className="flex-1">Messages</span>}<NavCount count={badgeCounts.messages} collapsed={collapsed} /></Link>
+        <Link href="/notifications" className={itemClass("/notifications")} aria-current={location.startsWith("/notifications") ? "page" : undefined}><Bell className="h-4 w-4" />{!collapsed && <span className="flex-1">Notifications</span>}<NavCount count={badgeCounts.notifications} collapsed={collapsed} /></Link>
         <div className="pt-2">
           {!collapsed && <div className="px-2 text-xs uppercase tracking-wide text-muted-foreground">Profile</div>}
           <div className="mt-2 space-y-1">
@@ -83,8 +95,21 @@ export function SidebarNav({ collapsed = false, onToggleCollapsed }: SidebarNavP
           </div>
         )}
       </nav>
-      <Button variant="ghost" className="mb-2" onClick={() => setTheme(nextTheme)}>{collapsed ? (theme === "dark" ? "🌙" : "☀️") : `Switch to ${nextTheme} mode`}</Button>
-      <Button variant="outline" onClick={async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); window.location.href = "/login"; }}>{collapsed ? "Exit" : "Logout"}</Button>
+      <div className="space-y-1 border-t pt-3">
+        <button type="button" onClick={() => setTheme(nextTheme)} className={`${itemClass("#")} w-full text-left`} aria-label={`Switch to ${nextTheme} mode`}>
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {!collapsed && <span>{nextTheme === "dark" ? "Dark mode" : "Light mode"}</span>}
+        </button>
+        <button
+          type="button"
+          onClick={async () => { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); window.location.href = "/login"; }}
+          className={`${itemClass("#")} w-full text-left text-destructive hover:bg-destructive/10`}
+          aria-label="Log out"
+        >
+          <LogOut className="h-4 w-4" />
+          {!collapsed && <span>Log out</span>}
+        </button>
+      </div>
     </aside>
   );
 }

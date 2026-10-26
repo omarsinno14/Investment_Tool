@@ -118,7 +118,7 @@ export default function FeedPage() {
     setLoading(true);
     try {
       const [oppRes, forumRes] = await Promise.all([
-        fetch("/api/opportunities?type=community&limit=30", { credentials: "include" }),
+        fetch("/api/opportunities?type=community&limit=30&sort=forYou", { credentials: "include" }),
         fetch("/api/forums?limit=30", { credentials: "include" }),
       ]);
       if ([oppRes, forumRes].some((r) => r.status === 401)) { window.location.href = "/login"; return; }
@@ -206,7 +206,8 @@ export default function FeedPage() {
         const ab = a.boostedUntil ? new Date(a.boostedUntil).getTime() > now : false;
         const bb = b.boostedUntil ? new Date(b.boostedUntil).getTime() > now : false;
         if (ab !== bb) return ab ? -1 : 1;
-        return new Date(b.publishedAt ?? b.fetchedAt ?? 0).getTime() - new Date(a.publishedAt ?? a.fetchedAt ?? 0).getTime();
+        // Within each group keep the server's interest-ranked order.
+        return (b.matchScore ?? 0) - (a.matchScore ?? 0);
       });
     }
     return list;
@@ -340,13 +341,14 @@ export default function FeedPage() {
         <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex">
           <TabsTrigger value="opportunities" className="gap-1.5">
             <TrendingUp className="h-3.5 w-3.5" />
-            <span>Opportunities</span>
-            {opportunities.length > 0 && <span className="ml-1 rounded-full bg-primary/10 px-1.5 text-[10px] text-primary font-semibold">{opportunities.length}</span>}
+            <span className="sm:hidden">Deals</span>
+            <span className="hidden sm:inline">Opportunities</span>
+            {opportunities.length > 0 && <span className="ml-1 hidden rounded-full sm:inline bg-primary/10 px-1.5 text-[10px] text-primary font-semibold">{opportunities.length}</span>}
           </TabsTrigger>
           <TabsTrigger value="forums" className="gap-1.5">
             <MessageSquare className="h-3.5 w-3.5" />
             <span>Forums</span>
-            {forums.length > 0 && <span className="ml-1 rounded-full bg-primary/10 px-1.5 text-[10px] text-primary font-semibold">{forums.length}</span>}
+            {forums.length > 0 && <span className="ml-1 hidden rounded-full sm:inline bg-primary/10 px-1.5 text-[10px] text-primary font-semibold">{forums.length}</span>}
           </TabsTrigger>
           <TabsTrigger value="people" className="gap-1.5">
             <Users className="h-3.5 w-3.5" />

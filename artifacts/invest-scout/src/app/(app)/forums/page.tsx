@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { MatchChip } from "@/components/social/MatchChip";
 import { useEffect, useMemo, useState } from "react";
 import { Bookmark, Flame, Lock, MessageCircle, Plus, Search, Share2, Sparkles, ThumbsUp, TrendingUp, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -35,6 +36,8 @@ type ForumPost = {
   reactions?: { type: string }[];
   saves?: unknown[];
   _count?: { comments: number; reactions: number; saves?: number };
+  matchScore?: number;
+  matchedInterests?: string[];
 };
 
 type Tab = "threads" | "circles" | "mine";
@@ -53,7 +56,8 @@ function engagement(p: ForumPost) {
 /** Reddit-style "hot": engagement decays with age so fresh activity rises. */
 function hotScore(p: ForumPost) {
   const hours = (Date.now() - new Date(p.createdAt).getTime()) / 3_600_000;
-  return (engagement(p) + 1) / Math.pow(hours + 2, 1.5);
+  // Threads matching the member's interests get a boost.
+  return ((engagement(p) + 1) * (1 + (p.matchScore ?? 0) * 0.5)) / Math.pow(hours + 2, 1.5);
 }
 
 export default function ForumsPage() {
@@ -376,6 +380,7 @@ function ThreadCard({ post, onLike, onSave }: { post: ForumPost; onLike: () => v
           <time title={fullDate(post.createdAt)}>{timeAgo(post.createdAt)}</time>
         </div>
         <h3 className="mt-2 text-base font-semibold leading-snug tracking-tight group-hover:text-primary">{post.title}</h3>
+        <MatchChip matched={post.matchedInterests} className="mt-1.5" />
         {post.body && <RichText text={post.body} className="mt-1 line-clamp-3 block text-sm leading-relaxed text-muted-foreground" />}
         {(post.tags ?? []).length > 0 && (
           <div className="mt-2.5 flex flex-wrap gap-1.5">

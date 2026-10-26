@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
+import { loadInterestMatcher } from "../lib/interestMatch.js";
 import { containsProfanity } from "../lib/profanity.js";
 import { notifyUser } from "../lib/notify.js";
 
@@ -52,8 +53,15 @@ router.get("/forums", async (req, res) => {
     const hasMore = items.length > limit;
     const data = hasMore ? items.slice(0, -1) : items;
     const nextCursor = hasMore ? data[data.length - 1]?.id : null;
+    const matcher = await loadInterestMatcher(userId);
 
-    return res.json({ posts: data, nextCursor });
+    return res.json({
+      posts: data.map((p) => {
+        const match = matcher ? matcher(p.title, p.body, p.tags) : { score: 0, matched: [] as string[] };
+        return { ...p, matchScore: match.score, matchedInterests: match.matched };
+      }),
+      nextCursor,
+    });
   } catch (e) {
     logger.error({ err: e }, "Forums GET error");
     return res.status(500).json({ error: "Failed to load forums" });

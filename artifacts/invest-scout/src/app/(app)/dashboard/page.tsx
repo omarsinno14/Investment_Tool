@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { MatchChip } from "@/components/social/MatchChip";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -76,7 +77,7 @@ export default function DashboardPage() {
       const [pRes, iRes, oRes, hRes] = await Promise.all([
         fetch("/api/user/profile", { credentials: "include" }),
         fetch("/api/user/interests", { credentials: "include" }),
-        fetch("/api/opportunities?type=community&limit=8", { credentials: "include" }),
+        fetch("/api/opportunities?type=community&limit=8&sort=forYou", { credentials: "include" }),
         fetch("/api/headlines?limit=6", { credentials: "include" }),
       ]);
 
@@ -193,6 +194,7 @@ export default function DashboardPage() {
                       <p className="text-sm font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
                         {h.title}
                       </p>
+                      <MatchChip matched={h.matchedInterests} className="mt-1.5" />
                       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                         {h.source && <span className="font-medium text-accent">{h.source}</span>}
                         {h.fetchedAt && <><span>·</span><span>{timeAgo(h.fetchedAt)}</span></>}
@@ -246,6 +248,7 @@ export default function DashboardPage() {
                         <p className="text-sm font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
                           {o.title}
                         </p>
+                        <MatchChip matched={o.matchedInterests} className="mt-1.5" />
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                           {o.source && <span>{o.source}</span>}
                           {o.tags?.[0] && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{o.tags[0]}</Badge>}

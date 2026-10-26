@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/db.js";
 import { logger } from "../lib/logger.js";
+import { loadInterestMatcher, opportunityFields } from "../lib/interestMatch.js";
 import { notifyMatchingUsers } from "../lib/pushNotificationService.js";
 import { ensureEntitled, getUserEntitlements } from "../lib/subscription.js";
 
@@ -257,7 +258,8 @@ router.get("/opportunities", async (req, res) => {
     // DB columns, so they cannot be combined with cursor pagination (the cursor order
     // would differ from the returned order, causing duplicates/gaps across pages).
     // For these we fetch a bounded window, sort in memory, and return a single page.
-    const isCountSort = sortVal === "mostSaved" || sortVal === "highestInterest";
+    // "forYou" ranks by how well each deal matches the viewer's interests.
+    const isCountSort = sortVal === "mostSaved" || sortVal === "highestInterest" || sortVal === "forYou";
     const COUNT_SORT_WINDOW = 100;
     const cursorObj = cursor ? { id: cursor } : undefined;
 
@@ -277,21 +279,28 @@ router.get("/opportunities", async (req, res) => {
     const data = hasMore ? items.slice(0, -1) : items;
     const nextCursor = hasMore ? data[data.length - 1]?.id : null;
 
-    const countsMap = await computeActionCounts(data.map((o) => o.id));
+    const [countsMap, matcher] = await Promise.all([computeActionCounts(data.map((o) => o.id)), loadInterestMatcher(userId)]);
 
     let opportunities = data.map((o) => {
       const counts = countsMap.get(o.id) ?? { savesCount: 0, interestedCount: 0 };
       const viewerState = o.actions[0]?.state ?? "NONE";
+      const match = matcher ? matcher(...opportunityFields(o)) : { score: 0, matched: [] as string[] };
       return {
         ...o,
         savesCount: counts.savesCount,
         interestedCount: counts.interestedCount,
         viewerState,
+        matchScore: match.score,
+        matchedInterests: match.matched,
       };
     });
 
     if (sortVal === "mostSaved") {
       opportunities.sort((a, b) => b.savesCount - a.savesCount);
+      opportunities = opportunities.slice(0, limit);
+    } else if (sortVal === "forYou") {
+      // Stable sort keeps newest-first among equally matched deals.
+      opportunities.sort((a, b) => b.matchScore - a.matchScore);
       opportunities = opportunities.slice(0, limit);
     } else if (sortVal === "highestInterest") {
       opportunities.sort((a, b) => b.interestedCount - a.interestedCount);

@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { prisma } from "../lib/db.js";
+import { loadInterestMatcher } from "../lib/interestMatch.js";
 import { logger } from "../lib/logger.js";
-import { fetchAllNews, filterByInterests } from "../lib/newsService.js";
+import { fetchAllNews } from "../lib/newsService.js";
 import { getUserEntitlements } from "../lib/subscription.js";
 
 const router = Router();
@@ -25,22 +25,28 @@ router.get("/headlines", async (req, res) => {
   if (!userId) return;
 
   try {
-    // Personalised news is a Plus+ entitlement. Free members still get the news
-    // feed, just not the interest-based personalisation layer.
+    // Every member's interests rank and label the feed. Plus+ (personalizedNews)
+    // additionally narrows it to matching stories only.
     const entitlements = await getUserEntitlements(userId);
-    const [allNews, userInterests] = await Promise.all([
-      fetchAllNews(),
-      entitlements.personalizedNews
-        ? prisma.interest.findMany({ where: { userId }, select: { type: true, value: true } })
-        : Promise.resolve([] as { type: string; value: string }[]),
-    ]);
+    const [allNews, matcher] = await Promise.all([fetchAllNews(), loadInterestMatcher(userId)]);
 
-    let filtered = userInterests.length > 0
-      ? filterByInterests(allNews, userInterests)
-      : allNews;
+    let ranked = allNews.map((item) => {
+      // Feed-level topic tags apply to every story in a feed, so topics match on the
+      // story's own text; the feed's country tags still place it geographically.
+      const match = matcher ? matcher(item.title, item.summary, item.countryTags) : { score: 0, matched: [] as string[] };
+      return { ...item, matchScore: match.score, matchedInterests: match.matched };
+    });
+    if (matcher) {
+      // Matches first; the feed is already newest-first, and sort is stable.
+      ranked = [...ranked].sort((a, b) => Number(b.matchScore > 0) - Number(a.matchScore > 0));
+    }
 
-    // If filtering produced zero results (interests too narrow), fall back to all
-    if (filtered.length === 0) filtered = allNews;
+    let filtered = ranked;
+    if (matcher && entitlements.personalizedNews) {
+      const onlyMatches = ranked.filter((item) => item.matchScore > 0);
+      // Fall back to the full feed if the member's interests are too narrow today.
+      if (onlyMatches.length > 0) filtered = onlyMatches;
+    }
 
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     const headlines = filtered.slice(0, limit);
@@ -49,7 +55,8 @@ router.get("/headlines", async (req, res) => {
       headlines,
       total: filtered.length,
       cached: true,
-      personalized: entitlements.personalizedNews,
+      personalized: Boolean(matcher),
+      interestsOnly: Boolean(matcher && entitlements.personalizedNews),
     });
   } catch (e) {
     logger.error({ err: e }, "Headlines GET error");

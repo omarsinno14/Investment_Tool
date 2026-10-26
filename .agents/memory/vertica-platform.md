@@ -83,3 +83,12 @@ A reported "web is white" / "mobile is 404" in the canvas can be a stale iframe,
 - `src/lib/time.ts`: `timeAgo`, `fullDate`, `recencyBucket`.
 - Mobile bottom nav is two rows (~138px); AppShell `main` uses `pb-40`, and full-height pages (Messages) size to `100dvh-140px` on mobile.
 - Activity feed (`/api/user/notifications`) excludes MESSAGE by default and returns `fromUser` + follow state per item.
+
+## Interest personalization
+- `api-server/src/lib/interestMatch.ts`: one matcher for deals, news and forum threads (phrases + synonyms + place aliases). List endpoints return `matchScore` and `matchedInterests`; `/api/opportunities?sort=forYou` ranks by match. Extend `SYNONYMS` when new interest options are added.
+- News: every member gets matches ranked first; Plus+ (`personalizedNews`) narrows to matches only. Topics match story text only (feed tags are too broad).
+- UI shows matches with `components/social/MatchChip`.
+
+## Profiles and mobile shell
+- `/my-profile` and `/users/:id` both render `components/social/ProfileView` from `GET /api/users/:id` (posts honor hidePostsFromNonFollowers; counts honor hideFollowerCount). Lists: `GET /api/users/:id/followers|following`.
+- Phones: `MobileTopBar` (activity, messages, menu with settings/logout) + one-row `MobileNav`; main uses `pb-28`; full-height pages size to `100dvh-7.5rem`.

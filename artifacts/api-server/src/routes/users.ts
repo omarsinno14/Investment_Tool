@@ -174,13 +174,62 @@ router.get("/users/:id", async (req, res) => {
       });
     }
 
-    const badges = await computeAutoBadges(prisma, user.id);
+    // Posts are visible unless the member hides them from non-followers.
+    const canSeePosts = isSelf || !!isFollowing || !user.profile?.hidePostsFromNonFollowers;
+    const authorSelect = { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } as const;
+    const [badges, interests, opportunities, forumPosts, mutualFollowers] = await Promise.all([
+      computeAutoBadges(prisma, user.id),
+      prisma.interest.findMany({ where: { userId: user.id }, select: { type: true, value: true }, orderBy: { createdAt: "asc" } }),
+      canSeePosts
+        ? prisma.opportunity.findMany({
+            where: { createdByUserId: user.id },
+            orderBy: { fetchedAt: "desc" },
+            take: 24,
+            select: {
+              id: true, title: true, summary: true, imageUrls: true, categories: true, locationName: true,
+              askAmount: true, askCurrency: true, minInvestment: true, expectedRoiPercent: true,
+              dealStatus: true, dealVerification: true, fetchedAt: true,
+            },
+          })
+        : Promise.resolve([]),
+      canSeePosts
+        ? prisma.forumPost.findMany({
+            where: { userId: user.id, archivedAt: null },
+            orderBy: { createdAt: "desc" },
+            take: 24,
+            select: {
+              id: true, title: true, body: true, tags: true, createdAt: true,
+              _count: { select: { comments: true, reactions: true } },
+            },
+          })
+        : Promise.resolve([]),
+      isSelf
+        ? Promise.resolve([])
+        : prisma.user.findMany({
+            // People you follow who also follow this member.
+            where: {
+              deactivatedAt: null,
+              followers: { some: { followerId: userId } },
+              following: { some: { followingId: user.id } },
+            },
+            select: authorSelect,
+            take: 12,
+          }),
+    ]);
 
+    const hideCounts = !isSelf && user.profile?.hideFollowerCount;
     return res.json({
-      user: publicUser,
+      user: { ...publicUser, interests },
       isSelf,
       isFollowing: !!isFollowing,
       isFollower: !!isFollower,
+      isFollowedBy: !!isFollower,
+      followerCount: hideCounts ? null : user._count.followers,
+      followingCount: hideCounts ? null : user._count.following,
+      postsHidden: !canSeePosts,
+      opportunities,
+      forumPosts,
+      mutualFollowers,
       followRequestStatus: followRequest?.status === "PENDING" ? "PENDING" : null,
       isBlocked: !!blockedByMe,
       isBlockedBy: !!blockedMe,
@@ -189,6 +238,38 @@ router.get("/users/:id", async (req, res) => {
   } catch (e) {
     logger.error({ err: e }, "User GET error");
     return res.status(500).json({ error: "Failed to load user" });
+  }
+});
+
+/** GET /users/:id/followers | /users/:id/following — member lists for profile stats. */
+router.get("/users/:id/:list", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  if (req.params.list !== "followers" && req.params.list !== "following") return res.status(404).json({ error: "Not found" });
+  try {
+    const target = await prisma.user.findFirst({
+      where: { deactivatedAt: null, OR: [{ id: req.params.id }, { profile: { username: req.params.id } }] },
+      select: { id: true, profile: { select: { hideFollowerCount: true } } },
+    });
+    if (!target) return res.status(404).json({ error: "Not found" });
+    if (target.id !== userId && target.profile?.hideFollowerCount) {
+      return res.status(403).json({ error: "This member keeps their connections private" });
+    }
+    const select = { id: true, profile: { select: { name: true, username: true, imageUrl: true, occupation: true } } } as const;
+    const isFollowers = req.params.list === "followers";
+    const rows = isFollowers
+      ? await prisma.follow.findMany({ where: { followingId: target.id }, select: { follower: { select } }, orderBy: { createdAt: "desc" }, take: 200 })
+      : await prisma.follow.findMany({ where: { followerId: target.id }, select: { following: { select } }, orderBy: { createdAt: "desc" }, take: 200 });
+    const users = rows.map((r: any) => (isFollowers ? r.follower : r.following));
+    const mine = await prisma.follow.findMany({
+      where: { followerId: userId, followingId: { in: users.map((u) => u.id) } },
+      select: { followingId: true },
+    });
+    const followingSet = new Set(mine.map((f) => f.followingId));
+    return res.json({ users: users.map((u) => ({ ...u, isFollowing: followingSet.has(u.id), isSelf: u.id === userId })) });
+  } catch (e) {
+    logger.error({ err: e }, "User follow list error");
+    return res.status(500).json({ error: "Failed to load list" });
   }
 });
 

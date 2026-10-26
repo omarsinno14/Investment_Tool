@@ -325,13 +325,32 @@ const GLOBAL_FEEDS: { url: string; source: string; tags: string[]; countries: st
 
 // ─── Simple RSS/Atom parser ───────────────────────────────────────────────────
 
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ",
+  rsquo: "\u2019", lsquo: "\u2018", rdquo: "\u201d", ldquo: "\u201c",
+  ndash: "\u2013", mdash: "\u2014", hellip: "\u2026",
+};
+
+/** Decode named and numeric HTML entities. Feeds often double-encode (&amp;#8217;), so run twice. */
+function decodeEntities(text: string): string {
+  const once = (t: string) =>
+    t.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, code: string) => {
+      if (code[0] === "#") {
+        const n = code[1]?.toLowerCase() === "x" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
+        return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : match;
+      }
+      return NAMED_ENTITIES[code.toLowerCase()] ?? match;
+    });
+  return once(once(text));
+}
+
 function extractTag(xml: string, tag: string): string {
   const re = new RegExp(
     `<${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`,
     "i"
   );
   const m = xml.match(re);
-  if (m?.[1]) return m[1].replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+  if (m?.[1]) return decodeEntities(m[1].replace(/<!\[CDATA\[|\]\]>/g, "")).trim();
   if (tag === "link") {
     const m2 = xml.match(/<link>([^<]+)/i);
     if (m2?.[1]) return m2[1].trim();
@@ -432,46 +451,4 @@ async function loadAllFeeds(): Promise<NewsItem[]> {
   }
   cache.set(cacheKey, { items: deduped, fetchedAt: Date.now() });
   return deduped;
-}
-
-export function filterByInterests(
-  items: NewsItem[],
-  interests: { type: string; value: string }[]
-): NewsItem[] {
-  if (interests.length === 0) return items;
-
-  const countryInterests = interests
-    .filter((i) => i.type === "COUNTRY")
-    .map((i) => i.value.toLowerCase());
-
-  const topicInterests = interests
-    .filter((i) => i.type !== "COUNTRY")
-    .map((i) => i.value.toLowerCase());
-
-  return items.filter((item) => {
-    const allTags = [...item.tags, ...item.countryTags].map((t) => t.toLowerCase());
-    const titleLower = item.title.toLowerCase();
-    const summaryLower = item.summary.toLowerCase();
-
-    if (countryInterests.length > 0) {
-      const countryMatch = countryInterests.some(
-        (c) => allTags.some((t) => t.includes(c) || c.includes(t)) || titleLower.includes(c) || summaryLower.includes(c)
-      );
-      if (countryMatch) return true;
-    }
-
-    if (topicInterests.length > 0) {
-      const topicMatch = topicInterests.some(
-        (t) => allTags.some((tag) => tag.includes(t) || t.includes(tag)) || titleLower.includes(t) || summaryLower.includes(t)
-      );
-      if (topicMatch) return true;
-    }
-
-    // Global feeds (no country tag) always show if no topic match found above
-    if (item.countryTags.length === 0 && topicInterests.length === 0 && countryInterests.length > 0) {
-      return true;
-    }
-
-    return false;
-  });
 }

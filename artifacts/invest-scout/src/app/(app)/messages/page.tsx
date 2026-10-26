@@ -493,8 +493,8 @@ export default function MessagesPage() {
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
 
   return (
-    <div className="-mx-4 -mt-6 md:mx-0 md:mt-0">
-      <div className="flex h-[calc(100dvh-140px)] min-h-[420px] overflow-hidden border-y bg-card md:h-[calc(100vh-7rem)] md:rounded-2xl md:border">
+    <div className="-mx-4 -mt-5 md:mx-0 md:mt-0">
+      <div className="flex h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom))] min-h-[420px] overflow-hidden border-y bg-card md:h-[calc(100vh-7rem)] md:rounded-2xl md:border">
         {/* Inbox */}
         <aside className={cn("w-full flex-col border-r md:flex md:w-[340px] md:shrink-0", showThreadList ? "flex" : "hidden")}>
           <div className="flex items-center justify-between px-5 pb-2 pt-5">
