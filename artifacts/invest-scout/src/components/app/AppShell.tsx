@@ -108,7 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <main
             ref={mainRef}
             data-scroll-container
-            className="flex min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pt-6 pb-24 md:px-6 md:py-8"
+            className="flex min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pt-6 pb-40 md:px-6 md:py-8"
           >
             <div className="mx-auto w-full max-w-6xl space-y-10">
               {usernamePrompt}

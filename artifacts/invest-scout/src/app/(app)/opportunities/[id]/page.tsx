@@ -1,4 +1,6 @@
 import { Link } from "wouter";
+import { CommentSection, type CommentItem as SectionComment } from "@/components/social/CommentSection";
+import { useViewer } from "@/components/social/useViewer";
 import { useParams, useLocation } from "wouter";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -23,10 +25,6 @@ import {
   Info,
   Flag,
   Users,
-  MessageSquare,
-  Send,
-  Trash2,
-  Loader2,
   Award
 } from "lucide-react";
 
@@ -44,7 +42,6 @@ import { SUPPORTED_CURRENCIES } from "@/components/app/CurrencyProvider";
 import { OpportunityCard } from "@/components/app/OpportunityCard";
 import { ShareButton } from "@/components/app/ShareButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type ActionState = "NONE" | "SAVED" | "VERY_INTERESTED" | "INVESTED";
 
@@ -187,124 +184,6 @@ function StatCard({ label, value, icon, accent = false }: { label: string; value
   );
 }
 
-function commentAuthorName(author: CommentAuthor) {
-  return author.name || author.username || "Member";
-}
-
-function CommentItem({
-  comment,
-  onDelete,
-  replyTo,
-  setReplyTo,
-  replyBody,
-  setReplyBody,
-  onSubmitReply,
-  postingReply,
-  isReply = false,
-}: {
-  comment: CommentNode;
-  onDelete: (id: string) => void;
-  replyTo: string | null;
-  setReplyTo: (id: string | null) => void;
-  replyBody: string;
-  setReplyBody: (v: string) => void;
-  onSubmitReply: (parentId: string) => void;
-  postingReply: boolean;
-  isReply?: boolean;
-}) {
-  const author = comment.author;
-  const name = commentAuthorName(author);
-  const reputation = author.reputation ?? 0;
-  return (
-    <div className={`flex gap-3 ${isReply ? "" : "rounded-2xl border border-border/50 bg-card p-4"}`}>
-      <Link href={author.id ? `/users/${author.id}` : "#"}>
-        <Avatar className="h-9 w-9 border border-border">
-          <AvatarImage src={author.imageUrl ?? ""} />
-          <AvatarFallback className="bg-muted text-muted-foreground text-xs">{getInitials(name)}</AvatarFallback>
-        </Avatar>
-      </Link>
-      <div className="flex-1 min-w-0 space-y-1.5">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <Link href={author.id ? `/users/${author.id}` : "#"} className="font-semibold text-sm hover:underline">
-            {name}
-          </Link>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Award className="h-3 w-3" /> {reputation}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Reputation: {reputation}</TooltipContent>
-          </Tooltip>
-          <span className="text-xs text-muted-foreground">{formatDate(comment.createdAt)}</span>
-        </div>
-        <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words">{comment.body}</p>
-        <div className="flex items-center gap-3 pt-0.5">
-          {!isReply && (
-            <button
-              type="button"
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
-            >
-              Reply
-            </button>
-          )}
-          {comment.canDelete && (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
-              onClick={() => onDelete(comment.id)}
-            >
-              <Trash2 className="h-3 w-3" /> Delete
-            </button>
-          )}
-        </div>
-
-        {replyTo === comment.id && !isReply && (
-          <div className="mt-2 space-y-2">
-            <Textarea
-              placeholder={`Reply to ${name}...`}
-              value={replyBody}
-              onChange={(e) => setReplyBody(e.target.value)}
-              rows={2}
-              maxLength={2000}
-              className="resize-none"
-            />
-            <div className="flex items-center justify-end gap-2">
-              <Button size="sm" variant="ghost" onClick={() => { setReplyTo(null); setReplyBody(""); }}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={() => onSubmitReply(comment.id)} disabled={postingReply || !replyBody.trim()}>
-                {postingReply ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                Reply
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {comment.replies && comment.replies.length > 0 && (
-          <div className="mt-3 space-y-3 border-l border-border/60 pl-4">
-            {comment.replies.map((reply) => (
-              <CommentItem
-                key={reply.id}
-                comment={reply}
-                onDelete={onDelete}
-                replyTo={replyTo}
-                setReplyTo={setReplyTo}
-                replyBody={replyBody}
-                setReplyBody={setReplyBody}
-                onSubmitReply={onSubmitReply}
-                postingReply={postingReply}
-                isReply
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default function OpportunityDetailPage() {
   const [, navigate] = useLocation();
   const params = useParams<{ id: string }>();
@@ -316,13 +195,9 @@ export default function OpportunityDetailPage() {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
 
+  const viewer = useViewer();
   const [comments, setComments] = useState<CommentNode[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
-  const [commentBody, setCommentBody] = useState("");
-  const [postingComment, setPostingComment] = useState(false);
-  const [replyTo, setReplyTo] = useState<string | null>(null);
-  const [replyBody, setReplyBody] = useState("");
-  const [postingReply, setPostingReply] = useState(false);
 
   const opportunity = data?.opportunity;
   const state = opportunity?.viewerState ?? opportunity?.action?.state ?? "NONE";
@@ -364,10 +239,10 @@ export default function OpportunityDetailPage() {
     }
   }
 
-  async function loadComments() {
+  async function loadComments(options: { silent?: boolean } = {}) {
     const id = params?.id;
     if (!id) return;
-    setCommentsLoading(true);
+    if (!options.silent) setCommentsLoading(true);
     try {
       const res = await fetch(`/api/opportunities/${id}/comments`, { cache: "no-store", credentials: "include" });
       if (!res.ok) throw new Error("Failed");
@@ -400,32 +275,13 @@ export default function OpportunityDetailPage() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error ?? "Failed to post comment");
-      await loadComments();
+      await loadComments({ silent: true });
       return true;
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "Could not post comment");
       return false;
     }
-  }
-
-  async function submitComment() {
-    if (!commentBody.trim()) return;
-    setPostingComment(true);
-    const ok = await postComment(commentBody);
-    if (ok) setCommentBody("");
-    setPostingComment(false);
-  }
-
-  async function submitReply(parentId: string) {
-    if (!replyBody.trim()) return;
-    setPostingReply(true);
-    const ok = await postComment(replyBody, parentId);
-    if (ok) {
-      setReplyBody("");
-      setReplyTo(null);
-    }
-    setPostingReply(false);
   }
 
   async function deleteComment(commentId: string) {
@@ -438,14 +294,37 @@ export default function OpportunityDetailPage() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error ?? "Failed to delete");
-      await loadComments();
+      await loadComments({ silent: true });
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message ?? "Could not delete comment");
     }
   }
 
-  const commentCount = comments.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0);
+  const flatComments = useMemo<SectionComment[]>(() => {
+    const out: SectionComment[] = [];
+    const walk = (node: CommentNode) => {
+      out.push({
+        id: node.id,
+        body: node.body,
+        createdAt: node.createdAt,
+        parentId: node.parentId ?? null,
+        user: { id: node.author.id, profile: { name: node.author.name, username: node.author.username, imageUrl: node.author.imageUrl } },
+      });
+      node.replies?.forEach(walk);
+    };
+    comments.forEach(walk);
+    return out;
+  }, [comments]);
+  const deletableIds = useMemo(() => {
+    const ids = new Set<string>();
+    const walk = (node: CommentNode) => {
+      if (node.canDelete) ids.add(node.id);
+      node.replies?.forEach(walk);
+    };
+    comments.forEach(walk);
+    return ids;
+  }, [comments]);
 
   async function updateAction(nextState: ActionState, amount?: number) {
     if (!opportunity) return;
@@ -733,69 +612,26 @@ export default function OpportunityDetailPage() {
           )}
 
           {/* Discussion */}
-          <section className="space-y-5 pt-8">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h3 className="text-xl font-bold flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-muted-foreground" /> Discussion
-              </h3>
-              {!commentsLoading && commentCount > 0 && (
-                <span className="text-sm text-muted-foreground">{commentCount} {commentCount === 1 ? "remark" : "remarks"}</span>
-              )}
-            </div>
-
-            {/* Composer */}
-            <div className="space-y-3 rounded-2xl border border-border/50 bg-card p-4">
-              <Textarea
-                placeholder="Share your perspective with fellow members..."
-                value={commentBody}
-                onChange={(e) => setCommentBody(e.target.value)}
-                rows={3}
-                maxLength={2000}
-                className="resize-none"
-              />
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{commentBody.length}/2000</span>
-                <Button size="sm" onClick={submitComment} disabled={postingComment || !commentBody.trim()}>
-                  {postingComment ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="mr-2 h-4 w-4" />
-                  )}
-                  Post
-                </Button>
-              </div>
-            </div>
-
+          <section className="pt-8">
             {commentsLoading ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading discussion...
-                </div>
-                <Skeleton className="h-20 w-full rounded-xl bg-muted" />
-                <Skeleton className="h-20 w-full rounded-xl bg-muted" />
-              </div>
-            ) : comments.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border/60 bg-muted/20 py-10 text-center">
-                <p className="text-sm text-muted-foreground">Be the first to weigh in. Considered perspectives are welcome here.</p>
+              <div className="space-y-3 rounded-2xl border bg-card p-5">
+                <Skeleton className="h-4 w-32 bg-muted" />
+                <Skeleton className="h-16 w-full rounded-xl bg-muted" />
+                <Skeleton className="h-16 w-full rounded-xl bg-muted" />
               </div>
             ) : (
-              <TooltipProvider delayDuration={150}>
-                <div className="space-y-5">
-                  {comments.map((comment) => (
-                    <CommentItem
-                      key={comment.id}
-                      comment={comment}
-                      onDelete={deleteComment}
-                      replyTo={replyTo}
-                      setReplyTo={setReplyTo}
-                      replyBody={replyBody}
-                      setReplyBody={setReplyBody}
-                      onSubmitReply={submitReply}
-                      postingReply={postingReply}
-                    />
-                  ))}
-                </div>
-              </TooltipProvider>
+              <CommentSection
+                title="Discussion"
+                threaded
+                comments={flatComments}
+                viewer={viewer}
+                viewerId={viewer?.id ?? null}
+                onSubmit={(text, parentId) => postComment(text, parentId ?? undefined)}
+                onDelete={(c) => deleteComment(c.id)}
+                canDelete={(c) => deletableIds.has(c.id)}
+                placeholder="Share your perspective with fellow members..."
+                emptyText="Be the first to weigh in. Considered perspectives are welcome here."
+              />
             )}
           </section>
 

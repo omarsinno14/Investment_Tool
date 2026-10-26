@@ -77,3 +77,9 @@ A reported "web is white" / "mobile is 404" in the canvas can be a stale iframe,
 ## Web app shell
 - Signed-in routes render inside ONE persistent `AppShell` (App.tsx `ShellRoutes`) with lazy-loaded pages. Don't wrap pages in `<AppShell>` per route again — it remounts the shell on every navigation.
 - Use `fetchProfile()` from `lib/profile-cache.ts` for the viewer's profile in shared components; call `invalidateProfile()` after profile edits.
+
+## Social UI kit
+- `invest-scout/src/components/social/`: `UserAvatar` (+ `displayName`, `profileHref`), `RichText` (@mentions + links), `CommentSection` (used by forum threads, hub posts and deal discussion; `threaded` when the backend stores `parentId`, otherwise replies become @mentions), `useViewer`. Reuse these instead of hand-rolling avatars/comments.
+- `src/lib/time.ts`: `timeAgo`, `fullDate`, `recencyBucket`.
+- Mobile bottom nav is two rows (~138px); AppShell `main` uses `pb-40`, and full-height pages (Messages) size to `100dvh-140px` on mobile.
+- Activity feed (`/api/user/notifications`) excludes MESSAGE by default and returns `fromUser` + follow state per item.

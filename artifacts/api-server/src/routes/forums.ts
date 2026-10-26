@@ -41,10 +41,11 @@ router.get("/forums", async (req, res) => {
       cursor: cursorObj,
       skip: cursorObj ? 1 : 0,
       include: {
-        user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
+        user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true, identityVerified: true } } } },
         _count: { select: { comments: true, reactions: true, saves: true, reposts: true } },
         saves: { where: { userId }, take: 1 },
         reposts: { where: { userId }, take: 1 },
+        reactions: { where: { userId }, select: { type: true } },
       },
     });
 
@@ -66,10 +67,10 @@ router.get("/forums/:id", async (req, res) => {
     const post = await prisma.forumPost.findUnique({
       where: { id: req.params.id },
       include: {
-        user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
+        user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true, identityVerified: true } } } },
         comments: {
           orderBy: { createdAt: "asc" },
-          include: { user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } } },
+          include: { user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true, identityVerified: true } } } } },
         },
         reactions: true,
         saves: { where: { userId }, take: 1 },
@@ -77,8 +78,8 @@ router.get("/forums/:id", async (req, res) => {
         _count: { select: { comments: true, reactions: true, saves: true, reposts: true } },
       },
     });
-    if (!post) return res.status(404).json({ error: "Not found" });
-    return res.json({ post });
+    if (!post || post.archivedAt) return res.status(404).json({ error: "Not found" });
+    return res.json({ post, viewerId: userId });
   } catch (e) {
     logger.error({ err: e }, "Forum post GET error");
     return res.status(500).json({ error: "Failed to load forum post" });
@@ -99,17 +100,85 @@ router.post("/forums", async (req, res) => {
         userId,
         title: body.title,
         body: body.body,
-        tags: Array.isArray(body.tags) ? body.tags : [],
+        tags: parseTags(body.tags),
         imageUrl: body.imageUrl ?? null,
       },
       include: {
-        user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } },
+        user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true, identityVerified: true } } } },
       },
     });
     return res.json({ post });
   } catch (e) {
     logger.error({ err: e }, "Forum POST error");
     return res.status(500).json({ error: "Failed to create post" });
+  }
+});
+
+function parseTags(tags: unknown): string[] {
+  const list = Array.isArray(tags) ? tags : typeof tags === "string" ? tags.split(",") : [];
+  return list.map((t) => String(t).trim().replace(/^#/, "")).filter(Boolean).slice(0, 8);
+}
+
+router.patch("/forums/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  try {
+    const post = await prisma.forumPost.findFirst({ where: { id: req.params.id, userId, archivedAt: null }, select: { id: true } });
+    if (!post) return res.status(404).json({ error: "Not found" });
+    const { title, body, tags } = req.body ?? {};
+    if (title !== undefined && !String(title).trim()) return res.status(400).json({ error: "Title is required" });
+    if (body !== undefined && !String(body).trim()) return res.status(400).json({ error: "Body is required" });
+    if (containsProfanity(String(title ?? "")) || containsProfanity(String(body ?? ""))) {
+      return res.status(400).json({ error: "Your post contains language that isn't allowed. Please revise it." });
+    }
+    const updated = await prisma.forumPost.update({
+      where: { id: post.id },
+      data: {
+        ...(title !== undefined && { title: String(title).trim().slice(0, 300) }),
+        ...(body !== undefined && { body: String(body).trim().slice(0, 20000) }),
+        ...(tags !== undefined && { tags: parseTags(tags) }),
+      },
+    });
+    return res.json({ post: updated });
+  } catch (e) {
+    logger.error({ err: e }, "Forum PATCH error");
+    return res.status(500).json({ error: "Failed to update post" });
+  }
+});
+
+router.delete("/forums/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  try {
+    const result = await prisma.forumPost.updateMany({
+      where: { id: req.params.id, userId, archivedAt: null },
+      data: { archivedAt: new Date() },
+    });
+    if (result.count === 0) return res.status(404).json({ error: "Not found" });
+    return res.json({ deleted: true });
+  } catch (e) {
+    logger.error({ err: e }, "Forum DELETE error");
+    return res.status(500).json({ error: "Failed to delete post" });
+  }
+});
+
+/** Comment authors can delete their comments; post authors can remove comments on their post. */
+router.delete("/forums/:id/comments/:commentId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  try {
+    const comment = await prisma.forumComment.findFirst({
+      where: { id: req.params.commentId, postId: req.params.id },
+      select: { id: true, userId: true, post: { select: { userId: true } } },
+    });
+    if (!comment || (comment.userId !== userId && comment.post.userId !== userId)) {
+      return res.status(404).json({ error: "Comment not found" });
+    }
+    await prisma.forumComment.delete({ where: { id: comment.id } });
+    return res.json({ deleted: true });
+  } catch (e) {
+    logger.error({ err: e }, "Forum comment DELETE error");
+    return res.status(500).json({ error: "Failed to delete comment" });
   }
 });
 
@@ -120,7 +189,7 @@ router.get("/forums/:id/comments", async (req, res) => {
     const comments = await prisma.forumComment.findMany({
       where: { postId: req.params.id },
       orderBy: { createdAt: "asc" },
-      include: { user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } } },
+      include: { user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true, identityVerified: true } } } } },
     });
     return res.json({ comments });
   } catch (e) {
@@ -133,14 +202,15 @@ router.post("/forums/:id/comments", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
   try {
-    const { body } = req.body ?? {};
+    const body = String(req.body?.body ?? "").trim();
     if (!body) return res.status(400).json({ error: "Body is required" });
+    if (body.length > 4000) return res.status(400).json({ error: "Comment is too long" });
     if (containsProfanity(body)) {
       return res.status(400).json({ error: "Your comment contains language that isn't allowed. Please revise it." });
     }
     const comment = await prisma.forumComment.create({
       data: { postId: req.params.id, userId, body },
-      include: { user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true } } } } },
+      include: { user: { select: { id: true, profile: { select: { name: true, username: true, imageUrl: true, identityVerified: true } } } } },
     });
 
     const post = await prisma.forumPost.findUnique({

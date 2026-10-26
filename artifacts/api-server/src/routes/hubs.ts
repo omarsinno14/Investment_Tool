@@ -41,7 +41,9 @@ router.get("/hubs", async (req, res) => {
         memberships: { where: { userId }, take: 1 },
       },
     });
-    return res.json({ hubs });
+    return res.json({
+      hubs: hubs.map(({ memberships, ...hub }) => ({ ...hub, isMember: memberships.length > 0 })),
+    });
   } catch (e) {
     logger.error({ err: e }, "Hubs GET error");
     return res.status(500).json({ error: "Failed to load hubs" });
@@ -272,7 +274,7 @@ router.get("/hubs/:slug/posts/:postId", async (req, res) => {
       where: { id: req.params.postId, hubId: hub.id, deletedAt: null },
       include: {
         author: { select: authorSelect },
-        hub: { select: { id: true, name: true, slug: true } },
+        hub: { select: { id: true, name: true, slug: true, ownerUserId: true } },
         comments: { orderBy: { createdAt: "asc" }, take: 200, include: { user: { select: authorSelect } } },
         reactions: { select: { id: true, type: true, userId: true } },
       },
@@ -325,6 +327,24 @@ router.post("/hubs/:slug/posts/:postId/comments", async (req, res) => {
   } catch (e) {
     logger.error({ err: e }, "Hub comment POST error");
     return res.status(500).json({ error: "Failed to add comment" });
+  }
+});
+
+router.delete("/hubs/:slug/posts/:postId/comments/:commentId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  try {
+    const comment = await prisma.hubComment.findFirst({
+      where: { id: req.params.commentId, postId: req.params.postId, hub: { slug: req.params.slug } },
+      select: { id: true, userId: true, post: { select: { authorUserId: true } }, hub: { select: { ownerUserId: true } } },
+    });
+    const allowed = comment && [comment.userId, comment.post.authorUserId, comment.hub.ownerUserId].includes(userId);
+    if (!comment || !allowed) return res.status(404).json({ error: "Comment not found" });
+    await prisma.hubComment.delete({ where: { id: comment.id } });
+    return res.json({ deleted: true });
+  } catch (e) {
+    logger.error({ err: e }, "Hub comment DELETE error");
+    return res.status(500).json({ error: "Failed to delete comment" });
   }
 });
 
